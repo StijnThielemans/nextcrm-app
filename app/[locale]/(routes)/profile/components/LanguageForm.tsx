@@ -22,6 +22,8 @@ export function LanguageForm({ userId }: { userId: string }) {
 
   const languages = [
     { label: t("english"), value: "en" },
+    { label: t("dutch"), value: "nl" },
+    { label: t("french"), value: "fr" },
     { label: t("czech"), value: "cz" },
     { label: t("german"), value: "de" },
     { label: t("ukrainian"), value: "uk" },

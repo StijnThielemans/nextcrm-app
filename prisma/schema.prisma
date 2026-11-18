@@ -1134,6 +1134,8 @@ enum Language {
   en
   de
   uk
+  nl
+  fr
 }
 
 

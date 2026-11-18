@@ -52,13 +52,13 @@
     "cardTitle": "Vytvořit nový účet",
     "cardDescription": "Vytvořte si účet přihlášením pomocí",
     "label": "Jazyk",
-    "locale": "{locale, select, de {Němčina} en {Angličtina} cz {Čeština} uk {Ukrainian} other {Neznámý}}"
+    "locale": "{locale, select, de {Němčina} en {Angličtina} cz {Čeština} uk {Ukrainian} nl {Nizozemština} fr {Francouzština} other {Neznámý}}"
   },
   "CrmModuleMenuComponent": {
     "menuTitle": "Obchod",
     "cardDescription": "Vytvořte si účet přihlášením pomocí",
     "label": "Jazyk",
-    "locale": "{locale, select, de {Němčina} en {Angličtina} cz {Čeština} other {Neznámý}}"
+    "locale": "{locale, select, de {Němčina} en {Angličtina} cz {Čeština} nl {Nizozemština} fr {Francouzština} other {Neznámý}}"
   },
   "Common": {
     "success": "Úspěch",
@@ -84,6 +84,8 @@
     "czech": "Čeština",
     "german": "Němčina",
     "ukrainian": "Ukrajinština",
+    "dutch": "Nizozemština",
+    "french": "Francouzština",
     "selectPlaceholder": "Vyberte jazyk...",
     "searchPlaceholder": "Hledat jazyk...",
     "noResult": "Jazyk nenalezen.",

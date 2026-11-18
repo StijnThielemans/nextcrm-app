@@ -213,7 +213,7 @@ Global search across all CRM entities from a single search bar — grouped resul
 
 1. ✅ Docker version — complete bundle to run NextCRM on-premise
 2. ✅ Upgrade to Next.js 16 — running on Next.js 16 with React 19
-3. ✅ i18n / localization — 4 languages (English, Czech, German, Ukrainian)
+3. ✅ i18n / localization — English, Dutch, French, Czech, German, and Ukrainian
 4. ✅ Email client — IMAP/SMTP email client built in
 5. ✅ PostgreSQL migration — migrated from MongoDB to PostgreSQL 17+
 6. ✅ pgvector embeddings — automatic semantic embeddings via Inngest + OpenAI

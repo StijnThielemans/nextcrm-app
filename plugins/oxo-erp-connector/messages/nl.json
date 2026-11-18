@@ -1,0 +1,107 @@
+{
+  "name": "OXO ERP-connector",
+  "admin": {
+    "test": "Verbinding testen",
+    "syncNow": "Nu synchroniseren",
+    "loadLists": "Prijslijsten laden",
+    "queued": "In de wachtrij: start binnen 5 minuten.",
+    "listsLoaded": "{count} prijslijsten uit OXO ERP geladen.",
+    "running": "Er loopt al een synchronisatie.",
+    "connected": "Verbonden met OXO ERP ({lists} actieve prijslijsten).",
+    "dryRun": "Proefdraaien staat aan: de synchronisatie meldt alleen wat er zou veranderen. Lees het rapport hieronder en zet proefdraaien daarna uit in de instellingen.",
+    "lastRun": "Laatste run",
+    "never": "nog niet",
+    "nextRun": "Volgende run",
+    "failed": "Mislukt: {error}",
+    "customerCounts": "Klanten: {linked} al gekoppeld, {number} gematcht op IČO, {vat} op DIČ, {name} op naam en postcode, {created} nieuw, {updated} bijgewerkt, {conflicts} conflicten, {skipped} inactief, {failed} mislukt",
+    "catalogCounts": "Catalogus: categorieën {categoriesMatched} gematcht, {categoriesCreated} nieuw · producten {productsUpdated} bijgewerkt, {productsCreated} nieuw, {productsFailed} mislukt · prijslijsten vervangen {listsReplaced} · prijslijsten van bedrijven gezet {accountLists}",
+    "orderCounts": "Orders: {checked} gecontroleerd, {moved} verplaatst, {imported} geïmporteerd, {updated} bijgewerkt, {pending} wachten op hun klant",
+    "listsMissing": "Prijslijsten niet gevonden in OXO ERP: {ids}",
+    "report": "Proefrapport ({date})",
+    "nameLinks": "Gekoppeld op naam en postcode (controleer deze)",
+    "createdRows": "Zou worden aangemaakt",
+    "conflicts": "Klanten die bij meer dan één bedrijf passen",
+    "conflictsEmpty": "Geen conflicten.",
+    "conflictsHelp": "Corrigeer de CRM-gegevens (voeg het dubbele bedrijf samen of verbeter het IČO); de volgende synchronisatie koppelt de klant.",
+    "reason": {
+      "number": "hetzelfde IČO",
+      "vat": "hetzelfde DIČ",
+      "name": "dezelfde naam en postcode",
+      "linked": "al gekoppeld aan een andere OXO ERP-klant"
+    },
+    "catalog": "Catalogus",
+    "priceListsHelp": "Kies prijslijsten in de instelling priceLists: OXO ERP-lijst-id''s gescheiden door komma''s, bijvoorbeeld 3, 7. Lijsten waarop ze voortbouwen komen mee.",
+    "listsLoadedAt": "OXO ERP-prijslijsten (geladen {date})",
+    "listsNotLoaded": "Klik op Prijslijsten laden om de prijslijsten in OXO ERP te zien.",
+    "skippedRules": "Regels die het CRM niet kan gebruiken",
+    "syncQueued": "Synchronisatie staat in de wachtrij.",
+    "orders": "Orders",
+    "ordersOff": "Orders versturen staat uit. Zet sendOrders aan in de instellingen om READY-orders naar OXO ERP te sturen.",
+    "ordersCounts": "Wachten op verzending {waiting} · verstuurd in de laatste 7 dagen {sent} · mislukt {failed}",
+    "ordersPaused": "Verzenden is gepauzeerd sinds {date}: {reason}. Wanneer OXO ERP orders weer accepteert, klikt u op Verbinding testen.",
+    "pending": "{count} OXO ERP-orders wachten tot hun klant is gekoppeld"
+  },
+  "needsOwner": {
+    "title": "Bedrijven uit OXO ERP zonder eigenaar",
+    "nav": "Eigenaar nodig",
+    "help": "Open het bedrijf en stel de eigenaar in; het verdwijnt dan van deze lijst.",
+    "empty": "Elk gekoppeld bedrijf heeft een eigenaar."
+  },
+  "panel": {
+    "linked": "OXO ERP-klant #{id}",
+    "synced": "Laatst gesynchroniseerd {date}",
+    "fields": "OXO ERP bepaalt: naam, IČO, DIČ, factuuradres, e-mail, telefoon.",
+    "inactive": "Inactief in OXO ERP.",
+    "priceList": "Prijslijst uit OXO ERP: {name}",
+    "priceListMissing": "OXO ERP-prijslijst #{id} is niet geïmporteerd",
+    "addresses": "Afleveradressen"
+  },
+  "product": {
+    "linked": "OXO ERP-product #{id}"
+  },
+  "order": {
+    "linked": "OXO ERP-order {number}",
+    "state": "Status in OXO ERP: {state}",
+    "delivery": {
+      "none": "niet verzonden",
+      "partial": "deels verzonden",
+      "full": "verzonden"
+    },
+    "deliveries": "Leveringen",
+    "belowList": "Onder catalogusprijs in OXO ERP: {lines}",
+    "waiting": "Wacht op OXO ERP sinds {date}",
+    "lastError": "Laatste fout: {error}",
+    "failed": "Niet verstuurd: {reason}",
+    "missing": "Niet gevonden in OXO ERP",
+    "imported": "Geïmporteerd uit OXO ERP"
+  },
+  "orders": {
+    "noAccount": "Het bedrijf van de order heeft geen naam",
+    "notOxoProduct": "Product {product} komt niet uit OXO ERP",
+    "linesMissing": "{count} regels niet getoond: producten die niet in het CRM staan"
+  },
+  "mail": {
+    "failingSubject": "OXO ERP-synchronisatie mislukt",
+    "failingText": "De OXO ERP-synchronisatie is drie keer achter elkaar mislukt. Laatste fout: {error}",
+    "pausedSubject": "OXO ERP neemt geen orders aan",
+    "pausedText": "Het versturen van orders naar OXO ERP is gepauzeerd: {error}. Wanneer OXO ERP orders weer accepteert, klikt u op Verbinding testen.",
+    "orderFailedSubject": "Order {number} is niet naar OXO ERP gestuurd",
+    "orderFailedText": "Order {number} kon niet naar OXO ERP worden gestuurd: {error}. Los de oorzaak op en klik daarna op Opnieuw bij de order.",
+    "stuckSubject": "Order {number} wacht al een dag op OXO ERP",
+    "stuckText": "Order {number} wacht sinds {since} om naar OXO ERP te worden gestuurd. Laatste fout: {error}. De connector blijft proberen; controleer OXO ERP.",
+    "missingSubject": "Order {number}: niet gevonden in OXO ERP",
+    "missingText": "De connector vindt CRM-order {number} niet meer in OXO ERP. De CRM-order behoudt zijn status; handel hem met de hand af als de order is verwijderd."
+  },
+  "tab": {
+    "title": "OXO ERP",
+    "notLinked": "Niet gekoppeld aan een OXO ERP-klant",
+    "orders": "Orders",
+    "ordersEmpty": "Nog geen orders",
+    "number": "Nummer",
+    "oxo": "OXO ERP",
+    "date": "Datum",
+    "total": "Totaal",
+    "status": "Status",
+    "delivery": "Levering"
+  }
+}

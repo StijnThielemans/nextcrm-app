@@ -1,0 +1,107 @@
+{
+  "name": "Connecteur OXO ERP",
+  "admin": {
+    "test": "Tester la connexion",
+    "syncNow": "Synchroniser maintenant",
+    "loadLists": "Charger les listes de prix",
+    "queued": "En file : démarrage sous 5 minutes.",
+    "listsLoaded": "{count} listes de prix chargées depuis OXO ERP.",
+    "running": "Une synchronisation est déjà en cours.",
+    "connected": "Connecté à OXO ERP ({lists} listes de prix actives).",
+    "dryRun": "L''essai à blanc est activé : la synchronisation indique seulement ce qui changerait. Lisez le rapport ci-dessous, puis désactivez l''essai à blanc dans les paramètres.",
+    "lastRun": "Dernière exécution",
+    "never": "pas encore",
+    "nextRun": "Prochaine exécution",
+    "failed": "Échec : {error}",
+    "customerCounts": "Clients : {linked} déjà liés, {number} rapprochés par IČO, {vat} par DIČ, {name} par nom et code postal, {created} nouveaux, {updated} mis à jour, {conflicts} conflits, {skipped} inactifs, {failed} en échec",
+    "catalogCounts": "Catalogue : catégories {categoriesMatched} rapprochées, {categoriesCreated} nouvelles · produits {productsUpdated} mis à jour, {productsCreated} nouveaux, {productsFailed} en échec · listes de prix remplacées {listsReplaced} · listes de prix des sociétés définies {accountLists}",
+    "orderCounts": "Commandes : {checked} vérifiées, {moved} déplacées, {imported} importées, {updated} mises à jour, {pending} en attente de leur client",
+    "listsMissing": "Listes de prix introuvables dans OXO ERP : {ids}",
+    "report": "Rapport d''essai ({date})",
+    "nameLinks": "Liés par nom et code postal (à vérifier)",
+    "createdRows": "Seraient créés",
+    "conflicts": "Clients qui correspondent à plus d''une société",
+    "conflictsEmpty": "Aucun conflit.",
+    "conflictsHelp": "Corrigez les données CRM (fusionnez la société en double ou rectifiez l''IČO) ; la prochaine synchronisation lie le client.",
+    "reason": {
+      "number": "même IČO",
+      "vat": "même DIČ",
+      "name": "même nom et code postal",
+      "linked": "déjà lié à un autre client OXO ERP"
+    },
+    "catalog": "Catalogue",
+    "priceListsHelp": "Choisissez les listes de prix dans le paramètre priceLists : identifiants OXO ERP séparés par des virgules, par exemple 3, 7. Les listes dont elles dépendent suivent.",
+    "listsLoadedAt": "Listes de prix OXO ERP (chargées le {date})",
+    "listsNotLoaded": "Cliquez sur Charger les listes de prix pour voir celles d''OXO ERP.",
+    "skippedRules": "Règles que le CRM ne peut pas utiliser",
+    "syncQueued": "La synchronisation est en file.",
+    "orders": "Commandes",
+    "ordersOff": "L''envoi des commandes est désactivé. Activez sendOrders dans les paramètres pour envoyer les commandes READY à OXO ERP.",
+    "ordersCounts": "En attente d''envoi {waiting} · envoyées ces 7 derniers jours {sent} · en échec {failed}",
+    "ordersPaused": "L''envoi est en pause depuis le {date} : {reason}. Lorsque OXO ERP accepte de nouveau les commandes, cliquez sur Tester la connexion.",
+    "pending": "{count} commandes OXO ERP attendent que leur client soit lié"
+  },
+  "needsOwner": {
+    "title": "Sociétés OXO ERP sans propriétaire",
+    "nav": "Propriétaire manquant",
+    "help": "Ouvrez la société et définissez son propriétaire ; elle quitte alors cette liste.",
+    "empty": "Chaque société liée a un propriétaire."
+  },
+  "panel": {
+    "linked": "Client OXO ERP #{id}",
+    "synced": "Dernière synchro {date}",
+    "fields": "OXO ERP contrôle : nom, IČO, DIČ, adresse de facturation, e-mail, téléphone.",
+    "inactive": "Inactif dans OXO ERP.",
+    "priceList": "Liste de prix OXO ERP : {name}",
+    "priceListMissing": "La liste de prix OXO ERP #{id} n''est pas importée",
+    "addresses": "Adresses de livraison"
+  },
+  "product": {
+    "linked": "Produit OXO ERP #{id}"
+  },
+  "order": {
+    "linked": "Commande OXO ERP {number}",
+    "state": "État dans OXO ERP : {state}",
+    "delivery": {
+      "none": "non expédiée",
+      "partial": "partiellement expédiée",
+      "full": "expédiée"
+    },
+    "deliveries": "Livraisons",
+    "belowList": "Sous le prix catalogue dans OXO ERP : {lines}",
+    "waiting": "En attente d''OXO ERP depuis le {date}",
+    "lastError": "Dernière erreur : {error}",
+    "failed": "Non envoyée : {reason}",
+    "missing": "Introuvable dans OXO ERP",
+    "imported": "Importée depuis OXO ERP"
+  },
+  "orders": {
+    "noAccount": "La société de la commande n''a pas de nom",
+    "notOxoProduct": "Le produit {product} ne vient pas d''OXO ERP",
+    "linesMissing": "{count} lignes non affichées : produits absents du CRM"
+  },
+  "mail": {
+    "failingSubject": "La synchronisation OXO ERP échoue",
+    "failingText": "La synchronisation OXO ERP a échoué trois fois de suite. Dernière erreur : {error}",
+    "pausedSubject": "OXO ERP n''accepte pas les commandes",
+    "pausedText": "L''envoi des commandes vers OXO ERP est en pause : {error}. Lorsque OXO ERP accepte de nouveau les commandes, cliquez sur Tester la connexion.",
+    "orderFailedSubject": "La commande {number} n''a pas été envoyée à OXO ERP",
+    "orderFailedText": "La commande {number} n''a pas pu être envoyée à OXO ERP : {error}. Corrigez la cause, puis cliquez sur Réessayer sur la commande.",
+    "stuckSubject": "La commande {number} attend OXO ERP depuis un jour",
+    "stuckText": "La commande {number} attend d''être envoyée à OXO ERP depuis le {since}. Dernière erreur : {error}. Le connecteur continue d''essayer ; vérifiez OXO ERP.",
+    "missingSubject": "Commande {number} : introuvable dans OXO ERP",
+    "missingText": "Le connecteur ne trouve plus la commande CRM {number} dans OXO ERP. La commande CRM conserve son statut ; traitez-la à la main si la commande a été retirée."
+  },
+  "tab": {
+    "title": "OXO ERP",
+    "notLinked": "Non lié à un client OXO ERP",
+    "orders": "Commandes",
+    "ordersEmpty": "Aucune commande pour le moment",
+    "number": "Numéro",
+    "oxo": "OXO ERP",
+    "date": "Date",
+    "total": "Total",
+    "status": "Statut",
+    "delivery": "Livraison"
+  }
+}

@@ -1,0 +1,63 @@
+{
+  "name": "Protection des comptes",
+  "rules": {
+    "protected": "Cette société est protégée jusqu''au {until}.",
+    "alreadyInCrm": "Cette société est déjà dans le CRM. Un gestionnaire a été invité à vous l''assigner.",
+    "exists": "Cette société est déjà dans le CRM.",
+    "ownAccount": "Vous avez déjà cette société dans le CRM.",
+    "numberRequired": "Saisissez le numéro d''immatriculation de la société.",
+    "ownerManagersOnly": "Seul un gestionnaire peut changer le propriétaire de la société."
+  },
+  "tab": {
+    "title": "Protection",
+    "status": "Statut",
+    "protected": "Protégée jusqu''au {date}",
+    "contactNeeded": "Contact nécessaire avant le {date}",
+    "free": "Non protégée : pas de propriétaire",
+    "noNumber": "Non protégée : pas de numéro d''immatriculation",
+    "contact": "Contact qualifiant",
+    "contactYes": "Oui, le {date}",
+    "contactNo": "Pas encore",
+    "order": "Commandes",
+    "lastOrder": "Dernière commande confirmée le {date}",
+    "noOrder": "Aucune commande confirmée",
+    "history": "Historique des propriétaires",
+    "historyEmpty": "Aucun changement de propriétaire enregistré.",
+    "nobody": "personne",
+    "system": "système",
+    "reason": {
+      "created": "créée",
+      "assigned": "assignée",
+      "released": "libérée",
+      "expired": "protection expirée",
+      "expired-no-contact": "pas de contact à temps",
+      "install": "extension installée"
+    }
+  },
+  "expiring": {
+    "title": "Protections qui expirent",
+    "nav": "Protections qui expirent",
+    "due": "Échéance sous {days} jours",
+    "freed": "Libérées ces 7 derniers jours",
+    "empty": "Rien ici."
+  },
+  "admin": {
+    "conflicts": "Sociétés qui partagent un numéro d''immatriculation",
+    "conflictsEmpty": "Aucun conflit.",
+    "key": "Numéro",
+    "account": "Société",
+    "other": "Conservée par"
+  },
+  "mail": {
+    "expiredSubject": "{count} sociétés ont perdu leur protection",
+    "expiredText": "Ces sociétés n''ont plus de propriétaire :",
+    "blocked-protected": {
+      "subject": "Bloqué : {account} est protégée",
+      "text": "{user} a tenté de créer {account}, qui est protégée par un autre propriétaire."
+    },
+    "blocked-free": {
+      "subject": "Assigner {account}",
+      "text": "{user} a tenté de créer {account}. Elle est déjà dans le CRM sans propriétaire. Assignez-la sur la fiche si c''est pertinent."
+    }
+  }
+}
