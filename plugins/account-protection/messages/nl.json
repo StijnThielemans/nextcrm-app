@@ -1,0 +1,63 @@
+{
+  "name": "Accountbescherming",
+  "rules": {
+    "protected": "Dit bedrijf is beschermd tot {until}.",
+    "alreadyInCrm": "Dit bedrijf staat al in het CRM. Een manager is gevraagd het aan u toe te wijzen.",
+    "exists": "Dit bedrijf staat al in het CRM.",
+    "ownAccount": "U hebt dit bedrijf al in het CRM.",
+    "numberRequired": "Vul het registratienummer van het bedrijf in.",
+    "ownerManagersOnly": "Alleen een manager kan de eigenaar van het bedrijf wijzigen."
+  },
+  "tab": {
+    "title": "Bescherming",
+    "status": "Status",
+    "protected": "Beschermd tot {date}",
+    "contactNeeded": "Contact nodig vóór {date}",
+    "free": "Niet beschermd: geen eigenaar",
+    "noNumber": "Niet beschermd: geen registratienummer",
+    "contact": "Kwalificerend contact",
+    "contactYes": "Ja, op {date}",
+    "contactNo": "Nog niet",
+    "order": "Orders",
+    "lastOrder": "Laatste bevestigde order op {date}",
+    "noOrder": "Nog geen bevestigde order",
+    "history": "Geschiedenis van eigenaren",
+    "historyEmpty": "Nog geen wijzigingen van eigenaar.",
+    "nobody": "niemand",
+    "system": "systeem",
+    "reason": {
+      "created": "aangemaakt",
+      "assigned": "toegewezen",
+      "released": "vrijgegeven",
+      "expired": "bescherming verlopen",
+      "expired-no-contact": "geen contact op tijd",
+      "install": "plug-in geïnstalleerd"
+    }
+  },
+  "expiring": {
+    "title": "Aflopende bescherming",
+    "nav": "Aflopende bescherming",
+    "due": "Verloopt binnen {days} dagen",
+    "freed": "Vrijgegeven in de afgelopen 7 dagen",
+    "empty": "Niets hier."
+  },
+  "admin": {
+    "conflicts": "Bedrijven met hetzelfde registratienummer",
+    "conflictsEmpty": "Geen conflicten.",
+    "key": "Nummer",
+    "account": "Bedrijf",
+    "other": "Behouden door"
+  },
+  "mail": {
+    "expiredSubject": "{count} bedrijven hebben hun bescherming verloren",
+    "expiredText": "Deze bedrijven hebben geen eigenaar meer:",
+    "blocked-protected": {
+      "subject": "Geblokkeerd: {account} is beschermd",
+      "text": "{user} probeerde {account} aan te maken, dat door een andere eigenaar wordt beschermd."
+    },
+    "blocked-free": {
+      "subject": "{account} toewijzen",
+      "text": "{user} probeerde {account} aan te maken. Het staat al in het CRM zonder eigenaar. Wijs het toe op het bedrijf als dat past."
+    }
+  }
+}

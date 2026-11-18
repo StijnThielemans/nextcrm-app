@@ -58,6 +58,8 @@ it("contract catches broken plugins", () => {
     "cz missing keys: tab.title",
     "messages/de.json missing",
     "messages/uk.json missing",
+    "messages/nl.json missing",
+    "messages/fr.json missing",
   ]);
 });
 
