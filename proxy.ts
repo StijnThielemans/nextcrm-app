@@ -35,6 +35,25 @@ const ORIGIN_CHECK_EXEMPT = [
  * Authorization header does not exempt it: token callers (MCP, API tokens)
  * send no session cookie, so they never reach the check.
  */
+// A quick tunnel terminates TLS on 443 and proxies to this dev server.
+// Next fills in x-forwarded-port with 3000, and next-intl copies that onto
+// the locale redirect. The phone then opens https://<tunnel>:3000 and the
+// page after login never loads.
+function dropTunnelDevPort(res: NextResponse) {
+  const location = res.headers.get("location");
+  if (!location) return res;
+  try {
+    const url = new URL(location);
+    if (url.port === "3000" && url.hostname.endsWith(".trycloudflare.com")) {
+      url.port = "";
+      res.headers.set("location", url.toString());
+    }
+  } catch {
+    return res;
+  }
+  return res;
+}
+
 function isCrossOriginWrite(req: NextRequest, path: string, hasSessionCookie: boolean) {
   if (!hasSessionCookie || ["GET", "HEAD", "OPTIONS"].includes(req.method)) return false;
   if (path.includes("/webhooks/") || ORIGIN_CHECK_EXEMPT.some((p) => path.startsWith(p))) return false;
@@ -49,12 +68,12 @@ export async function proxy(req: NextRequest) {
 
   // Inngest webhook — pass through, Inngest handles its own auth via signing key
   if (path.startsWith("/api/inngest")) {
-    return NextResponse.next();
+    return dropTunnelDevPort(NextResponse.next());
   }
 
   // better-auth API routes — pass through to better-auth handler
   if (path.startsWith("/api/auth")) {
-    return NextResponse.next();
+    return dropTunnelDevPort(NextResponse.next());
   }
 
   const sessionCookie = getSessionCookie(req);
@@ -66,22 +85,22 @@ export async function proxy(req: NextRequest) {
     const session = await auth.api.getSession({ headers: req.headers });
     if (session?.user.role === "partner") {
       if (path.startsWith("/api")) {
-        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        return dropTunnelDevPort(NextResponse.json({ error: "Forbidden" }, { status: 403 }));
       }
-      return NextResponse.redirect(new URL("/", req.nextUrl));
+      return dropTunnelDevPort(NextResponse.redirect(new URL("/", req.nextUrl)));
     }
   }
 
   if (path.startsWith("/api") && isCrossOriginWrite(req, path, !!sessionCookie)) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    return dropTunnelDevPort(NextResponse.json({ error: "Forbidden" }, { status: 403 }));
   }
 
   // Admin-only routes — require session cookie (role checked server-side)
   if (ADMIN_ONLY_PATHS.some((p) => path.startsWith(p))) {
     if (!sessionCookie) {
-      return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
+      return dropTunnelDevPort(NextResponse.json({ error: "Unauthenticated" }, { status: 401 }));
     }
-    return NextResponse.next();
+    return dropTunnelDevPort(NextResponse.next());
   }
 
   // Non-API routes — redirect to sign-in if no session cookie
@@ -91,18 +110,18 @@ export async function proxy(req: NextRequest) {
       const authPaths = ["/sign-in", "/register", "/pending", "/inactive"];
       const isAuthPage = authPaths.some((p) => path.includes(p));
       if (!isAuthPage) {
-        return NextResponse.redirect(new URL("/sign-in", req.nextUrl));
+        return dropTunnelDevPort(NextResponse.redirect(new URL("/sign-in", req.nextUrl)));
       }
     }
   }
 
   // Other API routes authenticate themselves
   if (path.startsWith("/api")) {
-    return NextResponse.next();
+    return dropTunnelDevPort(NextResponse.next());
   }
 
   // Non-API routes — delegate to next-intl
-  return intlMiddleware(req);
+  return dropTunnelDevPort(intlMiddleware(req));
 }
 
 export const config = {
