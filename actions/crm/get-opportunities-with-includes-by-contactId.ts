@@ -35,6 +35,7 @@ export const getOpportunitiesFullByContactId = async (contactId: string) => {
           contact_id: contactId,
         },
       },
+      is_dossier: false,
       ...opportunityReadScopeWhere(user),
     },
     include: {

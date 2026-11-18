@@ -107,7 +107,12 @@ export default async function AppLayout({
   const { getPluginNavItems } = await import("@/lib/plugins/nav");
   const { mapLegacyRole } = await import("@/lib/authz/roles");
   const { getLocale } = await import("next-intl/server");
-  const pluginNav = await getPluginNavItems(mapLegacyRole(user?.role), (await getLocale()) as "en" | "cz" | "de" | "uk");
+  const requestedLocale = await getLocale();
+  const pluginLocale =
+    requestedLocale === "cz" || requestedLocale === "de" || requestedLocale === "uk"
+      ? requestedLocale
+      : "en";
+  const pluginNav = await getPluginNavItems(mapLegacyRole(user?.role), pluginLocale);
 
   //console.log(typeof build, "build");
   return (

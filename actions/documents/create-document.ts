@@ -2,6 +2,7 @@
 import {
   requireAuthenticated,
   assertCanWriteAccount,
+  assertCanWriteOpportunity,
   AuthenticationError,
   AuthorizationError,
 } from "@/lib/authz";
@@ -17,6 +18,8 @@ interface CreateDocumentInput {
   mimeType: string;
   contentHash?: string;
   accountId?: string;
+  dossierId?: string;
+  systemType?: "INTERNAL_SUPPLIER_QUOTE" | "CUSTOMER_QUOTE" | "PLAN" | "PHOTO" | "OTHER";
 }
 
 export async function createDocument(input: CreateDocumentInput) {
@@ -28,9 +31,22 @@ export async function createDocument(input: CreateDocumentInput) {
     throw e;
   }
 
+  if (input.systemType === "INTERNAL_SUPPLIER_QUOTE" && user.role === "partner") {
+    throw new Error("Forbidden");
+  }
+
   if (input.accountId) {
     try {
       await assertCanWriteAccount(user, input.accountId);
+    } catch (e) {
+      if (e instanceof AuthorizationError) throw new Error("Forbidden");
+      throw e;
+    }
+  }
+
+  if (input.dossierId) {
+    try {
+      await assertCanWriteOpportunity(user, input.dossierId);
     } catch (e) {
       if (e instanceof AuthorizationError) throw new Error("Forbidden");
       throw e;
@@ -51,8 +67,12 @@ export async function createDocument(input: CreateDocumentInput) {
       processing_status: "PENDING",
       createdBy: user.id,
       assigned_user: user.id,
+      ...(input.systemType ? { document_system_type: input.systemType } : {}),
       ...(input.accountId
         ? { accounts: { create: { account_id: input.accountId } } }
+        : {}),
+      ...(input.dossierId
+        ? { opportunities: { create: { opportunity_id: input.dossierId } } }
         : {}),
     },
   });

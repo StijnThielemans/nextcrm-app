@@ -27,58 +27,17 @@ type Props = {
   role?: string;
 };
 
-export const getCrmMenuItem = ({ localizations, role }: Props): NavItem => {
+export const getCrmMenuItem = ({ localizations }: Props): NavItem => {
+  void localizations;
   return {
-    title: localizations.title,
+    title: "Verkoop",
     icon: Coins,
     items: [
-      {
-        title: "Dashboard",
-        url: "/crm/dashboard",
-      },
-      {
-        title: "My Dashboard",
-        url: "/crm/dashboard/user",
-      },
-      {
-        title: "Overview",
-        url: "/crm",
-      },
-      {
-        title: localizations.accounts,
-        url: "/crm/accounts",
-      },
-      {
-        title: localizations.contacts,
-        url: "/crm/contacts",
-      },
-      {
-        title: localizations.leads,
-        url: "/crm/leads",
-      },
-      {
-        title: localizations.opportunities,
-        url: "/crm/opportunities",
-      },
-      {
-        title: localizations.contracts,
-        url: "/crm/contracts",
-      },
-      {
-        title: localizations.products,
-        url: "/crm/products",
-      },
-      {
-        title: localizations.priceLists,
-        url: "/crm/price-lists",
-      },
-      {
-        title: localizations.orders,
-        url: "/crm/orders",
-      },
-      ...(role === "manager" || role === "admin"
-        ? [{ title: "Approvals", url: "/crm/approvals" }]
-        : []),
+      { title: "Dashboard", url: "/crm/dashboard" },
+      { title: "Klanten", url: "/crm/accounts" },
+      { title: "Offertedossiers", url: "/crm/dossiers" },
+      { title: "Offertes", url: "/crm/offertes" },
+      { title: "+ Nieuwe aanvraag", url: "/crm/aanvraag" },
     ],
   };
 };

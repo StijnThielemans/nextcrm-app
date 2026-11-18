@@ -87,7 +87,7 @@ export const TABLE_SCHEMAS: Record<string, TableSchema> = {
     foreignKeys: [],
     fieldDefinitions: [
       { name: 'userStatus', type: 'Enum', enumValues: ['ACTIVE', 'INACTIVE', 'PENDING'] },
-      { name: 'userLanguage', type: 'Enum', enumValues: ['cz', 'en', 'de', 'uk'] },
+      { name: 'userLanguage', type: 'Enum', enumValues: ['cz', 'en', 'de', 'uk', 'nl'] },
       { name: 'role', type: 'Enum', enumValues: ['admin', 'member', 'viewer'] },
       { name: 'created_on', type: 'DateTime' },
       { name: 'lastLoginAt', type: 'DateTime' },
@@ -250,7 +250,7 @@ export const TABLE_SCHEMAS: Record<string, TableSchema> = {
     ],
     fieldDefinitions: [
       { name: 'status', type: 'Enum', enumValues: ['ACTIVE', 'INACTIVE', 'PENDING'] },
-      { name: 'document_system_type', type: 'Enum', enumValues: ['INVOICE', 'RECEIPT', 'CONTRACT', 'OFFER', 'OTHER'] },
+      { name: 'document_system_type', type: 'Enum', enumValues: ['INVOICE', 'RECEIPT', 'CONTRACT', 'OFFER', 'OTHER', 'INTERNAL_SUPPLIER_QUOTE', 'CUSTOMER_QUOTE', 'PLAN', 'PHOTO'] },
       { name: 'favourite', type: 'Boolean' },
       { name: 'tags', type: 'JSONB' },
       { name: 'createdAt', type: 'DateTime' },

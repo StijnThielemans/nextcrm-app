@@ -42,6 +42,8 @@ model crm_Accounts {
   case_study_candidate Boolean   @default(false)
   case_study_approved  Boolean   @default(false)
   type                 String?   @default("Customer")
+  /// Particulier of bedrijf. Leeg op rijen van vóór de Thielemans-verkoopflow.
+  customer_kind        crm_Customer_Kind?
   vat                  String?
   website              String?
   /// Id of this account's record in another system (set by integrations, e.g. over MCP).
@@ -252,6 +254,23 @@ model crm_Opportunities {
   type             String?                 @db.Uuid
   status           crm_Opportunity_Status? @default(ACTIVE)
 
+  /// Thielemans offertedossier. Bestaande deals blijven false en volgen de oude stadia.
+  is_dossier           Boolean                 @default(false)
+  dossier_number       String?                 @unique
+  dossier_status       crm_Dossier_Status?
+  project_street       String?
+  project_postal_code  String?
+  project_city         String?
+  project_country      String?
+  request_date         DateTime?               @db.Date
+  source_channel       crm_Request_Channel?
+  follow_up_date       DateTime?               @db.Date
+  internal_notes       String?
+  lost_reason          String?
+  won_at               DateTime?
+  lost_at              DateTime?
+  accepted_quote_id    String?                 @db.Uuid
+
   assigned_type        crm_Opportunities_Type?         @relation(fields: [type], references: [id])
   assigned_sales_stage crm_Opportunities_Sales_Stages? @relation("assinged_sales_stage", fields: [sales_stage], references: [id])
   assigned_to_user     Users?                          @relation("assigned_to_user_relation", fields: [assigned_to], references: [id])
@@ -264,6 +283,10 @@ model crm_Opportunities {
   embedding            crm_Embeddings_Opportunities?
   lineItems            crm_OpportunityLineItems[]
   tasks                crm_Accounts_Tasks[]
+  channel_events       crm_DossierChannelEvents[]
+  quote_families       crm_ExternalQuoteFamilies[]
+  quote_sends          crm_QuoteSends[]
+  accepted_quote       crm_ExternalQuotes?             @relation("AcceptedQuote", fields: [accepted_quote_id], references: [id], onDelete: Restrict)
   deletedAt            DateTime?
   deletedBy            String?   @db.Uuid
 
@@ -279,6 +302,11 @@ model crm_Opportunities {
   @@index([close_date])
   @@index([status, sales_stage])
   @@index([deletedAt])
+  @@index([is_dossier, dossier_status])
+  @@index([is_dossier, assigned_to])
+  @@index([is_dossier, follow_up_date])
+  @@index([is_dossier, request_date])
+  @@index([accepted_quote_id])
 }
 
 enum crm_Approval_Status {
@@ -293,6 +321,41 @@ enum crm_Opportunity_Status {
   INACTIVE
   PENDING
   CLOSED
+}
+
+enum crm_Dossier_Status {
+  NIEUW
+  IN_OPMAAK
+  WACHTEN_OP_INFORMATIE
+  OFFERTE_KLAAR
+  OFFERTE_VERSTUURD
+  OPVOLGING
+  IN_ONDERHANDELING
+  GEWONNEN
+  VERLOREN
+}
+
+enum crm_Request_Channel {
+  PHONE
+  EMAIL_OFFERTE
+  EMAIL_SELLER
+  SITE_VISIT
+  SHOWROOM
+}
+
+enum crm_Customer_Kind {
+  COMPANY
+  PRIVATE
+}
+
+enum crm_ExternalQuote_Status {
+  ACTIVE
+  HISTORICAL
+}
+
+enum crm_QuoteSend_Method {
+  MANUAL
+  EMAIL
 }
 
 enum crm_Product_Type {
@@ -821,6 +884,8 @@ model Documents {
   child_versions       Documents[]                   @relation("DocumentVersions")
   chunks               crm_Document_Chunks[]
   embedding_record     crm_Embeddings_Documents?
+  supplier_quote_pdfs  crm_ExternalQuotes[]          @relation("QuotePdf")
+  customer_quote_sends crm_QuoteSends[]              @relation("SendDocument")
 
   @@index([created_by_user])
   @@index([assigned_user])
@@ -842,6 +907,10 @@ enum DocumentSystemType {
   CONTRACT
   OFFER
   OTHER
+  INTERNAL_SUPPLIER_QUOTE
+  CUSTOMER_QUOTE
+  PLAN
+  PHOTO
 }
 
 enum DocumentProcessingStatus {
@@ -1061,6 +1130,8 @@ model Users {
   invoiceAttachments           Invoice_Attachments[] @relation("InvoiceAttachmentUploadedBy")
   invoiceActivity              Invoice_Activity[]    @relation("InvoiceActivityActor")
   ordersOwned crm_Orders[] @relation("OrderOwner")
+  dossier_channel_events crm_DossierChannelEvents[] @relation("ChannelSeller")
+  quote_sends_made       crm_QuoteSends[]           @relation("QuoteSender")
 
   @@index([email])
   @@index([userStatus])
@@ -1134,6 +1205,7 @@ enum Language {
   en
   de
   uk
+  nl
 }
 
 
@@ -2300,4 +2372,97 @@ model crm_OrderLines {
 
   @@index([orderId])
   @@index([productId])
+}
+
+/// Eén contactmoment op een offertedossier. Het oorspronkelijke kanaal heeft is_original.
+model crm_DossierChannelEvents {
+  id          String              @id @default(uuid()) @db.Uuid
+  dossier_id  String              @db.Uuid
+  channel     crm_Request_Channel
+  occurred_at DateTime
+  seller_id   String              @db.Uuid
+  note        String?
+  is_original Boolean             @default(false)
+  createdAt   DateTime            @default(now())
+  createdBy   String?             @db.Uuid
+
+  dossier crm_Opportunities @relation(fields: [dossier_id], references: [id], onDelete: Restrict)
+  seller  Users             @relation("ChannelSeller", fields: [seller_id], references: [id], onDelete: Restrict)
+
+  @@index([dossier_id])
+  @@index([seller_id])
+  @@index([occurred_at])
+}
+
+/// Eén externe offerte (leverancier + leveranciersreferentie). Een alternatief is een nieuwe rij.
+model crm_ExternalQuoteFamilies {
+  id                  String   @id @default(uuid()) @db.Uuid
+  dossier_id          String   @db.Uuid
+  supplier            String
+  configurator_name   String
+  supplier_reference  String
+  createdAt           DateTime @default(now())
+  createdBy           String?  @db.Uuid
+
+  dossier crm_Opportunities   @relation(fields: [dossier_id], references: [id], onDelete: Restrict)
+  quotes  crm_ExternalQuotes[]
+
+  @@unique([dossier_id, supplier, supplier_reference])
+  @@index([dossier_id])
+}
+
+/// Eén versie. Kost, verkoopprijs, btw, PDF en notities worden na insert niet meer gewijzigd.
+model crm_ExternalQuotes {
+  id              String                   @id @default(uuid()) @db.Uuid
+  family_id       String                   @db.Uuid
+  version         Int
+  quote_number    String
+  quote_date      DateTime                 @db.Date
+  pdf_document_id String                   @db.Uuid
+  cost_excl_vat   Decimal                  @db.Decimal(14, 2)
+  sell_excl_vat   Decimal                  @db.Decimal(14, 2)
+  vat_rate        Decimal                  @db.Decimal(5, 2)
+  margin_euro     Decimal                  @db.Decimal(14, 2)
+  margin_percent  Decimal?                 @db.Decimal(7, 2)
+  currency        String                   @default("EUR") @db.VarChar(3)
+  internal_notes  String?
+  status          crm_ExternalQuote_Status @default(ACTIVE)
+  createdAt       DateTime                 @default(now())
+  createdBy       String?                  @db.Uuid
+  deletedAt       DateTime?
+
+  family            crm_ExternalQuoteFamilies @relation(fields: [family_id], references: [id], onDelete: Restrict)
+  pdf               Documents                 @relation("QuotePdf", fields: [pdf_document_id], references: [id], onDelete: Restrict)
+  sends             crm_QuoteSends[]
+  accepted_by       crm_Opportunities[]       @relation("AcceptedQuote")
+
+  @@unique([family_id, version])
+  @@index([family_id])
+  @@index([pdf_document_id])
+  @@index([status])
+  @@index([deletedAt])
+}
+
+/// Welke versie wanneer naar de klant ging. Alleen een klantofferte-PDF.
+model crm_QuoteSends {
+  id             String               @id @default(uuid()) @db.Uuid
+  dossier_id     String               @db.Uuid
+  quote_id       String               @db.Uuid
+  document_id    String               @db.Uuid
+  method         crm_QuoteSend_Method
+  sent_at        DateTime
+  follow_up_date DateTime             @db.Date
+  email_to       String?
+  sent_by        String               @db.Uuid
+  createdAt      DateTime             @default(now())
+
+  dossier  crm_Opportunities @relation(fields: [dossier_id], references: [id], onDelete: Restrict)
+  quote    crm_ExternalQuotes @relation(fields: [quote_id], references: [id], onDelete: Restrict)
+  document Documents          @relation("SendDocument", fields: [document_id], references: [id], onDelete: Restrict)
+  sender   Users              @relation("QuoteSender", fields: [sent_by], references: [id], onDelete: Restrict)
+
+  @@index([dossier_id, sent_at])
+  @@index([quote_id])
+  @@index([document_id])
+  @@index([sent_by])
 }

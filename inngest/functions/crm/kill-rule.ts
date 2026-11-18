@@ -22,6 +22,7 @@ export const killRule = inngest.createFunction(
       return prismadb.crm_Opportunities.findMany({
         where: {
           status: "ACTIVE",
+          is_dossier: false,
           deletedAt: null,
           assigned_sales_stage: { stage_kind: "qualified" },
         },
