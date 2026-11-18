@@ -5,6 +5,10 @@ const withNextIntl = require("next-intl/plugin")(
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: "standalone",
+  // Dev-only. The phone tunnel is a different host than localhost, and Next
+  // refuses its dev websocket until the host is listed. Without that, the
+  // sign-in page stays on the server HTML and the send button stays disabled.
+  allowedDevOrigins: ["*.trycloudflare.com"],
   serverExternalPackages: ["pdf-parse", "pdfjs-dist"],
   images: {
     remotePatterns: [
