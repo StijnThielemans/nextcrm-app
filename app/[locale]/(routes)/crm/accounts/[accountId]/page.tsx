@@ -29,7 +29,6 @@ import { ActivitiesSection } from "./components/ActivitiesSection";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { HistoryTab } from "./components/HistoryTab";
 import { listDossiersForAccount } from "@/lib/sales/service";
-import { statusLabel } from "@/lib/sales/labels";
 import {
   serializeDecimals,
   serializeDecimalsList,
@@ -95,7 +94,7 @@ const AccountDetailPage = async (props: AccountDetailPageProps) => {
                 {dossiers.map((row) => (
                   <li key={row.id}>
                     <Link className="underline" href={`/crm/dossiers/${row.id}`}>{row.number}</Link>
-                    {" · "}{row.name}{" · "}{statusLabel(row.status)}
+                    {" · "}{row.name}{" · "}{row.stepLabel}
                   </li>
                 ))}
                 {dossiers.length === 0 && <li className="text-muted-foreground">Nog geen dossiers.</li>}

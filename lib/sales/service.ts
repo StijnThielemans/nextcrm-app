@@ -14,6 +14,7 @@ import {
   opportunityReadScopeWhere,
 } from "@/lib/authz/scopes/crm";
 import { SalesError } from "./errors";
+import { buildDossierStepper } from "./dossier-step";
 import { quoteMargin } from "./margin";
 import { salesTiles, type DashRow, type SalesTiles } from "./dashboard-math";
 import { DOSSIER_STATUSES, DOSSIER_DOCUMENT_CATEGORIES, systemTypeForFiling, type DossierDocumentCategory, type DossierStatus, type RequestChannel, CHANNELS } from "./labels";
@@ -424,6 +425,7 @@ export type DossierListRow = {
   number: string | null;
   name: string | null;
   status: string | null;
+  stepLabel: string;
   customer: string | null;
   requestDate: string | null;
   followUpDate: string | null;
@@ -444,6 +446,12 @@ export async function listDossiers(user: AuthzUser): Promise<DossierListRow[]> {
       seller_name: true,
       assigned_account: { select: { name: true } },
       assigned_to_user: { select: { name: true } },
+      quote_sends: { select: { sent_at: true }, orderBy: { sent_at: "asc" }, take: 1 },
+      documents: {
+        where: { document: { deletedAt: null } },
+        select: { document_id: true },
+        take: 1,
+      },
     },
     orderBy: [{ request_date: "desc" }, { createdAt: "desc" }],
   });
@@ -452,6 +460,11 @@ export async function listDossiers(user: AuthzUser): Promise<DossierListRow[]> {
     number: row.dossier_number,
     name: row.name,
     status: row.dossier_status,
+    stepLabel: buildDossierStepper({
+      hasDocuments: row.documents.length > 0,
+      sentAt: row.quote_sends[0]?.sent_at.toISOString() ?? null,
+      status: row.dossier_status,
+    }).currentLabel,
     customer: row.assigned_account?.name ?? null,
     requestDate: dayString(row.request_date),
     followUpDate: dayString(row.follow_up_date),

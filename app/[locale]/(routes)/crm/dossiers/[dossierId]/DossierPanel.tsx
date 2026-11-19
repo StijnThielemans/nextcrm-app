@@ -1,10 +1,11 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { ChevronRight, FileText, Folder, Plus } from "lucide-react";
+import { Check, ChevronRight, FileText, Folder, Plus } from "lucide-react";
 import { useRouter } from "@/i18n/navigation";
 import { Link } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Input } from "@/components/ui/input";
 import {
@@ -24,13 +25,13 @@ import {
   OPEN_STATUSES,
   channelLabel,
   euro,
-  statusLabel,
   type DossierDocumentCategory,
   type DossierStatus,
   type RequestChannel,
 } from "@/lib/sales/labels";
 import { ACCOUNT_ROLE_LABELS, PROJECT_GROUP_LABELS, type AccountRole, type ProjectGroup } from "@/lib/sales/aanvraag-fields";
 import { groupDocumentsIntoFolders } from "@/lib/sales/document-folders";
+import { stepperForDossier } from "@/lib/sales/dossier-step";
 import type { DossierDetail } from "@/lib/sales/service";
 import {
   addChannelAction,
@@ -104,6 +105,7 @@ export function DossierPanel({ dossier }: { dossier: DossierDetail }) {
   const [dragging, setDragging] = useState(false);
   const [quoteDragging, setQuoteDragging] = useState(false);
   const [followOpen, setFollowOpen] = useState(false);
+  const [closeMode, setCloseMode] = useState<"won" | "lost" | null>(null);
   const versions = dossier.families.flatMap((family) => family.quotes);
 
   async function run(work: () => Promise<{ error?: string; ok?: boolean; id?: string }>) {
@@ -169,9 +171,92 @@ export function DossierPanel({ dossier }: { dossier: DossierDetail }) {
     totals: `${euro(quote.cost)} kost · ${euro(quote.sell)} verkoop · ${euro(quote.marginEuro)} marge`,
   })));
   const hasFollowUp = Boolean(dossier.followUpDate || dossier.nextStep || dossier.notes);
+  const stepper = stepperForDossier(dossier);
 
   return (
     <div className="space-y-8 max-w-5xl">
+      <section className="rounded-md border p-4 space-y-3" aria-label="Status">
+        <ol className="flex flex-wrap items-center gap-y-3">
+          {stepper.steps.map((step, index) => (
+            <li key={step.id} className="flex items-center">
+              {index > 0 && <span aria-hidden className="mx-2 h-px w-6 shrink-0 bg-border sm:w-8" />}
+              <span
+                data-step={step.id}
+                data-state={step.state}
+                aria-current={step.state === "current" ? "step" : undefined}
+                className={cn(
+                  "inline-flex items-center gap-2 text-sm",
+                  step.state === "current" && "font-semibold",
+                  step.state === "upcoming" && "text-muted-foreground",
+                )}
+              >
+                <span
+                  className={cn(
+                    "flex size-6 shrink-0 items-center justify-center rounded-full border text-xs",
+                    step.state === "current" && "border-primary bg-primary text-primary-foreground",
+                    step.state === "complete" && "border-primary bg-primary/10 text-primary",
+                    step.state === "upcoming" && "border-dashed",
+                  )}
+                >
+                  {step.state === "complete" ? <Check className="size-3.5" aria-hidden /> : index + 1}
+                </span>
+                {step.label}
+              </span>
+            </li>
+          ))}
+        </ol>
+        {!dossier.terminal && (
+          <div className="flex flex-wrap gap-2">
+            <Button type="button" size="sm" disabled={busy} onClick={() => setCloseMode("won")}>Gewonnen</Button>
+            <Button type="button" size="sm" variant="outline" disabled={busy} onClick={() => setCloseMode("lost")}>Verloren</Button>
+          </div>
+        )}
+      </section>
+      <Dialog open={closeMode != null} onOpenChange={(open) => { if (!open) setCloseMode(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{closeMode === "lost" ? "Verloren" : "Gewonnen"}</DialogTitle>
+            <DialogDescription>
+              {closeMode === "lost" ? "Vul de reden van verlies in." : "Kies de aanvaarde offerte."}
+            </DialogDescription>
+          </DialogHeader>
+          <form
+            className="grid gap-3"
+            onSubmit={(event) => {
+              event.preventDefault();
+              const data = new FormData(event.currentTarget);
+              const mode = closeMode;
+              if (!mode) return;
+              void run(async () => {
+                const saved = await changeStatusAction(dossier.id, mode === "lost"
+                  ? { status: "VERLOREN", lostReason: String(data.get("lostReason") ?? "") }
+                  : { status: "GEWONNEN", acceptedQuoteId: String(data.get("accepted") ?? "") });
+                if (!saved.error) setCloseMode(null);
+                return saved;
+              });
+            }}
+          >
+            {closeMode === "lost" ? (
+              <label className="space-y-1 text-sm">
+                <span>Reden verloren</span>
+                <Input name="lostReason" required maxLength={500} />
+              </label>
+            ) : (
+              <label className="space-y-1 text-sm">
+                <span>Aanvaarde offerte</span>
+                <select name="accepted" className="flex h-9 w-full rounded-md border bg-transparent px-3 text-sm" required defaultValue={versions.length === 1 ? versions[0]?.id : ""}>
+                  <option value="">Kies een offerte</option>
+                  {versions.map((quote) => <option key={quote.id} value={quote.id}>{quote.number} v{quote.version}</option>)}
+                </select>
+              </label>
+            )}
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setCloseMode(null)}>Annuleren</Button>
+              <Button type="submit" disabled={busy || (closeMode === "won" && versions.length === 0)}>Opslaan</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
       <section className="grid gap-4 lg:grid-cols-3">
         <div className="rounded-md border p-4 space-y-2 text-sm">
           <h2 className="text-lg font-semibold">Klant en dossier</h2>
@@ -194,7 +279,7 @@ export function DossierPanel({ dossier }: { dossier: DossierDetail }) {
           <p><span className="text-muted-foreground">Projectgroep </span>{dossier.projectGroup && dossier.projectGroup in PROJECT_GROUP_LABELS ? PROJECT_GROUP_LABELS[dossier.projectGroup as ProjectGroup] : "—"}</p>
           <p><span className="text-muted-foreground">Datum prijsaanvraag </span>{dossier.priceRequestDate ?? dossier.requestDate ?? "—"}</p>
           <p><span className="text-muted-foreground">Werfadres </span>{dossier.projectAddress || "—"}</p>
-          <p><span className="text-muted-foreground">Status </span>{statusLabel(dossier.status)}</p>
+          <p data-dossier-status={stepper.currentLabel}><span className="text-muted-foreground">Status </span>{stepper.currentLabel}</p>
           {dossier.lostReason && <p>Verliesreden: {dossier.lostReason}</p>}
         </div>
 
