@@ -9,6 +9,7 @@ import {
   SidebarRail,
   useSidebar,
 } from "@/components/ui/sidebar";
+import Image from "next/image";
 import { Puzzle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { NavMain } from "./nav-main";
@@ -24,7 +25,7 @@ import { partnerNavItems } from "@/lib/partner-routes";
  *
  * Core sidebar component for NextCRM application layout.
  * Implements shadcn/ui sidebar pattern with:
- * - Logo and "N" branding symbol with rotation animation
+ * - TILO wordmark in the sidebar header
  * - Build version display in footer (when expanded)
  * - Navigation with the Verkoop group and the other module items
  * - Nav-user section in footer for user profile and actions
@@ -48,8 +49,6 @@ import { partnerNavItems } from "@/lib/partner-routes";
  * - Build version moved above NavUser in footer
  *
  * Phase 5 Updates (Design Consistency):
- * - Task 5.3: Removed duration-200 from app name animation (uses Tailwind default)
- * - Task 5.3: Kept duration-500 on "N" symbol for intentional brand emphasis
  * - Task 5.4: Changed build version text-gray-500 to text-muted-foreground for theme support
  *
  * @param modules - Array of enabled modules from system_Modules_Enabled table
@@ -77,14 +76,14 @@ interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
   dict: any;
   session: Session;
   pluginNav?: { title: string; url: string }[];
-  appName: string;
+  appName?: string;
 }
 
 export function AppSidebar({
   dict,
   session,
   pluginNav,
-  appName,
+  appName = "TILO",
   ...props
 }: AppSidebarProps) {
   const { state } = useSidebar();
@@ -118,32 +117,33 @@ export function AppSidebar({
   return (
     <Sidebar collapsible="icon" {...props}>
       {/* Header with Logo and Branding */}
-      <SidebarHeader>
+      <SidebarHeader className="border-b border-black/10">
         <div
           className={cn(
             "flex items-center py-1",
-            isExpanded ? "gap-x-4" : "justify-center",
+            isExpanded ? "gap-3 px-1" : "justify-center",
           )}
         >
-          {/* "N" Branding Symbol with rotation animation */}
           <div
             className={cn(
-              "flex-shrink-0 border rounded-full px-4 py-2 transition-transform duration-500",
-              isExpanded && "rotate-[360deg]",
+              "overflow-hidden rounded-md bg-white ring-1 ring-black/10",
+              isExpanded ? "flex h-12 w-fit max-w-full items-center px-2" : "relative size-9 shrink-0",
             )}
           >
-            N
+            <Image
+              src="/images/tilo-logo.png"
+              alt={appName}
+              width={1024}
+              height={341}
+              priority
+              className={cn(
+                "max-w-none",
+                isExpanded
+                  ? "h-8 w-auto"
+                  : "absolute h-[48px] w-[144px] -left-[4px] -top-[6px]",
+              )}
+            />
           </div>
-
-          {/* App Name - visible when expanded, hidden when collapsed */}
-          <h1
-            className={cn(
-              "origin-left font-medium text-xl transition-all overflow-hidden whitespace-nowrap",
-              !isExpanded ? "w-0 opacity-0" : "w-auto opacity-100",
-            )}
-          >
-            {appName}
-          </h1>
         </div>
       </SidebarHeader>
 

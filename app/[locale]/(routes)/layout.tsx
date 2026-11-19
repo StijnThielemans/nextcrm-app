@@ -17,7 +17,7 @@ export const metadata: Metadata = {
   metadataBase: new URL(
     process.env.NEXT_PUBLIC_APP_URL! || "http://localhost:3000"
   ),
-  title: "",
+  title: "TILO",
   description: "",
   openGraph: {
     images: [
@@ -25,7 +25,7 @@ export const metadata: Metadata = {
         url: "/images/opengraph-image.png",
         width: 1200,
         height: 630,
-        alt: "",
+        alt: "TILO",
       },
     ],
   },
@@ -36,7 +36,7 @@ export const metadata: Metadata = {
         url: "/images/opengraph-image.png",
         width: 1200,
         height: 630,
-        alt: "",
+        alt: "TILO",
       },
     ],
   },
@@ -129,7 +129,7 @@ export default async function AppLayout({
         dict={translations}
         session={session}
         pluginNav={pluginNav}
-        appName={process.env.NEXT_PUBLIC_APP_NAME || "NextCRM"}
+        appName="TILO"
       />
       <SidebarInset>
         <Header
