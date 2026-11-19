@@ -1,9 +1,11 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { Link } from "@/i18n/navigation";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import type { DossierPlanFile } from "@/lib/raamstudio/dossier-plans";
 import {
   RaamstudioFileError,
   readRaamstudioProject,
@@ -11,12 +13,69 @@ import {
   type RaamstudioProject,
 } from "@/lib/raamstudio/read-project";
 
-export function RaamstudioPanel() {
+export type RaamstudioDossierChoice = {
+  id: string;
+  number: string | null;
+  name: string | null;
+  customer: string | null;
+};
+
+export type RaamstudioSelected = {
+  id: string;
+  number: string | null;
+  name: string | null;
+  plans: DossierPlanFile[];
+};
+
+export function RaamstudioPanel({
+  dossiers,
+  selected,
+  missing,
+}: {
+  dossiers: RaamstudioDossierChoice[];
+  selected: RaamstudioSelected | null;
+  missing: boolean;
+}) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [over, setOver] = useState(false);
   const [fileName, setFileName] = useState<string | null>(null);
   const [project, setProject] = useState<RaamstudioProject | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [loaded, setLoaded] = useState<{
+    id: string;
+    fileName: string;
+    project: RaamstudioProject | null;
+    error: string | null;
+  } | null>(null);
+  const tcRaam = selected?.plans.find((plan) => plan.kind === "tc-raam") ?? null;
+  const dossierView = loaded && tcRaam && loaded.id === tcRaam.id ? loaded : null;
+
+  const tcRaamId = tcRaam?.id ?? null;
+  const tcRaamName = tcRaam?.name ?? null;
+
+  useEffect(() => {
+    if (!tcRaamId || !tcRaamName) return;
+    const controller = new AbortController();
+    const id = tcRaamId;
+    const fileName = tcRaamName;
+    void (async () => {
+      try {
+        const response = await fetch(`/api/documents/${id}/file`, { signal: controller.signal });
+        if (!response.ok) throw new RaamstudioFileError("Dit .tc-raam kon niet worden gelezen.");
+        const view = await readRaamstudioProject(new Uint8Array(await response.arrayBuffer()));
+        if (!controller.signal.aborted) setLoaded({ id, fileName, project: view, error: null });
+      } catch (caught) {
+        if (controller.signal.aborted) return;
+        setLoaded({
+          id,
+          fileName,
+          project: null,
+          error: caught instanceof RaamstudioFileError ? caught.message : "Dit .tc-raam kon niet worden gelezen.",
+        });
+      }
+    })();
+    return () => controller.abort();
+  }, [tcRaamId, tcRaamName]);
 
   async function openFile(file: File) {
     setError(null);
@@ -31,8 +90,80 @@ export function RaamstudioPanel() {
     }
   }
 
+  const hasTcRaam = selected?.plans.some((plan) => plan.kind === "tc-raam") ?? false;
+
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
+      <section>
+        <h3 className="text-sm font-medium">Offertedossiers</h3>
+        {dossiers.length ? (
+          <ul className="mt-3 divide-y divide-black/[0.06] rounded-xl border border-black/[0.06] bg-card" data-testid="raamstudio-dossiers">
+            {dossiers.map((dossier) => {
+              const active = selected?.id === dossier.id;
+              return (
+                <li key={dossier.id}>
+                  <Link
+                    href={`/crm/raamstudio?dossier=${dossier.id}`}
+                    className={cn(
+                      "block px-4 py-3 text-sm hover:bg-accent",
+                      active && "border-l-[3px] border-l-[hsl(var(--tilo))] bg-accent",
+                    )}
+                    data-testid={active ? "raamstudio-dossier-selected" : undefined}
+                  >
+                    <span className="font-medium">{dossier.number ?? "Zonder nummer"}</span>
+                    <span className="text-muted-foreground"> · {dossier.name ?? "Zonder projectbeschrijving"}</span>
+                    {dossier.customer ? <span className="mt-1 block text-xs text-muted-foreground">{dossier.customer}</span> : null}
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        ) : (
+          <p className="mt-3 text-sm text-muted-foreground">Nog geen offertedossiers.</p>
+        )}
+      </section>
+
+      {missing ? <p className="text-sm text-muted-foreground">Dit dossier is niet gevonden.</p> : null}
+
+      {selected ? (
+        <section>
+          <h3 className="text-sm font-medium">Plannen</h3>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {[selected.number, selected.name].filter(Boolean).join(" · ")}
+          </p>
+          {selected.plans.length ? (
+            <ul className="mt-3 space-y-2 text-sm" data-testid="raamstudio-plans">
+              {selected.plans.map((plan) => (
+                <li key={plan.id} className="flex flex-wrap items-baseline justify-between gap-2">
+                  <span>
+                    {plan.folder} · {plan.name}
+                  </span>
+                  <a
+                    className="text-xs text-muted-foreground underline-offset-4 hover:underline"
+                    href={`/api/documents/${plan.id}/file`}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Openen
+                  </a>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="mt-3 text-sm text-muted-foreground">Geen plannen op dit dossier.</p>
+          )}
+          {selected.plans.length && !hasTcRaam ? (
+            <p className="mt-3 text-sm text-muted-foreground" data-testid="raamstudio-plan-note">
+              De raaminfo-kaart komt alleen uit een .tc-raam. Deze plannen staan al op het dossier. Er worden geen posities uit een PDF gelezen.
+            </p>
+          ) : null}
+          {dossierView?.error ? (
+            <p role="alert" className="mt-3 text-sm text-destructive">{dossierView.error}</p>
+          ) : null}
+          {dossierView?.project ? <div className="mt-4"><ProjectCard fileName={dossierView.fileName} project={dossierView.project} /></div> : null}
+        </section>
+      ) : null}
+
       <div
         data-testid="raamstudio-drop"
         className={cn(
@@ -51,7 +182,7 @@ export function RaamstudioPanel() {
           if (file) void openFile(file);
         }}
       >
-        <p className="text-sm">Sleep een .tc-raam hierheen of kies een bestand.</p>
+        <p className="text-sm">Of open een los .tc-raam.</p>
         <p className="mt-1 text-xs text-muted-foreground">Alleen lezen. Er wordt niets in een dossier opgeslagen.</p>
         <Button type="button" variant="outline" className="mt-4" onClick={() => inputRef.current?.click()}>
           Bestand kiezen
