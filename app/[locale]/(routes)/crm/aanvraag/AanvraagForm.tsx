@@ -50,7 +50,6 @@ export function AanvraagForm({
 }) {
   const router = useRouter();
   const [channel, setChannel] = useState<RequestChannel>("PHONE");
-  const [requestDate, setRequestDate] = useState(today);
   const [priceRequestDate, setPriceRequestDate] = useState(today);
   const [query, setQuery] = useState("");
   const [hits, setHits] = useState<CustomerHit[]>([]);
@@ -161,7 +160,7 @@ export function AanvraagForm({
     setPending(true);
     const result = await createAanvraagAction({
       channel,
-      requestDate,
+      requestDate: priceRequestDate,
       priceRequestDate,
       accountId: accountId ?? undefined,
       customer: accountId
@@ -367,10 +366,6 @@ export function AanvraagForm({
           <label className="space-y-1">
             <span className="text-sm">Datum prijsaanvraag</span>
             <Input type="date" value={priceRequestDate} onChange={(event) => setPriceRequestDate(event.target.value)} required />
-          </label>
-          <label className="space-y-1">
-            <span className="text-sm">Aanvraagdatum</span>
-            <Input type="date" value={requestDate} onChange={(event) => setRequestDate(event.target.value)} required />
           </label>
           <label className="space-y-1 sm:col-span-2">
             <span className="text-sm">Kanaal</span>
