@@ -13,6 +13,7 @@ export function pickLatestSend(sends: LatestSend[]): LatestSend | null {
 
 export type DashRow = {
   status: string;
+  step: string;
   requestDate: string | null;
   followUpDate: string | null;
   wonAt: string | null;
@@ -62,7 +63,7 @@ export function salesTiles(rows: DashRow[], monthStart: string, monthEnd: string
   let lostSell = 0;
 
   for (const row of rows) {
-    byStatus[row.status] = (byStatus[row.status] ?? 0) + 1;
+    byStatus[row.step] = (byStatus[row.step] ?? 0) + 1;
     const open = row.status !== "GEWONNEN" && row.status !== "VERLOREN";
     if (open) openCount += 1;
     if (open && row.latestSentSell != null) {

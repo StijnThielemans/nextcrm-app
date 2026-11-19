@@ -1,4 +1,4 @@
-import { buildDossierStepper } from "../dossier-step";
+import { buildDossierStepper, currentDossierStep } from "../dossier-step";
 
 const now = new Date("2026-11-19T15:00:00.000Z");
 
@@ -26,6 +26,7 @@ describe("dossier status stepper", () => {
 
   it("moves to In behandeling once a document is on the dossier", () => {
     expect(labels({ hasDocuments: true, sentAt: null, status: "NIEUW" }).current).toBe("In behandeling");
+    expect(currentDossierStep({ hasDocuments: true, sentAt: null, status: "IN_OPMAAK", now })).toBe("IN_BEHANDELING");
   });
 
   it("moves to Offerte verstuurd the day after a send, even when documents exist", () => {

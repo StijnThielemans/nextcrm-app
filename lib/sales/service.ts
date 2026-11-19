@@ -15,7 +15,7 @@ import {
 } from "@/lib/authz/scopes/crm";
 import { SalesError } from "./errors";
 import { dossierIsReadOnly } from "./dossier-lock";
-import { buildDossierStepper } from "./dossier-step";
+import { buildDossierStepper, currentDossierStep } from "./dossier-step";
 import { parseGrossTotalInput } from "./gross-total";
 import { quoteMargin } from "./margin";
 import { salesTiles, type DashRow, type SalesTiles } from "./dashboard-math";
@@ -1299,8 +1299,12 @@ export async function getSalesDashboard(user: AuthzUser): Promise<SalesTiles> {
       accepted_quote: { select: { sell_excl_vat: true, margin_euro: true } },
       quote_sends: {
         orderBy: { sent_at: "desc" },
+        select: { sent_at: true, quote: { select: { sell_excl_vat: true, margin_euro: true } } },
+      },
+      documents: {
+        where: { document: { deletedAt: null } },
+        select: { document_id: true },
         take: 1,
-        select: { quote: { select: { sell_excl_vat: true, margin_euro: true } } },
       },
     },
   });
@@ -1309,9 +1313,17 @@ export async function getSalesDashboard(user: AuthzUser): Promise<SalesTiles> {
   const monthEnd = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1)).toISOString().slice(0, 10);
   const today = now.toISOString().slice(0, 10);
   const dashRows: DashRow[] = rows.map((row) => {
-    const sent = row.quote_sends[0]?.quote;
+    const latest = row.quote_sends[0];
+    const earliest = row.quote_sends.at(-1);
+    const sent = latest?.quote;
     return {
       status: row.dossier_status ?? "NIEUW",
+      step: currentDossierStep({
+        hasDocuments: row.documents.length > 0,
+        sentAt: earliest?.sent_at.toISOString() ?? null,
+        status: row.dossier_status,
+        now,
+      }),
       requestDate: dayString(row.request_date),
       followUpDate: dayString(row.follow_up_date),
       wonAt: row.won_at ? row.won_at.toISOString() : null,

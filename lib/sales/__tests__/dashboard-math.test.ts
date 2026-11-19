@@ -6,6 +6,7 @@ const today = "2026-11-18";
 
 function row(partial: Partial<DashRow> & Pick<DashRow, "status">): DashRow {
   return {
+    step: partial.status,
     requestDate: null,
     followUpDate: null,
     wonAt: null,
@@ -54,6 +55,23 @@ describe("salesTiles", () => {
     expect(tiles.wonSell).toBe(2000);
     expect(tiles.lostSell).toBe(500);
     expect(tiles.followUpCount).toBe(1);
+    expect(tiles.byStatus).toEqual({
+      OFFERTE_VERSTUURD: 1,
+      NIEUW: 1,
+      GEWONNEN: 1,
+      VERLOREN: 1,
+    });
+  });
+
+  it("counts the current dossier step, not an older stored status", () => {
+    const tiles = salesTiles(
+      [row({ status: "IN_OPMAAK", step: "IN_BEHANDELING" }), row({ status: "OFFERTE_KLAAR", step: "OFFERTE_VERSTUURD" })],
+      monthStart,
+      monthEnd,
+      today,
+    );
+    expect(tiles.byStatus).toEqual({ IN_BEHANDELING: 1, OFFERTE_VERSTUURD: 1 });
+    expect(tiles.openCount).toBe(2);
   });
 
   it("returns a null combined percent when open sell is 0", () => {

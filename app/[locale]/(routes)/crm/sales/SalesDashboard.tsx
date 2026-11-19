@@ -1,7 +1,8 @@
 import { getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import { requireAuthenticated } from "@/lib/authz";
-import { DOSSIER_STATUSES, euro, percentLabel } from "@/lib/sales/labels";
+import { DASHBOARD_STEPS } from "@/lib/sales/dossier-step";
+import { euro, percentLabel } from "@/lib/sales/labels";
 import { listRecentOpens } from "@/lib/sales/recent-opens";
 import { getSalesDashboard, listSalesTasks, type SalesTaskLists } from "@/lib/sales/service";
 import { NewCustomerButton } from "./NewCustomerButton";
@@ -104,9 +105,9 @@ export async function SalesDashboard() {
       <div>
         <h2 className="mb-2 text-lg font-semibold">{t("byStatus")}</h2>
         <ul className="grid gap-2 sm:grid-cols-2 text-sm">
-          {DOSSIER_STATUSES.map((status) => (
-            <li key={status} className="flex justify-between rounded-md border px-3 py-2">
-              <span>{t(`dossierStatus.${status}`)}</span>
+          {DASHBOARD_STEPS.map((status) => (
+            <li key={status} className="flex justify-between rounded-md border px-3 py-2" data-testid={`dashboard-status-${status}`}>
+              <span>{t(`steps.${status}`)}</span>
               <span>{tiles.byStatus[status] ?? 0}</span>
             </li>
           ))}

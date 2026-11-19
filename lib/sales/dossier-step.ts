@@ -99,6 +99,28 @@ export function buildDossierStepper(input: DossierStepperInput): { steps: Dossie
   };
 }
 
+/** Statussen die een dossier nu kan hebben. Dit is de lijst op het verkoopdashboard. */
+export const DASHBOARD_STEPS = [
+  "NIEUW",
+  "IN_BEHANDELING",
+  "OFFERTE_VERSTUURD",
+  "OPVOLGING",
+  "GEWONNEN",
+  "VERLOREN",
+  "PROJECT_MAKEN",
+] as const satisfies readonly DossierStepId[];
+
+export type DashboardStep = (typeof DASHBOARD_STEPS)[number];
+
+const DASHBOARD_STEP_IDS = new Set<string>(DASHBOARD_STEPS);
+
+/** De stap waar het dossier nu op staat, gelijk aan de statusbalk. */
+export function currentDossierStep(input: DossierStepperInput): DashboardStep {
+  const current = buildDossierStepper(input).steps.find((step) => step.state === "current");
+  if (current && DASHBOARD_STEP_IDS.has(current.id)) return current.id as DashboardStep;
+  return "NIEUW";
+}
+
 export function stepperForDossier(
   dossier: {
     documents: readonly unknown[];
