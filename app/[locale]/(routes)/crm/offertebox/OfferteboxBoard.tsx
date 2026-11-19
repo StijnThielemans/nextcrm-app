@@ -252,10 +252,14 @@ function MailColumn({
                 <time className="shrink-0 text-sm text-muted-foreground">{when.format(new Date(row.receivedAt))}</time>
               </div>
               <h3 className="mt-3 font-medium">{row.subject}</h3>
-              {row.body && (
+              {(row.html || row.body) && (
                 <div data-testid="offertebox-body">
                   <p className="mt-2 text-xs font-medium text-muted-foreground">{t("offertebox.body")}</p>
-                  <MailText text={row.body} showAll={t("offertebox.showAll")} showLess={t("offertebox.showLess")} />
+                  {row.html ? (
+                    <MailHtml html={row.html} showAll={t("offertebox.showAll")} showLess={t("offertebox.showLess")} />
+                  ) : (
+                    <MailText text={row.body} showAll={t("offertebox.showAll")} showLess={t("offertebox.showLess")} />
+                  )}
                 </div>
               )}
               {row.attachments.length > 0 && (
@@ -356,6 +360,25 @@ async function materializeDroppedFile(file: File): Promise<File> {
   const name = file.name.trim() || "bericht.msg";
   const type = file.type || (name.toLowerCase().endsWith(".eml") ? "message/rfc822" : "application/vnd.ms-outlook");
   return new File([bytes], name, { type });
+}
+
+function MailHtml({ html, showAll, showLess }: { html: string; showAll: string; showLess: string }) {
+  const [open, setOpen] = useState(false);
+  const long = html.length > 1500;
+  return (
+    <>
+      <div
+        data-testid="offertebox-html"
+        className={`${open ? "mt-1" : "mt-1 max-h-96"} overflow-auto rounded border bg-white p-3 text-sm text-black break-words [&_a]:underline [&_img]:h-auto [&_img]:max-w-full [&_table]:max-w-full`}
+        dangerouslySetInnerHTML={{ __html: html }}
+      />
+      {long && (
+        <button type="button" className="mt-1 underline" onClick={() => setOpen((value) => !value)}>
+          {open ? showLess : showAll}
+        </button>
+      )}
+    </>
+  );
 }
 
 function MailText({ text, showAll, showLess }: { text: string; showAll: string; showLess: string }) {

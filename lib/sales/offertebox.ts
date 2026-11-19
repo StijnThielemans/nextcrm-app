@@ -9,7 +9,7 @@ import { SalesError } from "./errors";
 import { isSellerName, matchSellerUser } from "./aanvraag-fields";
 import { currentDossierStep, type DashboardStep } from "./dossier-step";
 import { OFFERTE_MAILBOX, staysUntilQuoteSent } from "./offertebox-weeks";
-import { offerteboxStorageKey, parseOfferteboxMail, readableMailBody } from "./offertebox-mail";
+import { displayMailHtml, offerteboxStorageKey, parseOfferteboxMail, readableMailBody, sanitizeMailHtml } from "./offertebox-mail";
 
 export type OfferteboxAttachment = {
   id: string;
@@ -27,6 +27,7 @@ export type OfferteboxRow = {
   subject: string;
   preview: string;
   body: string;
+  html: string;
   attachments: OfferteboxAttachment[];
   sellerName: string | null;
   dossierId: string | null;
@@ -87,6 +88,7 @@ async function syncMailbox(): Promise<boolean> {
       subject: email.subject?.trim() || "(geen onderwerp)",
       preview: previewText(body),
       body_text: body || null,
+      body_html: sanitizeMailHtml(email.bodyHtml) || null,
       received_at: receivedAt,
     };
     await prismadb.crm_OfferteboxItems.upsert({
@@ -137,7 +139,15 @@ export async function listOffertebox(user: AuthzUser, now = new Date()): Promise
     include: {
       attachments: {
         orderBy: { createdAt: "asc" },
-        select: { id: true, file_name: true, content_type: true, size: true, is_image: true },
+        select: {
+          id: true,
+          file_name: true,
+          content_type: true,
+          size: true,
+          is_image: true,
+          content_id: true,
+          inline: true,
+        },
       },
       dossier: {
         select: {
@@ -170,7 +180,15 @@ export async function listOffertebox(user: AuthzUser, now = new Date()): Promise
       subject: item.subject,
       preview: item.preview?.trim() || "",
       body: item.body_text?.trim() || item.preview?.trim() || "",
-      attachments: item.attachments.map((attachment) => ({
+      html: displayMailHtml(
+        item.body_html,
+        item.attachments.map((attachment) => ({
+          id: attachment.id,
+          contentId: attachment.content_id,
+          isImage: attachment.is_image,
+        })),
+      ),
+      attachments: item.attachments.filter((attachment) => !attachment.inline).map((attachment) => ({
         id: attachment.id,
         fileName: attachment.file_name,
         contentType: attachment.content_type,
@@ -221,6 +239,8 @@ export async function importOfferteboxMail(user: AuthzUser, fileName: string, by
         size: attachment.bytes.length,
         storage_key: key,
         is_image: attachment.isImage,
+        content_id: attachment.contentId || null,
+        inline: attachment.inline,
       });
     }
     await prismadb.crm_OfferteboxItems.create({
@@ -231,6 +251,7 @@ export async function importOfferteboxMail(user: AuthzUser, fileName: string, by
         subject: mail.subject,
         preview: previewText(mail.body),
         body_text: mail.body || null,
+        body_html: mail.html || null,
         received_at: mail.receivedAt,
         seller_name: null,
         attachments: { create: attachments },

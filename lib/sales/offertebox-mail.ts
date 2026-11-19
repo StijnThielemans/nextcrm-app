@@ -1,5 +1,6 @@
 import MsgReader, { type FieldsData } from "@kenjiuno/msgreader";
 import { simpleParser, type Attachment, type ParsedMail } from "mailparser";
+import sanitizeHtml from "sanitize-html";
 import { isDocumentKey } from "@/lib/documents/file-key";
 import { SalesError } from "./errors";
 
@@ -7,12 +8,24 @@ export const MAX_MAIL_BYTES = 20 * 1024 * 1024;
 export const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
 export const MAX_ATTACHMENTS = 20;
 export const MAX_BODY_CHARS = 100_000;
+export const MAX_HTML_CHARS = 400_000;
 const STORAGE_PREFIX = "documents/offertebox/";
+const ATTACHMENT_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export type MailImageRef = {
+  id: string;
+  contentId: string | null;
+  isImage: boolean;
+};
 
 export type ParsedOfferteboxAttachment = {
   fileName: string;
   contentType: string;
   isImage: boolean;
+  /** Drawn inside the message, so the file is not repeated in the attachment list. */
+  inline: boolean;
+  /** Content-ID without brackets. Empty when the part has none. */
+  contentId: string;
   bytes: Buffer;
 };
 
@@ -21,6 +34,8 @@ export type ParsedOfferteboxMail = {
   fromEmail: string;
   subject: string;
   body: string;
+  /** Sanitized HTML. cid: sources stay until the stored image id is known. */
+  html: string;
   receivedAt: Date;
   attachments: ParsedOfferteboxAttachment[];
 };
@@ -70,6 +85,213 @@ export function imageContentType(bytes: Buffer): "image/png" | "image/jpeg" | "i
   return null;
 }
 
+/** A value may be a colour, a length, or an ordinary http(s)/cid image. No scripts. */
+const SAFE_CSS_VALUE =
+  /^(?:rgb\(\s*(?:\d{1,3}%?\s*,\s*){2}\d{1,3}%?\s*\)|rgba\(\s*(?:\d{1,3}%?\s*,\s*){3}(?:0|1|0?\.\d+)\s*\)|url\(\s*['"]?(?:https?:\/\/|cid:)[^)'"\s]+['"]?\s*\)|[^;{}()])+$/i;
+
+const MAIL_STYLE_PROPS = [
+  "color",
+  "background",
+  "background-color",
+  "background-image",
+  "font-family",
+  "font-size",
+  "font-weight",
+  "font-style",
+  "text-align",
+  "text-decoration",
+  "line-height",
+  "vertical-align",
+  "white-space",
+  "width",
+  "height",
+  "max-width",
+  "min-width",
+  "max-height",
+  "margin",
+  "margin-top",
+  "margin-right",
+  "margin-bottom",
+  "margin-left",
+  "padding",
+  "padding-top",
+  "padding-right",
+  "padding-bottom",
+  "padding-left",
+  "border",
+  "border-top",
+  "border-right",
+  "border-bottom",
+  "border-left",
+  "border-color",
+  "border-width",
+  "border-style",
+  "border-collapse",
+  "border-spacing",
+  "border-radius",
+  "display",
+] as const;
+
+const MAIL_SANITIZE: sanitizeHtml.IOptions = {
+  allowedTags: [
+    "h1", "h2", "h3", "h4", "h5", "h6",
+    "p", "div", "span", "br", "hr", "blockquote", "pre", "center", "font",
+    "b", "strong", "i", "em", "u", "s", "strike", "sub", "sup", "small",
+    "ul", "ol", "li",
+    "table", "thead", "tbody", "tfoot", "tr", "td", "th", "caption", "colgroup", "col",
+    "a", "img",
+  ],
+  allowedAttributes: {
+    "*": ["style", "align", "title"],
+    a: ["href", "name", "target", "rel"],
+    img: ["src", "alt", "width", "height", "border"],
+    font: ["color", "face", "size"],
+    table: ["width", "height", "border", "cellpadding", "cellspacing", "bgcolor"],
+    thead: ["bgcolor"],
+    tbody: ["bgcolor"],
+    tr: ["bgcolor"],
+    td: ["width", "height", "colspan", "rowspan", "valign", "bgcolor", "background"],
+    th: ["width", "height", "colspan", "rowspan", "valign", "bgcolor", "background"],
+    col: ["width", "span"],
+  },
+  allowedSchemes: ["http", "https", "mailto", "cid"],
+  allowedSchemesByTag: { img: ["http", "https", "cid"] },
+  allowedSchemesAppliedToAttributes: ["href", "src", "cite", "background"],
+  allowProtocolRelative: false,
+  allowedStyles: {
+    "*": Object.fromEntries(MAIL_STYLE_PROPS.map((prop) => [prop, [SAFE_CSS_VALUE]])),
+  },
+  transformTags: {
+    a: (tagName, attribs) => {
+      const next = { ...attribs };
+      if (next.target === "_blank") next.rel = "noopener noreferrer";
+      else delete next.target;
+      return { tagName, attribs: next };
+    },
+  },
+};
+
+/** Outlook often hides the picture in VML. Turn that into a normal image before the sanitizer drops VML. */
+function promoteEmbeddedImages(html: string): string {
+  return html.replace(/<v:imagedata\b[^>]*\bsrc\s*=\s*(["'])(cid:[^"']+)\1[^>]*>/gi, '<img src="$2" alt="" />');
+}
+
+export function normalizeContentId(value: string | null | undefined): string {
+  return (value ?? "")
+    .replace(/[\u0000-\u001f]/g, "")
+    .trim()
+    .replace(/^cid:/i, "")
+    .replace(/^</, "")
+    .replace(/>$/, "")
+    .trim()
+    .slice(0, 500);
+}
+
+function htmlReferencesCid(html: string, contentId: string): boolean {
+  if (!html || !contentId) return false;
+  const haystack = html.toLowerCase();
+  const needle = contentId.toLowerCase();
+  if (haystack.includes(`cid:${needle}`)) return true;
+  const encoded = encodeURIComponent(contentId).toLowerCase();
+  return encoded !== needle && haystack.includes(`cid:${encoded}`);
+}
+
+function isInlineImage(bytes: Buffer, contentId: string, disposition: string, html: string): boolean {
+  if (disposition === "attachment") return false;
+  if (!contentId || imageContentType(bytes) === null) return false;
+  return htmlReferencesCid(html, contentId);
+}
+
+const MAX_DATA_URL_CHARS = 500_000;
+
+function rasterDataBytes(dataUrl: string): Buffer | null {
+  const comma = dataUrl.indexOf(",");
+  if (comma < 0) return null;
+  const bytes = Buffer.from(dataUrl.slice(comma + 1), "base64");
+  return bytes.length > 0 ? bytes : null;
+}
+
+/**
+ * A mailbox may already have stored the picture as a data URL. Keep only a real
+ * raster image, and park it while the sanitizer runs so a data: URL cannot sneak
+ * a script through.
+ */
+function parkRasterDataUrls(html: string): { html: string; parked: Array<{ token: string; url: string }> } {
+  const parked: Array<{ token: string; url: string }> = [];
+  const next = html.replace(
+    /\bsrc\s*=\s*(["'])(data:image\/(?:png|jpe?g|gif|webp);base64,[a-z0-9+/=\r\n]+)\1/gi,
+    (match, quote: string, dataUrl: string) => {
+      const compact = dataUrl.replace(/\s/g, "");
+      if (compact.length > MAX_DATA_URL_CHARS) return match;
+      const bytes = rasterDataBytes(compact);
+      if (!bytes || imageContentType(bytes) === null) return match;
+      const token = `cid:obxdata${parked.length}z`;
+      parked.push({ token, url: compact });
+      return `src=${quote}${token}${quote}`;
+    },
+  );
+  return { html: next, parked };
+}
+
+/** Scripts, event handlers and javascript: URLs are removed. cid: and ordinary http(s) images stay. */
+export function sanitizeMailHtml(html: string | null | undefined): string {
+  const raw = promoteEmbeddedImages((html ?? "").replace(/\u0000/g, "")).slice(0, MAX_HTML_CHARS);
+  if (!raw.trim()) return "";
+  const parked = parkRasterDataUrls(raw);
+  let clean = sanitizeHtml(parked.html, MAIL_SANITIZE).trim();
+  for (const item of parked.parked) {
+    clean = clean.replace(item.token, item.url);
+  }
+  return clean;
+}
+
+function unescapeAttr(value: string): string {
+  return value
+    .replace(/&quot;/gi, '"')
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&amp;/gi, "&");
+}
+
+function cidLookupKey(value: string): string {
+  const decoded = unescapeAttr(value);
+  try {
+    return normalizeContentId(decodeURIComponent(decoded)).toLowerCase();
+  } catch {
+    return normalizeContentId(decoded).toLowerCase();
+  }
+}
+
+/** Point each cid: image at the stored file. An unknown cid is removed so the browser does not request the page itself. */
+export function rewriteCidSources(html: string, images: MailImageRef[]): string {
+  const byCid = new Map<string, string>();
+  for (const image of images) {
+    if (!image.isImage || !image.contentId || !ATTACHMENT_ID.test(image.id)) continue;
+    byCid.set(normalizeContentId(image.contentId).toLowerCase(), `/api/crm/offertebox/attachments/${image.id}`);
+  }
+  const urlFor = (rawCid: string) => byCid.get(cidLookupKey(rawCid)) ?? "";
+  const withAttrs = html.replace(
+    /(\s(?:src|background)\s*=\s*)(["'])cid:([^"']*)\2/gi,
+    (_match, prefix: string, quote: string, cid: string) => {
+      const url = urlFor(cid);
+      return url ? `${prefix}${quote}${url}${quote}` : "";
+    },
+  );
+  return withAttrs.replace(
+    /url\(\s*(['"]?)cid:([^)'"]*)\1\s*\)/gi,
+    (_match, quote: string, cid: string) => {
+      const url = urlFor(cid);
+      return url ? `url(${quote}${url}${quote})` : "none";
+    },
+  );
+}
+
+export function displayMailHtml(html: string | null | undefined, images: MailImageRef[]): string {
+  const clean = sanitizeMailHtml(html);
+  if (!clean) return "";
+  return rewriteCidSources(clean, images);
+}
+
 export function readableMailBody(text: string | null | undefined, html: string | null | undefined): string {
   const plain = (text ?? "").replace(/\u0000/g, "").trim();
   const body = plain || htmlToText(html ?? "");
@@ -99,7 +321,7 @@ export async function parseOfferteboxMail(
 
   let mail: ParsedMail;
   try {
-    mail = await simpleParser(unwrapEmlx(fileName, bytes));
+    mail = await simpleParser(unwrapEmlx(fileName, bytes), { skipImageLinks: true });
   } catch {
     throw new SalesError("mailInvalid");
   }
@@ -108,10 +330,11 @@ export async function parseOfferteboxMail(
   const fromName = cleanHeader(from?.name ?? "", 200);
   const fromEmail = cleanHeader(from?.address ?? "", 320);
   const subject = cleanHeader(mail.subject ?? "", 500).replace(/\s+/g, " ").trim();
-  const html = typeof mail.html === "string" ? mail.html : "";
-  const body = readableMailBody(mail.text, html);
-  const attachments = collectAttachments(mail.attachments ?? []);
-  if (!fromName && !fromEmail && !subject && !body && attachments.length === 0) {
+  const rawHtml = typeof mail.html === "string" ? mail.html : "";
+  const html = sanitizeMailHtml(rawHtml);
+  const body = readableMailBody(mail.text, rawHtml);
+  const attachments = collectAttachments(mail.attachments ?? [], html);
+  if (!fromName && !fromEmail && !subject && !body && !html && attachments.length === 0) {
     throw new SalesError("mailInvalid");
   }
 
@@ -120,6 +343,7 @@ export async function parseOfferteboxMail(
     fromEmail,
     subject: subject || "(geen onderwerp)",
     body,
+    html,
     receivedAt: receivedAt(mail.date),
     attachments,
   };
@@ -149,9 +373,11 @@ function parseOutlookMessage(bytes: Buffer): ParsedOfferteboxMail {
   const fromEmail = outlookEmail(info);
   const subject = cleanHeader(info.subject ?? "", 500).replace(/\s+/g, " ").trim();
   const plain = (info.body ?? "").replace(/\u0000/g, "").replace(/\r\n/g, "\n");
-  const body = readableMailBody(plain, outlookHtml(info));
-  const attachments = collectMsgAttachments(reader, info.attachments ?? []);
-  if (!fromName && !fromEmail && !subject && !body && attachments.length === 0) {
+  const rawHtml = outlookHtml(info);
+  const html = sanitizeMailHtml(rawHtml);
+  const body = readableMailBody(plain, rawHtml);
+  const attachments = collectMsgAttachments(reader, info.attachments ?? [], html);
+  if (!fromName && !fromEmail && !subject && !body && !html && attachments.length === 0) {
     throw new SalesError("mailInvalid");
   }
 
@@ -160,6 +386,7 @@ function parseOutlookMessage(bytes: Buffer): ParsedOfferteboxMail {
     fromEmail,
     subject: subject || "(geen onderwerp)",
     body,
+    html,
     receivedAt: outlookDate(info.messageDeliveryTime || info.clientSubmitTime),
     attachments,
   };
@@ -188,14 +415,16 @@ function outlookTextDrop(fileName: string, bytes: Buffer): ParsedOfferteboxMail 
   if (bytes.includes(0)) return null;
   const text = bytes.toString("utf8").replace(/^\uFEFF/, "").trim();
   if (!/<\s*(html|body|div|p|table)\b/i.test(text.slice(0, 4000))) return null;
+  const html = sanitizeMailHtml(text);
   const body = readableMailBody("", text);
-  if (!body) return null;
+  if (!body && !html) return null;
   const subject = cleanHeader(safeFileName(fileName).replace(/\.(msg|html?)$/i, ""), 500);
   return {
     fromName: "",
     fromEmail: "",
     subject: subject || "(geen onderwerp)",
     body,
+    html,
     receivedAt: new Date(),
     attachments: [],
   };
@@ -207,9 +436,8 @@ function outlookDate(value: string | undefined): Date {
   return receivedAt(Number.isNaN(date.getTime()) ? undefined : date);
 }
 
-function collectMsgAttachments(reader: MsgReader, list: FieldsData[]): ParsedOfferteboxAttachment[] {
-  const chosen = list.filter((item) => item.attachmentHidden !== true && typeof item.dataId === "number");
-  if (chosen.length > MAX_ATTACHMENTS) throw new SalesError("mailTooLarge");
+function collectMsgAttachments(reader: MsgReader, list: FieldsData[], html: string): ParsedOfferteboxAttachment[] {
+  const chosen = list.filter((item) => typeof item.dataId === "number");
   let total = 0;
   const attachments: ParsedOfferteboxAttachment[] = [];
   chosen.forEach((item, index) => {
@@ -223,15 +451,19 @@ function collectMsgAttachments(reader: MsgReader, list: FieldsData[]): ParsedOff
     const size = typeof item.contentLength === "number" ? Math.min(Math.max(item.contentLength, 0), raw.length) : raw.length;
     const bytes = raw.subarray(0, size);
     if (bytes.length === 0) return;
+    const image = imageContentType(bytes);
+    const contentId = normalizeContentId(item.pidContentId);
+    if (item.attachmentHidden === true && image === null) return;
     if (bytes.length > MAX_ATTACHMENT_BYTES) throw new SalesError("mailTooLarge");
     total += bytes.length;
-    if (total > MAX_MAIL_BYTES) throw new SalesError("mailTooLarge");
-    const image = imageContentType(bytes);
+    if (total > MAX_MAIL_BYTES || attachments.length >= MAX_ATTACHMENTS) throw new SalesError("mailTooLarge");
     const name = item.fileName || item.fileNameShort || `bijlage-${index + 1}`;
     attachments.push({
       fileName: safeFileName(name),
       contentType: image ?? sanitizeContentType(item.attachMimeTag),
       isImage: image !== null,
+      inline: isInlineImage(bytes, contentId, "", html),
+      contentId,
       bytes,
     });
   });
@@ -259,8 +491,8 @@ function unwrapEmlx(fileName: string, bytes: Buffer): Buffer {
   return /^\d+$/.test(first) ? bytes.subarray(newline + 1) : bytes;
 }
 
-function collectAttachments(list: Attachment[]): ParsedOfferteboxAttachment[] {
-  const chosen = list.filter(isListedAttachment);
+function collectAttachments(list: Attachment[], html: string): ParsedOfferteboxAttachment[] {
+  const chosen = list.filter(isStoredPart);
   if (chosen.length > MAX_ATTACHMENTS) throw new SalesError("mailTooLarge");
   let total = 0;
   return chosen.map((attachment, index) => {
@@ -269,17 +501,22 @@ function collectAttachments(list: Attachment[]): ParsedOfferteboxAttachment[] {
     total += bytes.length;
     if (total > MAX_MAIL_BYTES) throw new SalesError("mailTooLarge");
     const image = imageContentType(bytes);
+    const contentId = normalizeContentId(attachment.cid || attachment.contentId);
+    const disposition = (attachment.contentDisposition || "").toLowerCase();
     return {
       fileName: attachment.filename ? safeFileName(attachment.filename) : `bijlage-${index + 1}`,
       contentType: image ?? sanitizeContentType(attachment.contentType),
       isImage: image !== null,
+      inline: isInlineImage(bytes, contentId, disposition, html),
+      contentId,
       bytes,
     };
   });
 }
 
-function isListedAttachment(attachment: Attachment): boolean {
+function isStoredPart(attachment: Attachment): boolean {
   if (!Buffer.isBuffer(attachment.content) || attachment.content.length === 0) return false;
+  if (imageContentType(attachment.content) !== null) return true;
   const disposition = (attachment.contentDisposition || "").toLowerCase();
   if (attachment.related && disposition !== "attachment") return false;
   if (disposition === "inline" && !attachment.filename) return false;

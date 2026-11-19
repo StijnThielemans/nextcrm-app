@@ -2540,6 +2540,8 @@ model crm_OfferteboxItems {
   preview     String?
   /// Volledige leesbare tekst van de mail. Leeg bij een handmatige prijsaanvraag.
   body_text   String?
+  /// Opgeschoonde HTML van de mail. cid:-verwijzingen wijzen naar een bijlage. Leeg als de mail alleen platte tekst had.
+  body_html   String?
   seller_name String?
   dossier_id  String?  @db.Uuid
   createdAt   DateTime @default(now())
@@ -2561,6 +2563,10 @@ model crm_OfferteboxAttachments {
   size         Int
   storage_key  String
   is_image     Boolean  @default(false)
+  /// Content-ID van een afbeelding in de mail, zonder haakjes. Leeg bij een gewone bijlage.
+  content_id   String?
+  /// De afbeelding staat in de mailtekst en wordt niet nog eens als bestand getoond.
+  inline       Boolean  @default(false)
   createdAt    DateTime @default(now())
 
   item crm_OfferteboxItems @relation(fields: [item_id], references: [id], onDelete: Cascade)
