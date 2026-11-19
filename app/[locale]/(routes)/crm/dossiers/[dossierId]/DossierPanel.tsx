@@ -6,7 +6,6 @@ import { useRouter } from "@/i18n/navigation";
 import { Link } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Input } from "@/components/ui/input";
 import {
   Dialog,
@@ -30,7 +29,7 @@ import {
   type RequestChannel,
 } from "@/lib/sales/labels";
 import { ACCOUNT_ROLE_LABELS, PROJECT_GROUP_LABELS, type AccountRole, type ProjectGroup } from "@/lib/sales/aanvraag-fields";
-import { groupDocumentsIntoFolders } from "@/lib/sales/document-folders";
+import { groupDocumentsIntoFolders, type DocumentFolder } from "@/lib/sales/document-folders";
 import { stepperForDossier } from "@/lib/sales/dossier-step";
 import type { DossierDetail } from "@/lib/sales/service";
 import {
@@ -58,6 +57,41 @@ function followUpInDays(days: number) {
   return date.toISOString().slice(0, 10);
 }
 
+function DocumentFolderRow({ folder }: { folder: DocumentFolder }) {
+  const [open, setOpen] = useState(true);
+
+  return (
+    <li>
+      <details
+        open={open}
+        data-folder={folder.label}
+        className="group/folder"
+        onToggle={(event) => {
+          const next = event.currentTarget.open;
+          setOpen((current) => (current === next ? current : next));
+        }}
+      >
+        <summary
+          data-folder-toggle={folder.label}
+          className="flex cursor-pointer list-none items-center gap-2 rounded-md px-1 py-1 font-medium hover:bg-muted [&::-webkit-details-marker]:hidden"
+        >
+          <ChevronRight className={`size-4 shrink-0 transition-transform ${open ? "rotate-90" : ""}`} aria-hidden />
+          <Folder className="size-4 shrink-0 text-amber-700" aria-hidden />
+          <span>{folder.label}</span>
+        </summary>
+        <ul className="ml-6 space-y-1 border-l py-1 pl-3">
+          {folder.files.map((doc) => (
+            <li key={doc.id} data-file={doc.name} className="flex items-start gap-2">
+              <FileText className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" aria-hidden />
+              <a className="underline break-all" href={`/api/documents/${doc.id}/file`}>{doc.name}</a>
+            </li>
+          ))}
+        </ul>
+      </details>
+    </li>
+  );
+}
+
 function DocumentFolders({ documents }: { documents: DossierDetail["documents"] }) {
   const folders = groupDocumentsIntoFolders(documents);
   if (folders.length === 0) {
@@ -67,28 +101,7 @@ function DocumentFolders({ documents }: { documents: DossierDetail["documents"] 
   return (
     <ul className="space-y-1">
       {folders.map((folder) => (
-        <li key={folder.key}>
-          <Collapsible className="group/folder">
-            <CollapsibleTrigger
-              data-folder={folder.label}
-              className="flex w-full items-center gap-2 rounded-md px-1 py-1 text-left font-medium hover:bg-muted"
-            >
-              <ChevronRight className="size-4 shrink-0 transition-transform group-data-[state=open]/folder:rotate-90" aria-hidden />
-              <Folder className="size-4 shrink-0 text-amber-700" aria-hidden />
-              <span>{folder.label}</span>
-            </CollapsibleTrigger>
-            <CollapsibleContent>
-              <ul className="ml-6 space-y-1 border-l py-1 pl-3">
-                {folder.files.map((doc) => (
-                  <li key={doc.id} className="flex items-start gap-2">
-                    <FileText className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" aria-hidden />
-                    <a className="underline break-all" href={`/api/documents/${doc.id}/file`}>{doc.name}</a>
-                  </li>
-                ))}
-              </ul>
-            </CollapsibleContent>
-          </Collapsible>
-        </li>
+        <DocumentFolderRow key={folder.key} folder={folder} />
       ))}
     </ul>
   );
