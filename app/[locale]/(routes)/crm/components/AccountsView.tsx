@@ -56,14 +56,17 @@ const AccountsView = ({ data, crmData }: AccountsViewProps) => {
               <SheetTrigger asChild>
                 <Button size="sm" aria-label={t("accounts.addNew")} data-testid="add-account-btn">+</Button>
               </SheetTrigger>
-              <SheetContent className="w-full md:max-w-[771px] overflow-y-auto">
+              <SheetContent
+                data-testid="new-customer-screen"
+                className="!inset-0 !h-dvh !w-screen !max-w-none overflow-y-auto border-0 p-8 sm:!max-w-none"
+              >
                 <SheetHeader>
                   <SheetTitle>Nieuwe klant</SheetTitle>
                   <SheetDescription>
                     Naam, contacttype, adres, telefoon, gsm, e-mail, btw en btw-nummer.
                   </SheetDescription>
                 </SheetHeader>
-                <div className="mt-6 space-y-4">
+                <div className="mt-8">
                   <NewAccountForm onFinish={() => setOpen(false)} />
                 </div>
               </SheetContent>

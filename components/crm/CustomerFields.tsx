@@ -29,10 +29,12 @@ export function CustomerFields({
   initial,
   submitLabel,
   onSubmit,
+  layout = "stack",
 }: {
   initial?: Partial<CustomerDraft>;
   submitLabel: string;
   onSubmit: (draft: CustomerDraft) => Promise<string | null>;
+  layout?: "stack" | "overview";
 }) {
   const [name, setName] = useState(initial?.name ?? "");
   const [role, setRole] = useState<AccountRole | "">(initial?.role ?? "");
@@ -62,13 +64,18 @@ export function CustomerFields({
     if (message) setError(message);
   }
 
+  const overview = layout === "overview";
+  const field = "space-y-1 block";
   return (
-    <form onSubmit={submit} className="space-y-3 px-4 md:px-10 pb-8">
-      <label className="space-y-1 block">
+    <form
+      onSubmit={submit}
+      className={overview ? "grid gap-x-10 gap-y-5 md:grid-cols-2" : "space-y-3 px-4 md:px-10 pb-8"}
+    >
+      <label className={field}>
         <span className="text-sm">Naam</span>
         <Input value={name} onChange={(event) => setName(event.target.value)} required />
       </label>
-      <label className="space-y-1 block">
+      <label className={field}>
         <span className="text-sm">Contacttype</span>
         <select
           className="flex h-9 w-full rounded-md border bg-transparent px-3 text-sm"
@@ -82,20 +89,22 @@ export function CustomerFields({
           ))}
         </select>
       </label>
-      <AddressBox label="Adres" value={address} onChange={setAddress} required />
-      <label className="space-y-1 block">
+      <div className={overview ? "md:col-span-2" : undefined}>
+        <AddressBox label="Adres" value={address} onChange={setAddress} required />
+      </div>
+      <label className={field}>
         <span className="text-sm">Telefoonnummer</span>
         <Input value={phone} onChange={(event) => setPhone(event.target.value)} />
       </label>
-      <label className="space-y-1 block">
+      <label className={field}>
         <span className="text-sm">Gsm-nummer</span>
         <Input value={mobile} onChange={(event) => setMobile(event.target.value)} />
       </label>
-      <label className="space-y-1 block">
+      <label className={overview ? `${field} md:col-span-2` : field}>
         <span className="text-sm">E-mailadres</span>
         <Input type="email" value={email} onChange={(event) => setEmail(event.target.value)} required />
       </label>
-      <label className="space-y-1 block">
+      <label className={field}>
         <span className="text-sm">BTW</span>
         <select
           className="flex h-9 w-full rounded-md border bg-transparent px-3 text-sm"
@@ -108,12 +117,14 @@ export function CustomerFields({
           ))}
         </select>
       </label>
-      <label className="space-y-1 block">
+      <label className={field}>
         <span className="text-sm">BTW-nummer</span>
         <Input value={vat} onChange={(event) => setVat(event.target.value)} />
       </label>
-      {error && <p className="text-sm text-destructive">{error}</p>}
-      <Button type="submit" disabled={pending}>{pending ? "Opslaan…" : submitLabel}</Button>
+      {error && <p className={`text-sm text-destructive${overview ? " md:col-span-2" : ""}`}>{error}</p>}
+      <div className={overview ? "md:col-span-2" : undefined}>
+        <Button type="submit" disabled={pending}>{pending ? "Opslaan…" : submitLabel}</Button>
+      </div>
     </form>
   );
 }

@@ -26,5 +26,5 @@ export function NewAccountForm({ onFinish }: { onFinish: () => void }) {
     return null;
   }
 
-  return <CustomerFields submitLabel="Klant aanmaken" onSubmit={onSubmit} />;
+  return <CustomerFields layout="overview" submitLabel="Klant aanmaken" onSubmit={onSubmit} />;
 }
