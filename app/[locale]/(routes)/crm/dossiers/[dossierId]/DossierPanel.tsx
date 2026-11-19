@@ -31,7 +31,7 @@ import {
 import { ACCOUNT_ROLE_LABELS, PROJECT_GROUP_LABELS, type AccountRole, type ProjectGroup } from "@/lib/sales/aanvraag-fields";
 import { groupDocumentsIntoFolders, type DocumentFolder } from "@/lib/sales/document-folders";
 import { stepperForDossier } from "@/lib/sales/dossier-step";
-import { MISSING_QUOTE_PRICE, quoteCanWin, quotePriceLabel } from "@/lib/sales/quote-choice";
+import { quoteCanWin, quotePriceLabel } from "@/lib/sales/quote-choice";
 import type { DossierDetail } from "@/lib/sales/service";
 import {
   addChannelAction,
@@ -44,11 +44,6 @@ import {
 import { uploadDocumentFile, uploadPdf } from "../../sales/upload-pdf";
 
 const today = new Date().toISOString().slice(0, 10);
-
-function shownPrice(gross: number | null, missing: string) {
-  const label = quotePriceLabel(gross);
-  return label === MISSING_QUOTE_PRICE ? missing : label;
-}
 
 function folderTitle(label: string, category: string | null | undefined, t: ReturnType<typeof useTranslations>) {
   if (category && t.has(`folders.${category}`)) return t(`folders.${category}`);
@@ -106,14 +101,13 @@ function DocumentFolderRow({ folder }: { folder: DocumentFolder }) {
 }
 
 function WinningQuoteChoices({ quotes }: { quotes: DossierDetail["families"][number]["quotes"] }) {
-  const t = useTranslations("Sales");
   const priced = quotes.filter((quote) => quoteCanWin(quote.gross));
   const defaultId = priced.length === 1 ? priced[0]?.id : "";
 
   return (
     <fieldset className="space-y-2">
-      <legend className="text-sm font-medium">{t("whichQuoteWon")}</legend>
-      {quotes.length === 0 && <p className="text-sm text-muted-foreground">{t("noQuotes")}</p>}
+      <legend className="text-sm font-medium">Welke offerte is gewonnen?</legend>
+      {quotes.length === 0 && <p className="text-sm text-muted-foreground">Nog geen offertes.</p>}
       <ul className="space-y-2">
         {quotes.map((quote) => {
           const enabled = quoteCanWin(quote.gross);
@@ -134,24 +128,23 @@ function WinningQuoteChoices({ quotes }: { quotes: DossierDetail["families"][num
                   className="mt-1"
                 />
                 <span className="min-w-0 flex-1 break-all">{quote.pdfName}</span>
-                <span className="shrink-0 tabular-nums" data-winning-price={quote.id}>{shownPrice(quote.gross, t("noPrice"))}</span>
+                <span className="shrink-0 tabular-nums" data-winning-price={quote.id}>{quotePriceLabel(quote.gross)}</span>
               </label>
             </li>
           );
         })}
       </ul>
       {quotes.length > 0 && priced.length === 0 && (
-        <p className="text-sm text-muted-foreground">{t("noPricedQuote")}</p>
+        <p className="text-sm text-muted-foreground">Geen offerte met een totaal bruto.</p>
       )}
     </fieldset>
   );
 }
 
 function DocumentFolders({ documents }: { documents: DossierDetail["documents"] }) {
-  const t = useTranslations("Sales");
   const folders = groupDocumentsIntoFolders(documents);
   if (folders.length === 0) {
-    return <p className="text-muted-foreground">{t("noDocuments")}</p>;
+    return <p className="text-muted-foreground">Nog geen documenten.</p>;
   }
 
   return (
@@ -164,7 +157,6 @@ function DocumentFolders({ documents }: { documents: DossierDetail["documents"] 
 }
 
 export function DossierPanel({ dossier }: { dossier: DossierDetail }) {
-  const t = useTranslations("Sales");
   const router = useRouter();
   const quoteInput = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
@@ -549,10 +541,121 @@ export function DossierPanel({ dossier }: { dossier: DossierDetail }) {
           </Dialog>
           <DocumentFolders documents={dossier.documents} />
         </div>
+
+        <div className="rounded-md border p-4 space-y-3 text-sm">
+          <div className="flex items-center justify-between gap-2">
+            <h2 className="text-lg font-semibold">Opvolging</h2>
+            {!dossier.terminal && (
+              <Button
+                type="button"
+                size="icon"
+                variant="outline"
+                className="h-8 w-8"
+                aria-label="Opvolging toevoegen"
+                disabled={busy}
+                onClick={() => {
+                  setStatus((dossier.status as DossierStatus) || "NIEUW");
+                  setFollowOpen(true);
+                }}
+              >
+                <Plus />
+              </Button>
+            )}
+          </div>
+          {hasFollowUp ? (
+            <ul className="space-y-1">
+              {dossier.followUpDate && <li><span className="text-muted-foreground">Datum </span>{dossier.followUpDate}</li>}
+              {dossier.nextStep && <li><span className="text-muted-foreground">Volgende actie </span>{dossier.nextStep}</li>}
+              {dossier.notes && <li><span className="text-muted-foreground">Notitie </span>{dossier.notes}</li>}
+            </ul>
+          ) : (
+            <p className="text-muted-foreground">Nog geen opvolging.</p>
+          )}
+          {dossier.terminal && <p>Het verkooppad is gesloten. Er wordt geen order of factuur gemaakt.</p>}
+          {dossier.terminal && dossier.status === "VERLOREN" && (
+            <form
+              className="flex gap-2"
+              onSubmit={(event) => {
+                event.preventDefault();
+                const reason = String(new FormData(event.currentTarget).get("lostReason") ?? "");
+                void run(() => updateDossierAction(dossier.id, { lostReason: reason }));
+              }}
+            >
+              <Input name="lostReason" defaultValue={dossier.lostReason ?? ""} />
+              <Button type="submit" variant="secondary" disabled={busy}>Reden verbeteren</Button>
+            </form>
+          )}
+          <Dialog open={followOpen} onOpenChange={setFollowOpen}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Opvolging toevoegen</DialogTitle>
+                <DialogDescription>Datum en notitie voor de volgende opvolging.</DialogDescription>
+              </DialogHeader>
+              <form
+                key={`${dossier.followUpDate ?? ""}-${dossier.nextStep ?? ""}-${dossier.notes ?? ""}-${dossier.status ?? ""}`}
+                className="grid gap-3"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  const data = new FormData(event.currentTarget);
+                  void run(async () => {
+                    const saved = await updateDossierAction(dossier.id, {
+                      nextStep: String(data.get("nextStep") ?? ""),
+                      followUpDate: String(data.get("followUp") ?? ""),
+                      notes: String(data.get("notes") ?? ""),
+                    });
+                    if (saved.error) return saved;
+                    setFollowOpen(false);
+                    if (status === dossier.status) return { ok: true };
+                    return changeStatusAction(dossier.id, {
+                      status,
+                      lostReason: String(data.get("lostReason") ?? ""),
+                      acceptedQuoteId: String(data.get("accepted") ?? ""),
+                    });
+                  });
+                }}
+              >
+                <label className="space-y-1">
+                  <span className="text-sm">Datum</span>
+                  <Input name="followUp" type="date" defaultValue={dossier.followUpDate ?? today} required />
+                </label>
+                <label className="space-y-1">
+                  <span className="text-sm">Volgende actie</span>
+                  <Input name="nextStep" defaultValue={dossier.nextStep ?? ""} />
+                </label>
+                <label className="space-y-1">
+                  <span className="text-sm">Status</span>
+                  <select className="flex h-9 w-full rounded-md border bg-transparent px-3 text-sm" value={status} onChange={(event) => setStatus(event.target.value as DossierStatus)}>
+                    {OPEN_STATUSES.filter((item) => item !== "OFFERTE_VERSTUURD").map((item) => (
+                      <option key={item} value={item}>{DOSSIER_STATUS_LABELS[item]}</option>
+                    ))}
+                    {dossier.status === "OFFERTE_VERSTUURD" && <option value="OFFERTE_VERSTUURD">Offerte verstuurd</option>}
+                    <option value="GEWONNEN">Gewonnen</option>
+                    <option value="VERLOREN">Verloren</option>
+                  </select>
+                </label>
+                <label className="space-y-1">
+                  <span className="text-sm">Interne notitie</span>
+                  <Input name="notes" defaultValue={dossier.notes ?? ""} />
+                </label>
+                {status === "VERLOREN" && (
+                  <label className="space-y-1">
+                    <span className="text-sm">Reden verloren</span>
+                    <Input name="lostReason" required />
+                  </label>
+                )}
+                {status === "GEWONNEN" && <WinningQuoteChoices quotes={versions} />}
+                <DialogFooter>
+                  <Button type="button" variant="outline" onClick={() => setFollowOpen(false)}>Annuleren</Button>
+                  <Button type="submit" disabled={busy || (status === "GEWONNEN" && !canChooseWinner)}>Opslaan</Button>
+                </DialogFooter>
+              </form>
+            </DialogContent>
+          </Dialog>
+        </div>
       </section>
 
-      <section className="space-y-3" aria-label="Opvolging">
-        <h2 className="text-lg font-semibold">Opvolging</h2>
+      <section className="space-y-3">
+        <h2 className="text-lg font-semibold">Contacten</h2>
         <ul className="text-sm space-y-1">
           {dossier.channels.map((event) => (
             <li key={event.id}>
@@ -580,7 +683,7 @@ export function DossierPanel({ dossier }: { dossier: DossierDetail }) {
               });
             }}
           >
-            <select name="channel" aria-label="Opvolging" className="h-9 rounded-md border bg-transparent px-2 text-sm" defaultValue="PHONE">
+            <select name="channel" aria-label="Kanaal" className="h-9 rounded-md border bg-transparent px-2 text-sm" defaultValue="PHONE">
               {FOLLOW_UP_CHANNELS.map((item) => <option key={item} value={item}>{FOLLOW_UP_CHANNEL_LABELS[item]}</option>)}
             </select>
             <Input name="date" type="date" defaultValue={today} required className="w-40" />
