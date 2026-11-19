@@ -1,12 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Link, useRouter } from "@/i18n/navigation";
 import { SELLERS } from "@/lib/sales/aanvraag-fields";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { addDays, weekStartKey } from "@/lib/sales/offertebox-weeks";
 import type { OfferteboxRow, OfferteboxView } from "@/lib/sales/offertebox";
-import { assignOfferteboxSellerAction } from "@/actions/crm/sales/actions";
+import { addOfferteboxRequestAction, assignOfferteboxSellerAction } from "@/actions/crm/sales/actions";
 
 export function OfferteboxBoard({ view }: { view: OfferteboxView }) {
   const t = useTranslations("Sales");
@@ -14,6 +16,11 @@ export function OfferteboxBoard({ view }: { view: OfferteboxView }) {
   const router = useRouter();
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [adding, setAdding] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [fromName, setFromName] = useState("");
+  const [fromEmail, setFromEmail] = useState("");
+  const [subject, setSubject] = useState("");
   const now = new Date();
   const todayStart = weekStartKey(now);
   const when = new Intl.DateTimeFormat(locale, {
@@ -56,6 +63,23 @@ export function OfferteboxBoard({ view }: { view: OfferteboxView }) {
     router.refresh();
   }
 
+  async function onAdd(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setSaving(true);
+    setError(null);
+    const result = await addOfferteboxRequestAction({ fromName, fromEmail, subject });
+    setSaving(false);
+    if (result && "error" in result && result.error) {
+      setError(result.error);
+      return;
+    }
+    setFromName("");
+    setFromEmail("");
+    setSubject("");
+    setAdding(false);
+    router.refresh();
+  }
+
   return (
     <div className="space-y-6">
       {!view.mailboxLinked && (
@@ -65,6 +89,31 @@ export function OfferteboxBoard({ view }: { view: OfferteboxView }) {
             {t("offertebox.openEmails")}
           </Link>
         </div>
+      )}
+      <div className="flex justify-end">
+        <Button type="button" size="sm" className="h-8" data-testid="offertebox-add" onClick={() => setAdding((open) => !open)}>
+          {t("offertebox.addRequest")}
+        </Button>
+      </div>
+      {adding && (
+        <form onSubmit={onAdd} className="grid gap-3 rounded-md border p-4 sm:grid-cols-[1fr_1fr_1.4fr_auto]" data-testid="offertebox-add-form">
+          <label className="space-y-1 text-sm">
+            <span>{t("offertebox.addName")}</span>
+            <Input value={fromName} onChange={(event) => setFromName(event.target.value)} className="h-8" data-testid="offertebox-add-name" />
+          </label>
+          <label className="space-y-1 text-sm">
+            <span>{t("offertebox.addEmail")}</span>
+            <Input type="email" value={fromEmail} onChange={(event) => setFromEmail(event.target.value)} className="h-8" data-testid="offertebox-add-email" />
+          </label>
+          <label className="space-y-1 text-sm">
+            <span>{t("offertebox.addSubject")}</span>
+            <Input value={subject} onChange={(event) => setSubject(event.target.value)} className="h-8" required data-testid="offertebox-add-subject" />
+          </label>
+          <div className="flex items-end gap-2">
+            <Button type="submit" size="sm" className="h-8" disabled={saving}>{t("offertebox.addSave")}</Button>
+            <Button type="button" size="sm" variant="outline" className="h-8" onClick={() => setAdding(false)}>{t("offertebox.addCancel")}</Button>
+          </div>
+        </form>
       )}
       <div className="grid gap-3 sm:grid-cols-3">
         <div className="rounded-md border p-4">
@@ -124,7 +173,7 @@ export function OfferteboxBoard({ view }: { view: OfferteboxView }) {
                           data-testid="offertebox-seller"
                           onChange={(event) => void onSeller(row.id, event.target.value)}
                         >
-                          <option value="">{t("choose")}</option>
+                          <option value="">{t("offertebox.divide")}</option>
                           {SELLERS.map((name) => (
                             <option key={name} value={name}>{name}</option>
                           ))}

@@ -6,7 +6,7 @@ import { requireAuthenticated, AuthenticationError } from "@/lib/authz";
 import { suggestAddresses } from "@/lib/sales/aanvraag-fields";
 import { SalesError } from "@/lib/sales/errors";
 import { SALES_ERROR_TEXT, type DossierDocumentCategory, type DossierStatus, type RequestChannel } from "@/lib/sales/labels";
-import { assignOfferteboxSeller, linkOfferteboxDossier } from "@/lib/sales/offertebox";
+import { addOfferteboxRequest, assignOfferteboxSeller, linkOfferteboxDossier } from "@/lib/sales/offertebox";
 import {
   addChannelEvent,
   changeDossierStatus,
@@ -102,6 +102,18 @@ export async function createAanvraagAction(input: AanvraagInput, offerteboxId?: 
     if (offerteboxId) await linkOfferteboxDossier(auth.user, offerteboxId, created.id);
     refresh();
     return { id: created.id, number: created.number };
+  } catch (error) {
+    return await fail(error);
+  }
+}
+
+export async function addOfferteboxRequestAction(input: { fromName?: string; fromEmail?: string; subject?: string }) {
+  const auth = await userOrError();
+  if ("error" in auth) return { error: auth.error };
+  try {
+    await addOfferteboxRequest(auth.user, input);
+    refresh();
+    return { ok: true as const };
   } catch (error) {
     return await fail(error);
   }

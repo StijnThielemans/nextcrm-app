@@ -1042,6 +1042,13 @@
       "from": "Van",
       "subject": "Onderwerp",
       "seller": "Verkoper",
+      "divide": "Verdelen",
+      "addRequest": "+ Prijsaanvraag",
+      "addName": "Naam",
+      "addEmail": "E-mail",
+      "addSubject": "Prijsaanvraag",
+      "addSave": "Toevoegen",
+      "addCancel": "Annuleren",
       "empty": "Geen open aanvragen. Nieuwe mails van offerte@thielemans.be komen hier.",
       "fromBox": "Deze aanvraag komt uit de Offertebox."
     },

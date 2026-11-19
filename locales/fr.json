@@ -938,6 +938,13 @@
       "from": "De",
       "subject": "Objet",
       "seller": "Vendeur",
+      "divide": "À répartir",
+      "addRequest": "+ Demande de prix",
+      "addName": "Nom",
+      "addEmail": "E-mail",
+      "addSubject": "Demande de prix",
+      "addSave": "Ajouter",
+      "addCancel": "Annuler",
       "empty": "Aucune demande ouverte. Les nouveaux mails de offerte@thielemans.be arrivent ici.",
       "fromBox": "Cette demande vient de l'Offertebox."
     },

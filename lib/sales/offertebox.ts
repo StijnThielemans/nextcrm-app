@@ -167,6 +167,29 @@ export async function listOffertebox(user: AuthzUser, now = new Date()): Promise
   return { mailboxLinked, sentThisWeek, rows };
 }
 
+export async function addOfferteboxRequest(
+  user: AuthzUser,
+  input: { fromName?: string; fromEmail?: string; subject?: string },
+) {
+  denyPartner(user);
+  const fromName = (input.fromName ?? "").trim();
+  const fromEmail = (input.fromEmail ?? "").trim();
+  const subject = (input.subject ?? "").trim();
+  if (!fromName && !fromEmail) throw new SalesError("nameRequired");
+  if (fromEmail && !fromEmail.includes("@")) throw new SalesError("emailRequired");
+  if (!subject || subject.length > 500) throw new SalesError("projectRequired");
+  await prismadb.crm_OfferteboxItems.create({
+    data: {
+      message_key: `manual:${crypto.randomUUID()}`,
+      from_name: fromName || null,
+      from_email: fromEmail || null,
+      subject,
+      received_at: new Date(),
+      seller_name: null,
+    },
+  });
+}
+
 export async function assignOfferteboxSeller(user: AuthzUser, id: string, sellerName: string) {
   denyPartner(user);
   if (!isSellerName(sellerName)) throw new SalesError("sellerRequired");

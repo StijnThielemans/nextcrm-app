@@ -941,6 +941,13 @@
       "from": "From",
       "subject": "Subject",
       "seller": "Seller",
+      "divide": "To assign",
+      "addRequest": "+ Price request",
+      "addName": "Name",
+      "addEmail": "Email",
+      "addSubject": "Price request",
+      "addSave": "Add",
+      "addCancel": "Cancel",
       "empty": "No open requests. New mail from offerte@thielemans.be shows up here.",
       "fromBox": "This request comes from the Offertebox."
     },
