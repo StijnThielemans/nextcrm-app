@@ -32,6 +32,7 @@ import {
   attachDossierDocumentAction,
   attachOffertePdfAction,
   changeStatusAction,
+  deleteOfferteAction,
   markSentAction,
 } from "@/actions/crm/sales/actions";
 import { uploadDocumentFile, uploadPdf } from "../../sales/upload-pdf";
@@ -171,6 +172,7 @@ export function DossierPanel({ dossier }: { dossier: DossierDetail }) {
   const [priceFile, setPriceFile] = useState<{ key: string; size: number; mimeType: string; fileName: string } | null>(null);
   const [price, setPrice] = useState("");
   const [closeMode, setCloseMode] = useState<"won" | "lost" | null>(null);
+  const [quoteToDelete, setQuoteToDelete] = useState<{ id: string; name: string } | null>(null);
   const versions = dossier.families.flatMap((family) => family.quotes);
   const canChooseWinner = versions.some((quote) => quoteCanWin(quote.gross));
 
@@ -424,14 +426,58 @@ export function DossierPanel({ dossier }: { dossier: DossierDetail }) {
                   </span>
                 </div>
                 <p><span className="text-muted-foreground">{t("date")} </span>{quote.date}</p>
-                {quote.sentAt ? (
-                  <p>{t("sentOn", { date: quote.sentAt })}</p>
-                ) : !dossier.terminal ? (
-                  <Button type="button" size="sm" disabled={busy} onClick={() => sendQuote(quote.id, quote.pdfId)}>{t("send")}</Button>
-                ) : null}
+                <div className="flex flex-wrap items-center gap-2">
+                  {quote.sentAt ? (
+                    <p>{t("sentOn", { date: quote.sentAt })}</p>
+                  ) : !dossier.terminal ? (
+                    <Button type="button" size="sm" disabled={busy} onClick={() => sendQuote(quote.id, quote.pdfId)}>{t("send")}</Button>
+                  ) : null}
+                  {!dossier.terminal && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      disabled={busy}
+                      data-delete-quote={quote.id}
+                      onClick={() => setQuoteToDelete({ id: quote.id, name: quote.pdfName })}
+                    >
+                      {t("deleteQuote")}
+                    </Button>
+                  )}
+                </div>
               </li>
             ))}
           </ul>
+          <Dialog open={quoteToDelete != null} onOpenChange={(open) => { if (!open) setQuoteToDelete(null); }}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>{t("deleteQuoteTitle")}</DialogTitle>
+                <DialogDescription>
+                  {t("deleteQuotePrompt", { name: quoteToDelete?.name ?? "" })}
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter>
+                <Button type="button" variant="outline" data-cancel-delete-quote onClick={() => setQuoteToDelete(null)}>{t("cancel")}</Button>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  disabled={busy}
+                  data-confirm-delete-quote
+                  onClick={() => {
+                    const target = quoteToDelete;
+                    if (!target) return;
+                    void run(async () => {
+                      const saved = await deleteOfferteAction(dossier.id, target.id);
+                      if (!saved.error) setQuoteToDelete(null);
+                      return saved;
+                    });
+                  }}
+                >
+                  {t("deleteQuoteConfirm")}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
           <Dialog
             open={priceFile != null}
             onOpenChange={(open) => {

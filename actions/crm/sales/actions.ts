@@ -28,6 +28,7 @@ import {
   updateDossierFields,
   attachDossierDocument,
   attachOffertePdf,
+  deleteOfferte,
   uploadCustomerQuote,
   type AanvraagInput,
   type QuoteFile,
@@ -60,6 +61,7 @@ async function fail(error: unknown): Promise<{ error: string; code?: string }> {
 
 function refresh() {
   revalidatePath("/[locale]/(routes)/crm/dossiers", "page");
+  revalidatePath("/[locale]/(routes)/crm/dossiers/[dossierId]", "page");
   revalidatePath("/[locale]/(routes)/crm/offertes", "page");
   revalidatePath("/[locale]/(routes)/crm/dashboard", "page");
   revalidatePath("/[locale]/(routes)/crm/offertebox", "page");
@@ -234,6 +236,18 @@ export async function attachOffertePdfAction(dossierId: string, file: QuoteFile 
     const id = await attachOffertePdf(auth.user, dossierId, file);
     refresh();
     return { id };
+  } catch (error) {
+    return await fail(error);
+  }
+}
+
+export async function deleteOfferteAction(dossierId: string, quoteId: string) {
+  const auth = await userOrError();
+  if ("error" in auth) return { error: auth.error };
+  try {
+    await deleteOfferte(auth.user, dossierId, quoteId);
+    refresh();
+    return { ok: true };
   } catch (error) {
     return await fail(error);
   }

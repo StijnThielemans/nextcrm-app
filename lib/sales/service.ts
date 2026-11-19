@@ -653,6 +653,7 @@ export async function getDossier(user: AuthzUser, dossierId: string): Promise<Do
         select: {
           id: true,
           total_bruto: true,
+          deletedAt: true,
           pdf: { select: { document_name: true } },
         },
       },
@@ -747,7 +748,7 @@ export async function getDossier(user: AuthzUser, dossierId: string): Promise<Do
       quoteId: send.quote_id,
       label: quotesById.get(send.quote_id) ?? send.quote_id,
     })),
-    acceptedQuote: row.accepted_quote
+    acceptedQuote: row.accepted_quote && row.accepted_quote.deletedAt == null
       ? {
           id: row.accepted_quote.id,
           name: row.accepted_quote.pdf.document_name,
@@ -1063,6 +1064,94 @@ export async function attachOffertePdf(user: AuthzUser, dossierId: string, file:
     userId: user.id,
   });
   return quoteId;
+}
+
+const QUOTE_FILE_TYPES = new Set(["CUSTOMER_QUOTE", "INTERNAL_SUPPLIER_QUOTE"]);
+
+type QuotePdfForDelete = {
+  id: string;
+  document_system_type: string | null;
+  deletedAt: Date | null;
+  opportunities: { opportunity_id: string }[];
+  accounts: { account_id: string }[];
+  contacts: { contact_id: string }[];
+  tasks: { task_id: string }[];
+  leads: { lead_id: string }[];
+  crm_accounts_tasks: { crm_accounts_task_id: string }[];
+};
+
+/** Soft-delete the PDF only when this quote is that file and nothing else uses it. */
+async function retireQuoteDocument(
+  tx: Prisma.TransactionClient,
+  dossierId: string,
+  quoteId: string,
+  pdf: QuotePdfForDelete,
+  userId: string,
+) {
+  if (pdf.deletedAt != null) return;
+  if (!pdf.document_system_type || !QUOTE_FILE_TYPES.has(pdf.document_system_type)) return;
+  const onlyThisDossier = pdf.opportunities.length > 0
+    && pdf.opportunities.every((link) => link.opportunity_id === dossierId);
+  const sharedElsewhere = pdf.accounts.length > 0
+    || pdf.contacts.length > 0
+    || pdf.tasks.length > 0
+    || pdf.leads.length > 0
+    || pdf.crm_accounts_tasks.length > 0;
+  if (!onlyThisDossier || sharedElsewhere) return;
+  const stillUsed = await tx.crm_ExternalQuotes.count({
+    where: { pdf_document_id: pdf.id, deletedAt: null, id: { not: quoteId } },
+  });
+  if (stillUsed > 0) return;
+  await tx.documents.update({
+    where: { id: pdf.id },
+    data: { deletedAt: new Date(), deletedBy: userId },
+  });
+}
+
+/** Removes one quote from the dossier. A sent quote can go; a closed dossier cannot. */
+export async function deleteOfferte(user: AuthzUser, dossierId: string, quoteId: string) {
+  const dossier = await loadWritableDossier(user, dossierId);
+  assertOpen(dossier.dossier_status);
+  const id = quoteId.trim();
+  if (!id) throw new SalesError("notFound");
+
+  const removed = await prismadb.$transaction(async (tx) => {
+    const quote = await tx.crm_ExternalQuotes.findFirst({
+      where: { id, deletedAt: null, family: { dossier_id: dossierId } },
+      select: {
+        id: true,
+        quote_number: true,
+        pdf: {
+          select: {
+            id: true,
+            document_system_type: true,
+            deletedAt: true,
+            opportunities: { select: { opportunity_id: true } },
+            accounts: { select: { account_id: true }, take: 1 },
+            contacts: { select: { contact_id: true }, take: 1 },
+            tasks: { select: { task_id: true }, take: 1 },
+            leads: { select: { lead_id: true }, take: 1 },
+            crm_accounts_tasks: { select: { crm_accounts_task_id: true }, take: 1 },
+          },
+        },
+      },
+    });
+    if (!quote) throw new SalesError("notFound");
+    await tx.crm_ExternalQuotes.update({
+      where: { id: quote.id },
+      data: { deletedAt: new Date() },
+    });
+    await retireQuoteDocument(tx, dossierId, quote.id, quote.pdf, user.id);
+    return { id: quote.id, number: quote.quote_number };
+  });
+
+  await writeAuditLog({
+    entityType: "external_quote",
+    entityId: removed.id,
+    action: "deleted",
+    changes: [{ field: "quote_number", old: removed.number, new: null }],
+    userId: user.id,
+  });
 }
 
 export async function attachDossierDocument(
