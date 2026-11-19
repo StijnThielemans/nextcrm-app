@@ -44,7 +44,7 @@ function SortableHead({ id, children }: { id: string; children: React.ReactNode 
       <div className="flex items-center gap-1">
         <button
           type="button"
-          className="cursor-grab text-muted-foreground"
+          className="relative z-10 cursor-grab text-muted-foreground"
           aria-label={t("moveColumn")}
           {...attributes}
           {...listeners}
@@ -112,8 +112,8 @@ export function CrmListTable<TData>({
 
   function onDragEnd(event: DragEndEvent) {
     const { active, over } = event;
+    const order = table.getState().columnOrder.length ? table.getState().columnOrder : layout.columnOrder;
     if (!over || active.id === over.id) return;
-    const order = table.getState().columnOrder;
     const from = order.indexOf(String(active.id));
     const to = order.indexOf(String(over.id));
     if (from < 0 || to < 0) return;
@@ -137,7 +137,7 @@ export function CrmListTable<TData>({
         <>
           <DataTableToolbar table={table} searchTestId={searchTestId} onResetColumns={layout.reset} />
           <div className="rounded-md border overflow-x-auto">
-            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+            <DndContext id={`${tableId}-columns`} sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
               <Table data-testid={tableTestId}>
                 <TableHeader>
                   {table.getHeaderGroups().map((headerGroup) => (
