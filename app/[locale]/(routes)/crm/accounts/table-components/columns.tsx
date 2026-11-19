@@ -1,109 +1,73 @@
 "use client";
 
 import { ColumnDef } from "@tanstack/react-table";
-
-import { statuses } from "../table-data/data";
+import { Link } from "@/i18n/navigation";
 import { Account } from "../table-data/schema";
 import { DataTableColumnHeader } from "./data-table-column-header";
 import { DataTableRowActions } from "./data-table-row-actions";
-import moment from "moment";
-import Link from "next/link";
+import { ACCOUNT_ROLE_LABELS, type AccountRole } from "@/lib/sales/aanvraag-fields";
 
-export const columns: ColumnDef<Account>[] = [
+type CustomerRow = Account & {
+  account_role?: string | null;
+  office_phone?: string | null;
+  mobile_phone?: string | null;
+  email?: string | null;
+  vat?: string | null;
+  billing_street?: string | null;
+  billing_postal_code?: string | null;
+  billing_city?: string | null;
+};
+
+function text(value: string | null | undefined) {
+  return value?.trim() ? value : "—";
+}
+
+function roleLabel(value: string | null | undefined) {
+  if (value && value in ACCOUNT_ROLE_LABELS) return ACCOUNT_ROLE_LABELS[value as AccountRole];
+  return "—";
+}
+
+export const columns: ColumnDef<CustomerRow>[] = [
   {
-    accessorKey: "createdAt",
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Created" />
-    ),
+    accessorKey: "name",
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Naam" />,
     cell: ({ row }) => (
-      <div className="">
-        {moment(row.getValue("createdAt")).format("YY/MM/DD-HH:mm")}
-      </div>
+      <Link href={`/crm/accounts/${row.original.id}`} data-testid="account-row-name" className="font-medium">
+        {row.original.name}
+      </Link>
     ),
     enableSorting: false,
     enableHiding: false,
   },
   {
-    accessorKey: "assigned_to_user",
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Assigned to" />
-    ),
-
-    cell: ({ row }) => (
-      <div className="w-[150px]">
-        {(row.getValue("assigned_to_user") as { name?: string } | null)?.name ??
-          "Unassigned"}
-      </div>
-    ),
-    enableSorting: true,
-    enableHiding: true,
+    accessorKey: "account_role",
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Contacttype" />,
+    cell: ({ row }) => roleLabel(row.original.account_role),
   },
   {
-    accessorKey: "name",
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Name" />
-    ),
-
-    cell: ({ row }) => (
-      <Link href={`/crm/accounts/${row.original?.id}`} data-testid="account-row-name">
-        <div className="w-[250px]">{row.original.name}</div>
-      </Link>
-    ),
-    enableSorting: false,
-    enableHiding: true,
+    accessorKey: "office_phone",
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Telefoon" />,
+    cell: ({ row }) => text(row.original.office_phone),
+  },
+  {
+    accessorKey: "mobile_phone",
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Gsm" />,
+    cell: ({ row }) => text(row.original.mobile_phone),
   },
   {
     accessorKey: "email",
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="E-mail" />
-    ),
-
-    cell: ({ row }) => <div className="w-[150px]">{row.getValue("email")}</div>,
-    enableSorting: true,
-    enableHiding: true,
+    header: ({ column }) => <DataTableColumnHeader column={column} title="E-mail" />,
+    cell: ({ row }) => text(row.original.email),
   },
   {
-    accessorKey: "contacts",
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Account contact" />
-    ),
-
-    cell: ({ row }) => (
-      <div className="w-[150px]">
-        {row.original.contacts?.map(
-          (contact: any) => [contact.first_name, contact.last_name].filter(Boolean).join(" ")
-        )}
-      </div>
-    ),
-    enableSorting: false,
-    enableHiding: true,
+    accessorKey: "vat",
+    header: ({ column }) => <DataTableColumnHeader column={column} title="BTW" />,
+    cell: ({ row }) => text(row.original.vat),
   },
   {
-    accessorKey: "status",
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Status" />
-    ),
-    cell: ({ row }) => {
-      const status = statuses.find(
-        (status) => status.value === row.getValue("status")
-      );
-
-      if (!status) {
-        return null;
-      }
-
-      return (
-        <div className="flex w-[100px] items-center">
-          {status.icon && (
-            <status.icon className="mr-2 h-4 w-4 text-muted-foreground" />
-          )}
-          <span>{status.label}</span>
-        </div>
-      );
-    },
-    filterFn: (row, id, value) => {
-      return value.includes(row.getValue(id));
-    },
+    id: "address",
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Adres" />,
+    cell: ({ row }) => text([row.original.billing_street, row.original.billing_postal_code, row.original.billing_city].filter(Boolean).join(", ")),
   },
   {
     id: "actions",

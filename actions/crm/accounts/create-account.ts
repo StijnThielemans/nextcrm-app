@@ -10,9 +10,20 @@ import {
   AuthenticationError,
   AuthorizationError,
 } from "@/lib/authz";
+import type { AccountRole } from "@/lib/sales/aanvraag-fields";
+
+function accountType(role: AccountRole | undefined) {
+  if (role === "SUPPLIER") return "Supplier";
+  if (role === "BOTH") return "Customer and supplier";
+  if (role === "CUSTOMER") return "Customer";
+  return undefined;
+}
 
 export const createAccount = async (data: {
   name: string;
+  account_role?: AccountRole;
+  mobile_phone?: string;
+  tax_rate_id?: string;
   office_phone?: string;
   website?: string;
   fax?: string;
@@ -62,6 +73,10 @@ export const createAccount = async (data: {
     const pricelist = await prismadb.crm_PriceLists.findUnique({ where: { id: data.pricelist_id }, select: { id: true } });
     if (!pricelist) return { error: "Price list not found" };
   }
+  if (data.tax_rate_id) {
+    const taxRate = await prismadb.invoice_TaxRates.findFirst({ where: { id: data.tax_rate_id, active: true }, select: { id: true } });
+    if (!taxRate) return { error: "Belastingstarief niet gevonden" };
+  }
 
   try {
     const account = await prismadb.crm_Accounts.create({
@@ -79,6 +94,7 @@ export const createAccount = async (data: {
         // except that a partner's own new account names him.
         partnerUserId: user.role === "partner" ? user.id : undefined,
         status: "Active",
+        ...(accountType(data.account_role) ? { type: accountType(data.account_role) } : {}),
       },
     });
     await writeAuditLog({

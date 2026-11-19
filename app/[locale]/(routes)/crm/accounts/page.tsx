@@ -5,17 +5,14 @@ import Container from "../../components/ui/Container";
 import CrmAccountsSkeleton from "@/components/skeletons/crm-accounts-skeleton";
 import { getAllCrmData } from "@/actions/crm/get-crm-data";
 import { getAccounts } from "@/actions/crm/get-accounts";
-import { getTranslations } from "next-intl/server";
-
 const AccountsPage = async () => {
-  const t = await getTranslations("CrmPage");
   const crmData = await getAllCrmData();
   const accounts = await getAccounts();
 
   return (
     <Container
-      title={t("accounts.pageTitle")}
-      description={t("accounts.pageDescription")}
+      title="Klanten"
+      description="Naam, contacttype, adres, telefoon, e-mail, belastingstarief en btw."
     >
       <Suspense fallback={<CrmAccountsSkeleton />}>
         <AccountsView crmData={crmData} data={accounts} />

@@ -58,6 +58,7 @@ export const getAccount = async (accountId: string) => {
           name: true,
         },
       },
+      tax_rate: { select: { name: true, rate: true } },
       // Watchers relationship through AccountWatchers junction table
       watchers: {
         include: {

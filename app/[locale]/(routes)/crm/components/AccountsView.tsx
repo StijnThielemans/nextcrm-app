@@ -47,7 +47,7 @@ const AccountsView = ({ data, crmData }: AccountsViewProps) => {
           <div>
             <CardTitle>
               <Link href="/crm/accounts" className="hover:underline">
-                {t("accounts.viewTitle")}
+                Klanten
               </Link>
             </CardTitle>
           </div>
@@ -58,16 +58,13 @@ const AccountsView = ({ data, crmData }: AccountsViewProps) => {
               </SheetTrigger>
               <SheetContent className="w-full md:max-w-[771px] overflow-y-auto">
                 <SheetHeader>
-                  <SheetTitle>{t("accounts.sheetTitle")}</SheetTitle>
+                  <SheetTitle>Nieuwe klant</SheetTitle>
                   <SheetDescription>
-                    {t("accounts.sheetDescription")}
+                    Naam, contacttype, adres, telefoon, gsm, e-mail, belastingstarief en btw.
                   </SheetDescription>
                 </SheetHeader>
                 <div className="mt-6 space-y-4">
-                  <NewAccountForm
-                    industries={industries}
-                    onFinish={() => setOpen(false)}
-                  />
+                  <NewAccountForm onFinish={() => setOpen(false)} />
                 </div>
               </SheetContent>
             </Sheet>
