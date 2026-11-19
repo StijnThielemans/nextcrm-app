@@ -34,6 +34,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { HistoryTab } from "./components/HistoryTab";
 import { listDossiersForAccount } from "@/lib/sales/service";
 import { statusLabel } from "@/lib/sales/labels";
+import {
+  serializeDecimals,
+  serializeDecimalsList,
+} from "@/lib/serialize-decimals";
 
 interface AccountDetailPageProps {
   params: Promise<{
@@ -49,10 +53,18 @@ const AccountDetailPage = async (props: AccountDetailPageProps) => {
   const actorUser = await requireAuthenticated({ partner: true });
   const actor = { type: "user" as const, userId: actorUser.id, role: actorUser.role };
   const [pluginTabs, pluginPanels] = await Promise.all([getAccountTabs(actorUser.role), getAccountPanels(actorUser.role)]);
-  const account: crm_Accounts | null = await getAccount(accountId);
-  const contacts: crm_Contacts[] = await getContactsByAccountId(accountId);
-  const documents: Documents[] = await getDocumentsByAccountId(accountId);
-  const tasks: crm_Accounts_Tasks[] = await getAccountsTasks(accountId);
+  // getAccount includes opportunities, whose budget, expected_revenue, and
+  // snapshot_rate are Prisma Decimals. Client views cannot receive those.
+  const account: crm_Accounts | null = serializeDecimals(await getAccount(accountId));
+  const contacts: crm_Contacts[] = serializeDecimalsList(
+    await getContactsByAccountId(accountId)
+  );
+  const documents: Documents[] = serializeDecimalsList(
+    await getDocumentsByAccountId(accountId)
+  );
+  const tasks: crm_Accounts_Tasks[] = serializeDecimalsList(
+    await getAccountsTasks(accountId)
+  );
   const dossiers = actorUser.role === "partner" ? [] : await listDossiersForAccount(actorUser, accountId);
   const crmData = await getAllCrmData();
   const canSetPartner = isManagerOrAdmin(actorUser);
