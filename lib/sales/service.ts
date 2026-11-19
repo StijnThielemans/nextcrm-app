@@ -427,9 +427,25 @@ export type DossierListRow = {
   status: string | null;
   stepLabel: string;
   customer: string | null;
-  requestDate: string | null;
-  followUpDate: string | null;
+  contactType: string | null;
+  email: string | null;
+  phone: string | null;
+  mobile: string | null;
+  vat: string | null;
+  street: string | null;
+  postalCode: string | null;
+  city: string | null;
   seller: string | null;
+  architectName: string | null;
+  architectExternalId: string | null;
+  projectGroup: string | null;
+  requestDate: string | null;
+  priceRequestDate: string | null;
+  followUpDate: string | null;
+  projectStreet: string | null;
+  projectPostalCode: string | null;
+  projectCity: string | null;
+  projectCountry: string | null;
 };
 
 export async function listDossiers(user: AuthzUser): Promise<DossierListRow[]> {
@@ -442,9 +458,29 @@ export async function listDossiers(user: AuthzUser): Promise<DossierListRow[]> {
       name: true,
       dossier_status: true,
       request_date: true,
+      price_request_date: true,
       follow_up_date: true,
       seller_name: true,
-      assigned_account: { select: { name: true } },
+      architect_name: true,
+      architect_external_id: true,
+      project_group: true,
+      project_street: true,
+      project_postal_code: true,
+      project_city: true,
+      project_country: true,
+      assigned_account: {
+        select: {
+          name: true,
+          account_role: true,
+          email: true,
+          office_phone: true,
+          mobile_phone: true,
+          vat: true,
+          billing_street: true,
+          billing_postal_code: true,
+          billing_city: true,
+        },
+      },
       assigned_to_user: { select: { name: true } },
       quote_sends: { select: { sent_at: true }, orderBy: { sent_at: "asc" }, take: 1 },
       documents: {
@@ -466,9 +502,25 @@ export async function listDossiers(user: AuthzUser): Promise<DossierListRow[]> {
       status: row.dossier_status,
     }).currentLabel,
     customer: row.assigned_account?.name ?? null,
-    requestDate: dayString(row.request_date),
-    followUpDate: dayString(row.follow_up_date),
+    contactType: row.assigned_account?.account_role ?? null,
+    email: row.assigned_account?.email ?? null,
+    phone: row.assigned_account?.office_phone ?? null,
+    mobile: row.assigned_account?.mobile_phone ?? null,
+    vat: row.assigned_account?.vat ?? null,
+    street: row.assigned_account?.billing_street ?? null,
+    postalCode: row.assigned_account?.billing_postal_code ?? null,
+    city: row.assigned_account?.billing_city ?? null,
     seller: row.seller_name ?? row.assigned_to_user?.name ?? null,
+    architectName: row.architect_name,
+    architectExternalId: row.architect_external_id,
+    projectGroup: row.project_group,
+    requestDate: dayString(row.request_date),
+    priceRequestDate: dayString(row.price_request_date),
+    followUpDate: dayString(row.follow_up_date),
+    projectStreet: row.project_street,
+    projectPostalCode: row.project_postal_code,
+    projectCity: row.project_city,
+    projectCountry: row.project_country,
   }));
 }
 
