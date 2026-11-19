@@ -244,13 +244,4 @@ export const SALES_ERROR_TEXT: Record<string, string> = {
   notFound: "Niet gevonden.",
   duplicateFamily: "Die leverancier en referentie bestaan al. Maak een nieuwe versie.",
   noSeries: "De nummerreeks voor offertedossiers ontbreekt.",
-  logikalNotConfigured: "Logikal is nog niet gekoppeld. Vul LOGIKAL_TCP_HOST, LOGIKAL_TCP_PORT, LOGIKAL_USERNAME, LOGIKAL_PASSWORD en LOGIKAL_PROGRAM_MODE in. Er is geen project aangemaakt.",
-  logikalNeedsCheck: "Controleer in Logikal of het project al bestaat. Er wordt niet opnieuw een project aangemaakt.",
-  logikalInProgress: "Het Logikal-project wordt al aangemaakt. Wacht even en probeer opnieuw.",
-  logikalCreateFailed: "Het Logikal-project kon niet worden aangemaakt.",
-  logikalProjectMismatch: "Dit exportbestand hoort bij een ander project. De import is geblokkeerd.",
-  logikalExportInvalid: "Dit is geen geldige Logikal-offerte-export (zip met één sqlite3-bestand).",
-  logikalZipUnsafe: "Het zip-bestand bevat een onveilig pad en is geweigerd.",
-  logikalStructureUnknown: "De verwachte Logikal-tabellen ontbreken. Nodig is een ERP-export van een offerte met Projects, Elevations en ReportOfferTexts.",
-  logikalJoinUnknown: "De offerteteksten (ReportOfferTexts.ElevationID) sluiten niet aan op de posities. De import is gestopt.",
 };

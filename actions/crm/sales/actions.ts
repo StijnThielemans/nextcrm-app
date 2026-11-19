@@ -8,11 +8,8 @@ import { SalesError } from "@/lib/sales/errors";
 import { SALES_ERROR_TEXT, type DossierDocumentCategory, type DossierStatus, type RequestChannel } from "@/lib/sales/labels";
 import { addOfferteboxRequest, assignOfferteboxSeller, linkOfferteboxDossier } from "@/lib/sales/offertebox";
 import { fileOfferteboxAttachments, listPendingOfferteboxAttachments, type FilingAssignment } from "@/lib/sales/offertebox-filing";
-import {
-  confirmLogikalImport,
-  createLogikalProjectForDossier,
-  previewLogikalExport,
-} from "@/lib/sales/logikal/service";
+import { listQuotePositions } from "@/lib/sales/quote-position-service";
+import type { QuotePositionView } from "@/lib/sales/quote-positions";
 import {
   addChannelEvent,
   changeDossierStatus,
@@ -335,44 +332,22 @@ export async function loadOffertesAction(filter: { supplier?: string; status?: s
   }
 }
 
-export async function createLogikalProjectAction(dossierId: string) {
+export async function loadQuotePositionsAction(
+  dossierId: string,
+  documentId: string,
+): Promise<{ positions: QuotePositionView[]; error?: string }> {
   const auth = await userOrError();
-  if ("error" in auth) return { error: auth.error };
+  if ("error" in auth) return { error: auth.error, positions: [] };
   try {
-    const link = await createLogikalProjectForDossier(auth.user, dossierId);
-    refresh();
-    return { ok: true as const, ...link };
+    return { positions: await listQuotePositions(auth.user, dossierId, documentId) };
   } catch (error) {
-    if (error instanceof SalesError && error.code === "logikalNotConfigured") {
-      return { unavailable: true as const };
+    if (error instanceof SalesError) {
+      const failed = await fail(error);
+      return { ...failed, positions: [] };
     }
-    return await fail(error);
-  }
-}
-
-export async function previewLogikalExportAction(dossierId: string, form: FormData) {
-  const auth = await userOrError();
-  if ("error" in auth) return { error: auth.error };
-  const file = form.get("file");
-  if (!(file instanceof File)) return await fail(new SalesError("logikalExportInvalid"));
-  try {
-    return { ok: true as const, ...(await previewLogikalExport(auth.user, dossierId, file)) };
-  } catch (error) {
-    return await fail(error);
-  }
-}
-
-export async function confirmLogikalImportAction(dossierId: string, form: FormData) {
-  const auth = await userOrError();
-  if ("error" in auth) return { error: auth.error };
-  const file = form.get("file");
-  if (!(file instanceof File)) return await fail(new SalesError("logikalExportInvalid"));
-  try {
-    const positions = await confirmLogikalImport(auth.user, dossierId, file);
-    refresh();
-    return { ok: true as const, positions };
-  } catch (error) {
-    return await fail(error);
+    console.error("[sales] quote positions failed", error instanceof Error ? error.name + ": " + error.message.slice(0, 240) : "unknown");
+    const t = await getTranslations("Sales");
+    return { error: t("positions.loadFailed"), positions: [] };
   }
 }
 

@@ -1,0 +1,108 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
+import { loadQuotePositionsAction } from "@/actions/crm/sales/actions";
+import { euro } from "@/lib/sales/labels";
+import type { QuotePositionView } from "@/lib/sales/quote-positions";
+
+type QuotePdf = { pdfId: string; pdfName: string };
+
+export function QuotePositionsSection({ dossierId, quotes }: { dossierId: string; quotes: QuotePdf[] }) {
+  const t = useTranslations("Sales");
+  const pdfs = quotes.filter((quote, index) => quotes.findIndex((item) => item.pdfId === quote.pdfId) === index);
+  const [pdfId, setPdfId] = useState(pdfs.length === 1 ? pdfs[0].pdfId : "");
+  const [positions, setPositions] = useState<QuotePositionView[]>([]);
+  const [status, setStatus] = useState<"idle" | "loading" | "ready" | "empty" | "error">("idle");
+  const [broken, setBroken] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    if (pdfId && pdfs.some((quote) => quote.pdfId === pdfId)) return;
+    setPdfId(pdfs.length === 1 ? pdfs[0].pdfId : "");
+  }, [pdfs, pdfId]);
+
+  useEffect(() => {
+    if (!pdfId) {
+      setPositions([]);
+      setStatus("idle");
+      return;
+    }
+    let cancelled = false;
+    setStatus("loading");
+    setBroken({});
+    void loadQuotePositionsAction(dossierId, pdfId).then((result) => {
+      if (cancelled) return;
+      if (result.error || !result.positions) {
+        setPositions([]);
+        setStatus("error");
+        return;
+      }
+      setPositions(result.positions);
+      setStatus(result.positions.length === 0 ? "empty" : "ready");
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [dossierId, pdfId]);
+
+  return (
+    <section className="space-y-3 rounded-md border p-4" aria-label={t("positions.title")} data-quote-positions="">
+      <h2 className="text-lg font-semibold">{t("positions.title")}</h2>
+      <p className="text-sm text-muted-foreground">{t("positions.lead")}</p>
+      {pdfs.length === 0 ? (
+        <p className="text-sm" data-quote-positions-empty="">{t("positions.noQuotePdf")}</p>
+      ) : (
+        <label className="block max-w-md space-y-1 text-sm">
+          <span>{t("positions.choose")}</span>
+          <select
+            className="flex h-9 w-full rounded-md border bg-transparent px-2"
+            value={pdfId}
+            data-quote-pdf=""
+            onChange={(event) => setPdfId(event.target.value)}
+          >
+            <option value="">{t("positions.placeholder")}</option>
+            {pdfs.map((quote) => (
+              <option key={quote.pdfId} value={quote.pdfId}>{quote.pdfName}</option>
+            ))}
+          </select>
+        </label>
+      )}
+      {status === "loading" && <p className="text-sm">{t("positions.loading")}</p>}
+      {status === "empty" && <p className="text-sm" data-quote-positions-none="">{t("positions.noPositions")}</p>}
+      {status === "error" && <p className="text-sm text-destructive" role="status">{t("positions.loadFailed")}</p>}
+      {status === "ready" && (
+        <ul className="space-y-4">
+          {positions.map((position) => {
+            const title = position.title !== position.number ? position.title : "";
+            return (
+              <li key={position.id} className="space-y-2 rounded-md border p-3" data-quote-position={position.number}>
+                <p className="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-sm">
+                  <span className="font-semibold">{t("positions.position")} {position.number}</span>
+                  {position.quantity && (
+                    <span><span className="text-muted-foreground">{t("positions.quantity")} </span>{position.quantity}</span>
+                  )}
+                  {title && <span className="min-w-0 flex-1">{title}</span>}
+                  {position.price != null && (
+                    <span className="ml-auto tabular-nums" data-position-price={position.number}>{euro(position.price)}</span>
+                  )}
+                </p>
+                {broken[position.id] ? (
+                  <p className="whitespace-pre-wrap text-sm">{position.text}</p>
+                ) : (
+                  // The crop is a rendered slice of the uploaded quote, not a remote image.
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={`/api/crm/dossiers/${dossierId}/quotes/${pdfId}/positions/${position.id}/image`}
+                    alt={t("positions.drawing", { name: position.number })}
+                    className="h-auto w-full rounded border bg-white"
+                    onError={() => setBroken((current) => ({ ...current, [position.id]: true }))}
+                  />
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </section>
+  );
+}
