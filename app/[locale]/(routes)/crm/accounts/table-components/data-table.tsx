@@ -27,6 +27,7 @@ import {
 
 import { DataTablePagination } from "./data-table-pagination";
 import { DataTableToolbar } from "./data-table-toolbar";
+import { accountMatchesSearch, type AccountSearchRow } from "./account-search";
 import { PanelTopClose, PanelTopOpen } from "lucide-react";
 
 interface DataTableProps<TData, TValue> {
@@ -47,6 +48,7 @@ export function AccountDataTable<TData, TValue>({
     []
   );
   const [sorting, setSorting] = React.useState<SortingState>([]);
+  const [globalFilter, setGlobalFilter] = React.useState("");
 
   const [hide, setHide] = React.useState(false);
 
@@ -58,12 +60,17 @@ export function AccountDataTable<TData, TValue>({
       columnVisibility,
       rowSelection,
       columnFilters,
+      globalFilter,
     },
     enableRowSelection: true,
     onRowSelectionChange: setRowSelection,
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
     onColumnVisibilityChange: setColumnVisibility,
+    onGlobalFilterChange: setGlobalFilter,
+    globalFilterFn: (row, _columnId, filterValue) =>
+      accountMatchesSearch(row.original as AccountSearchRow, String(filterValue ?? "")),
+    getColumnCanGlobalFilter: () => true,
     getCoreRowModel: getCoreRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
