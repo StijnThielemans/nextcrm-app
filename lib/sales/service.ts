@@ -14,6 +14,7 @@ import {
   opportunityReadScopeWhere,
 } from "@/lib/authz/scopes/crm";
 import { serializeDecimalsList } from "@/lib/serialize-decimals";
+import { logikalCanCreateProject, logikalMissingSettings } from "@/lib/sales/logikal/connection";
 import { SalesError } from "./errors";
 import { dossierIsReadOnly } from "./dossier-lock";
 import { buildDossierStepper, currentDossierStep } from "./dossier-step";
@@ -600,6 +601,8 @@ export type DossierDetail = {
     projectName: string | null;
     linkState: string | null;
     importedAt: string | null;
+    canCreate: boolean;
+    missingSettings: string[];
     positions: {
       id: string;
       name: string;
@@ -756,6 +759,8 @@ export async function getDossier(user: AuthzUser, dossierId: string): Promise<Do
       projectName: row.logikal_project_name,
       linkState: row.logikal_link_state,
       importedAt: row.logikal_imported_at?.toISOString() ?? null,
+      canCreate: logikalCanCreateProject(),
+      missingSettings: logikalMissingSettings(),
       positions: serializeDecimalsList(row.logikal_positions).map((position) => ({
         id: position.id,
         name: position.position_name,

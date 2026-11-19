@@ -42,7 +42,6 @@ export function LogikalSection({ dossier }: { dossier: DossierDetail }) {
   const input = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
-  const [guidance, setGuidance] = useState(false);
   const [preview, setPreview] = useState<Preview | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const logikal = dossier.logikal;
@@ -51,11 +50,10 @@ export function LogikalSection({ dossier }: { dossier: DossierDetail }) {
   async function createProject() {
     setBusy(true);
     setMessage(null);
-    setGuidance(false);
     const result = await createLogikalProjectAction(dossier.id);
     setBusy(false);
     if ("unavailable" in result && result.unavailable) {
-      setGuidance(true);
+      setMessage(t("logikal.notCreated"));
       return;
     }
     if ("error" in result && result.error) {
@@ -125,7 +123,14 @@ export function LogikalSection({ dossier }: { dossier: DossierDetail }) {
       </p>
       {!dossier.terminal && (
         <div className="flex flex-wrap gap-2">
-          <Button type="button" disabled={busy} onClick={() => void createProject()}>{t("logikal.create")}</Button>
+          <Button
+            type="button"
+            disabled={busy || !logikal.canCreate}
+            data-logikal-create={logikal.canCreate ? "ready" : "blocked"}
+            onClick={() => void createProject()}
+          >
+            {t("logikal.create")}
+          </Button>
           <Button type="button" variant="outline" disabled={busy} onClick={() => input.current?.click()}>
             {t("logikal.importPositions")}
           </Button>
@@ -143,12 +148,11 @@ export function LogikalSection({ dossier }: { dossier: DossierDetail }) {
         </div>
       )}
       {busy && <p className="text-sm">{t("logikal.working")}</p>}
-      {guidance && (
-        <p className="text-sm text-muted-foreground" role="status">
-          {t("logikal.notConfigured", {
-            name: dossier.name?.trim() || dossier.number || "—",
-            number: dossier.number || "—",
-          })}
+      {!logikal.canCreate && (
+        <p className="text-sm text-muted-foreground" role="status" data-logikal-missing={logikal.missingSettings.join(",")}>
+          {logikal.missingSettings.length > 0
+            ? t("logikal.notConfigured", { missing: logikal.missingSettings.join(", ") })
+            : t("logikal.serviceNotOpen")}
         </p>
       )}
       {message && <p className="text-sm text-destructive" role="status">{message}</p>}

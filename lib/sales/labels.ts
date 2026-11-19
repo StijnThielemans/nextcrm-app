@@ -244,7 +244,7 @@ export const SALES_ERROR_TEXT: Record<string, string> = {
   notFound: "Niet gevonden.",
   duplicateFamily: "Die leverancier en referentie bestaan al. Maak een nieuwe versie.",
   noSeries: "De nummerreeks voor offertedossiers ontbreekt.",
-  logikalNotConfigured: "Logikal is nog niet gekoppeld. De REST-specificatie van deze installatie ontbreekt, dus er is geen project aangemaakt.",
+  logikalNotConfigured: "Logikal is nog niet gekoppeld. Vul LOGIKAL_TCP_HOST, LOGIKAL_TCP_PORT, LOGIKAL_USERNAME, LOGIKAL_PASSWORD en LOGIKAL_PROGRAM_MODE in. Er is geen project aangemaakt.",
   logikalNeedsCheck: "Controleer in Logikal of het project al bestaat. Er wordt niet opnieuw een project aangemaakt.",
   logikalInProgress: "Het Logikal-project wordt al aangemaakt. Wacht even en probeer opnieuw.",
   logikalCreateFailed: "Het Logikal-project kon niet worden aangemaakt.",

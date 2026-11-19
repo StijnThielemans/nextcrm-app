@@ -1,14 +1,18 @@
 /**
- * Server adapter for the official Logikal REST API.
+ * Server adapter for the official Logikal client.
  *
- * Checked on 19 Nov 2026: this repo, the env examples, and the local disk have
- * no swagger, OpenAPI file, base URL, or credentials for this installation.
- * Orgadata's public help documents the SQLite ERP export, not a project-create
- * endpoint. This function therefore does not open a connection and does not
- * guess a path, an auth scheme, or a field mapping.
+ * Ofcas.Lk.Api.Client.Core 3.0.2.11-experimental documents login and project
+ * creation, but only as a Windows WCF service:
+ *   net.tcp://{host}:{port}   (the service is started with -tcpPort)
+ *   net.pipe://localhost/ofcas/lk/api/service/
+ * Login keys are USER_NAME, PASSWORD and the required PROGRAM_MODE.
+ * The package does not list allowed PROGRAM_MODE values.
+ * A project name is sent as PROJECTCENTER_CREATE_CHILD_NAME.
  *
- * Dossier number and name are accepted so a later call can map them onto
- * fields the swagger of this installation actually lists.
+ * There is no documented HTTP path. This function therefore does not open a
+ * socket and does not report a created project. Dossier number and name stay
+ * on the input so a later call can map the name onto that documented field.
+ * The offer number is not a CreateChild field in this package.
  */
 export type LogikalCreateInput = {
   dossierNumber: string | null;

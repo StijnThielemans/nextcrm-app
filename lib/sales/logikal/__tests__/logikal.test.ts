@@ -9,6 +9,7 @@ import { matchLogikalExport } from "../match";
 import { runLockedCreate, type CreateDeps, type LinkSnapshot } from "../create-project";
 import { importLogikalPositions } from "../import-positions";
 import { logikalGateway } from "../gateway";
+import { LOGIKAL_SERVER_SETTINGS, logikalCanCreateProject, logikalMissingSettings } from "../connection";
 import { rtfToText } from "../rtf";
 
 const PNG = Buffer.from(
@@ -243,10 +244,39 @@ describe("logikal create lock", () => {
     expect(calls).toBe(1);
   });
 
-  it("does not call the network while this installation has no swagger", async () => {
+  it("does not open a connection or report a created project", async () => {
+    const fetchMock = jest.spyOn(globalThis, "fetch");
     await expect(logikalGateway({ dossierNumber: "OFF-2026-0001", dossierName: "Ramen" })).resolves.toEqual({
       outcome: "not_configured",
     });
+    expect(fetchMock).not.toHaveBeenCalled();
+    fetchMock.mockRestore();
+    expect(logikalCanCreateProject()).toBe(false);
+  });
+
+  it("names the empty Ofcas login settings and does not return their values", () => {
+    const previous = Object.fromEntries(LOGIKAL_SERVER_SETTINGS.map((name) => [name, process.env[name]]));
+    for (const name of LOGIKAL_SERVER_SETTINGS) delete process.env[name];
+    try {
+      expect(logikalMissingSettings()).toEqual([
+        "LOGIKAL_TCP_HOST",
+        "LOGIKAL_TCP_PORT",
+        "LOGIKAL_USERNAME",
+        "LOGIKAL_PASSWORD",
+        "LOGIKAL_PROGRAM_MODE",
+      ]);
+      process.env.LOGIKAL_TCP_HOST = "logikal.internal";
+      process.env.LOGIKAL_PASSWORD = "secret-value";
+      const missing = logikalMissingSettings();
+      expect(missing).toEqual(["LOGIKAL_TCP_PORT", "LOGIKAL_USERNAME", "LOGIKAL_PROGRAM_MODE"]);
+      expect(missing.join(" ")).not.toContain("secret-value");
+    } finally {
+      for (const name of LOGIKAL_SERVER_SETTINGS) {
+        const value = previous[name];
+        if (value == null) delete process.env[name];
+        else process.env[name] = value;
+      }
+    }
   });
 });
 
