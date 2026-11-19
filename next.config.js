@@ -11,6 +11,9 @@ const nextConfig = {
   allowedDevOrigins: ["*.trycloudflare.com"],
   serverExternalPackages: ["pdf-parse", "pdfjs-dist"],
   experimental: {
+    // Next 16.4 keeps a dev cache that, after the server restarts, answers the
+    // first HMR subscribe with "restart". The open tab then reloads forever.
+    turbopackFileSystemCacheForDev: false,
     serverActions: {
       bodySizeLimit: "32mb",
     },
