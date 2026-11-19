@@ -201,6 +201,7 @@ export const SALES_ERROR_TEXT: Record<string, string> = {
   addressRequired: "Kies een adres uit de suggesties, of vul straat, postcode en plaats in.",
   phoneRequired: "Telefoonnummer is verplicht.",
   mobileRequired: "Gsm-nummer is verplicht.",
+  phoneOrMobileRequired: "Vul een telefoonnummer of een gsm-nummer in.",
   emailRequired: "E-mailadres is verplicht.",
   vatRequired: "BTW-nummer is verplicht.",
   taxRateRequired: "Kies een belastingstarief.",

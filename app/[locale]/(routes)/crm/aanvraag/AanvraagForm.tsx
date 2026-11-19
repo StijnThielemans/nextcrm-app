@@ -5,7 +5,7 @@ import { useRouter } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { CHANNEL_LABELS, CHANNELS, type RequestChannel } from "@/lib/sales/labels";
+import { CHANNEL_LABELS, CHANNELS, SALES_ERROR_TEXT, type RequestChannel } from "@/lib/sales/labels";
 import {
   ACCOUNT_ROLE_LABELS,
   ACCOUNT_ROLES,
@@ -117,6 +117,10 @@ export function AanvraagForm({
     setError(null);
     if (!accountId && !showNew) {
       setError("Kies een klant of maak een nieuwe klant.");
+      return;
+    }
+    if (!accountId && showNew && !phone.trim() && !mobile.trim()) {
+      setError(SALES_ERROR_TEXT.phoneOrMobileRequired);
       return;
     }
     if (!seller || !projectGroup) return;
@@ -231,11 +235,11 @@ export function AanvraagForm({
             <AddressBox label="Adres" value={customerAddress} onChange={setCustomerAddress} required />
             <label className="space-y-1">
               <span className="text-sm">Telefoonnummer</span>
-              <Input value={phone} onChange={(event) => setPhone(event.target.value)} required />
+              <Input value={phone} onChange={(event) => setPhone(event.target.value)} />
             </label>
             <label className="space-y-1">
               <span className="text-sm">Gsm-nummer</span>
-              <Input value={mobile} onChange={(event) => setMobile(event.target.value)} required />
+              <Input value={mobile} onChange={(event) => setMobile(event.target.value)} />
             </label>
             <label className="space-y-1">
               <span className="text-sm">E-mailadres</span>
@@ -257,7 +261,7 @@ export function AanvraagForm({
             </label>
             <label className="space-y-1">
               <span className="text-sm">BTW-nummer</span>
-              <Input value={vat} onChange={(event) => setVat(event.target.value)} required />
+              <Input value={vat} onChange={(event) => setVat(event.target.value)} />
             </label>
           </div>
         )}

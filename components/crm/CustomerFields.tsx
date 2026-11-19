@@ -10,6 +10,7 @@ import {
   ACCOUNT_ROLES,
   type AccountRole,
 } from "@/lib/sales/aanvraag-fields";
+import { SALES_ERROR_TEXT } from "@/lib/sales/labels";
 
 export type CustomerDraft = {
   name: string;
@@ -52,6 +53,10 @@ export function CustomerFields({
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
+    if (!phone.trim() && !mobile.trim()) {
+      setError(SALES_ERROR_TEXT.phoneOrMobileRequired);
+      return;
+    }
     setPending(true);
     const message = await onSubmit({ name, role, address, phone, mobile, email, taxRateId, vat });
     setPending(false);
@@ -81,11 +86,11 @@ export function CustomerFields({
       <AddressBox label="Adres" value={address} onChange={setAddress} required />
       <label className="space-y-1 block">
         <span className="text-sm">Telefoonnummer</span>
-        <Input value={phone} onChange={(event) => setPhone(event.target.value)} required />
+        <Input value={phone} onChange={(event) => setPhone(event.target.value)} />
       </label>
       <label className="space-y-1 block">
         <span className="text-sm">Gsm-nummer</span>
-        <Input value={mobile} onChange={(event) => setMobile(event.target.value)} required />
+        <Input value={mobile} onChange={(event) => setMobile(event.target.value)} />
       </label>
       <label className="space-y-1 block">
         <span className="text-sm">E-mailadres</span>
@@ -107,7 +112,7 @@ export function CustomerFields({
       </label>
       <label className="space-y-1 block">
         <span className="text-sm">BTW-nummer</span>
-        <Input value={vat} onChange={(event) => setVat(event.target.value)} required />
+        <Input value={vat} onChange={(event) => setVat(event.target.value)} />
       </label>
       {error && <p className="text-sm text-destructive">{error}</p>}
       <Button type="submit" disabled={pending}>{pending ? "Opslaan…" : submitLabel}</Button>

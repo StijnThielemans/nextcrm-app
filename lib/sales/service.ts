@@ -72,6 +72,13 @@ function requireText(value: string | undefined | null, code: string, max = 200):
   return text;
 }
 
+function optionalText(value: string | undefined | null, code: string, max = 200): string | null {
+  const text = (value ?? "").trim();
+  if (!text) return null;
+  if (text.length > max) throw new SalesError(code);
+  return text;
+}
+
 async function loadWritableDossier(user: AuthzUser, dossierId: string) {
   denyPartner(user);
   await guard(() => assertCanWriteOpportunity(user, dossierId));
@@ -355,9 +362,10 @@ async function createCustomer(tx: Tx, user: AuthzUser, input: NewCustomerInput):
   if (!isAccountRole(input.role)) throw new SalesError("roleRequired");
   const email = input.email?.trim() || "";
   if (!email.includes("@")) throw new SalesError("emailRequired");
-  const phone = requireText(input.phone, "phoneRequired", 40);
-  const mobile = requireText(input.mobile, "mobileRequired", 40);
-  const vat = requireText(input.vat, "vatRequired", 32);
+  const phone = optionalText(input.phone, "phoneRequired", 40);
+  const mobile = optionalText(input.mobile, "mobileRequired", 40);
+  if (!phone && !mobile) throw new SalesError("phoneOrMobileRequired");
+  const vat = optionalText(input.vat, "vatRequired", 32);
   const street = input.street?.trim() || "";
   const postalCode = input.postalCode?.trim() || "";
   const city = input.city?.trim() || "";

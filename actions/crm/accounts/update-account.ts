@@ -13,6 +13,24 @@ import {
   AuthorizationError,
 } from "@/lib/authz";
 import type { AccountRole } from "@/lib/sales/aanvraag-fields";
+import { SALES_ERROR_TEXT } from "@/lib/sales/labels";
+
+function customerContactPatch(data: {
+  office_phone?: string | null;
+  mobile_phone?: string | null;
+  vat?: string | null;
+}): { error: string } | { office_phone?: string | null; mobile_phone?: string | null; vat?: string | null } {
+  const patch: { office_phone?: string | null; mobile_phone?: string | null; vat?: string | null } = {};
+  if (data.office_phone !== undefined && data.mobile_phone !== undefined) {
+    const office = (data.office_phone ?? "").trim();
+    const mobile = (data.mobile_phone ?? "").trim();
+    if (!office && !mobile) return { error: SALES_ERROR_TEXT.phoneOrMobileRequired };
+    patch.office_phone = office || null;
+    patch.mobile_phone = mobile || null;
+  }
+  if (data.vat !== undefined) patch.vat = (data.vat ?? "").trim() || null;
+  return patch;
+}
 
 function accountType(role: AccountRole | undefined) {
   if (role === "SUPPLIER") return "Supplier";
@@ -88,6 +106,8 @@ export const updateAccount = async (data: {
     const taxRate = await prismadb.invoice_TaxRates.findFirst({ where: { id: rest.tax_rate_id, active: true }, select: { id: true } });
     if (!taxRate) return { error: "Belastingstarief niet gevonden" };
   }
+  const contact = customerContactPatch(rest);
+  if ("error" in contact) return contact;
 
   try {
     const account = await prismadb.crm_Accounts.update({
@@ -96,6 +116,7 @@ export const updateAccount = async (data: {
         v: 0,
         updatedBy: user.id,
         ...rest,
+        ...contact,
         ...(rest.pricelist_id === "" ? { pricelist_id: null } : {}),
         // The partner is set only through setAccountPartner (admin/manager).
         partnerUserId: undefined,
