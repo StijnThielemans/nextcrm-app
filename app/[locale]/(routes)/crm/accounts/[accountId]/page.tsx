@@ -29,6 +29,7 @@ import { ActivitiesSection } from "./components/ActivitiesSection";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { HistoryTab } from "./components/HistoryTab";
 import { listDossiersForAccount } from "@/lib/sales/service";
+import { recordRecentOpen } from "@/lib/sales/recent-opens";
 import {
   serializeDecimals,
   serializeDecimalsList,
@@ -62,6 +63,7 @@ const AccountDetailPage = async (props: AccountDetailPageProps) => {
   const crmData = await getAllCrmData();
 
   if (!account) return <div>Klant niet gevonden</div>;
+  await recordRecentOpen(actorUser.id, "ACCOUNT", account.id);
 
   return (
     <Container

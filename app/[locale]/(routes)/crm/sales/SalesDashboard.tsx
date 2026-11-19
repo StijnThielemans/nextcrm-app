@@ -1,11 +1,12 @@
 import { Link } from "@/i18n/navigation";
 import { requireAuthenticated } from "@/lib/authz";
 import { DOSSIER_STATUSES, DOSSIER_STATUS_LABELS, euro, percentLabel } from "@/lib/sales/labels";
+import { listRecentOpens } from "@/lib/sales/recent-opens";
 import { getSalesDashboard } from "@/lib/sales/service";
 
 export async function SalesDashboard() {
   const user = await requireAuthenticated();
-  const tiles = await getSalesDashboard(user);
+  const [tiles, recent] = await Promise.all([getSalesDashboard(user), listRecentOpens(user)]);
   const cards = [
     ["Open dossiers", String(tiles.openCount)],
     ["Op te volgen", String(tiles.followUpCount)],
@@ -28,6 +29,36 @@ export async function SalesDashboard() {
         <Link href="/crm/dossiers" className="inline-flex h-9 items-center rounded-md border px-4 text-sm">
           Offertedossiers
         </Link>
+      </div>
+      <div className="grid gap-3 lg:grid-cols-2">
+        <section className="rounded-md border p-4">
+          <h2 className="mb-2 text-lg font-semibold">Laatste klanten</h2>
+          {recent.customers.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Nog niets geopend.</p>
+          ) : (
+            <ul className="space-y-1 text-sm">
+              {recent.customers.map((customer) => (
+                <li key={customer.id}>
+                  <Link className="underline" href={`/crm/accounts/${customer.id}`}>{customer.name}</Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+        <section className="rounded-md border p-4">
+          <h2 className="mb-2 text-lg font-semibold">Laatste offertedossiers</h2>
+          {recent.dossiers.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Nog niets geopend.</p>
+          ) : (
+            <ul className="space-y-1 text-sm">
+              {recent.dossiers.map((dossier) => (
+                <li key={dossier.id}>
+                  <Link className="underline" href={`/crm/dossiers/${dossier.id}`}>{dossier.label}</Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
       </div>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {cards.map(([label, value]) => (

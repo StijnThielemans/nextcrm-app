@@ -1171,6 +1171,7 @@ model Users {
   ordersOwned crm_Orders[] @relation("OrderOwner")
   dossier_channel_events crm_DossierChannelEvents[] @relation("ChannelSeller")
   quote_sends_made       crm_QuoteSends[]           @relation("QuoteSender")
+  recent_opens           crm_RecentOpens[]
 
   @@index([email])
   @@index([userStatus])
@@ -2505,4 +2506,24 @@ model crm_QuoteSends {
   @@index([quote_id])
   @@index([document_id])
   @@index([sent_by])
+}
+
+enum crm_RecentOpen_Kind {
+  ACCOUNT
+  DOSSIER
+}
+
+/// One row per user and record. Opening the page again updates opened_at.
+/// record_id is a crm_Accounts id when kind is ACCOUNT, otherwise a dossier id.
+model crm_RecentOpens {
+  id        String              @id @default(uuid()) @db.Uuid
+  user_id   String              @db.Uuid
+  kind      crm_RecentOpen_Kind
+  record_id String              @db.Uuid
+  opened_at DateTime            @default(now())
+
+  user Users @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, kind, record_id])
+  @@index([user_id, kind, opened_at])
 }
