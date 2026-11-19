@@ -35,6 +35,7 @@ import {
   markSentAction,
 } from "@/actions/crm/sales/actions";
 import { uploadDocumentFile, uploadPdf } from "../../sales/upload-pdf";
+import { LogikalSection } from "./LogikalSection";
 
 const today = new Date().toISOString().slice(0, 10);
 
@@ -581,6 +582,8 @@ export function DossierPanel({ dossier }: { dossier: DossierDetail }) {
           </form>
         )}
       </section>
+
+      <LogikalSection dossier={dossier} />
 
       {error && <p className="text-sm text-destructive">{error}</p>}
     </div>

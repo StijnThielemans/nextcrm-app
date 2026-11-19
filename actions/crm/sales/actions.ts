@@ -8,6 +8,11 @@ import { SalesError } from "@/lib/sales/errors";
 import { SALES_ERROR_TEXT, type DossierDocumentCategory, type DossierStatus, type RequestChannel } from "@/lib/sales/labels";
 import { addOfferteboxRequest, assignOfferteboxSeller, linkOfferteboxDossier } from "@/lib/sales/offertebox";
 import {
+  confirmLogikalImport,
+  createLogikalProjectForDossier,
+  previewLogikalExport,
+} from "@/lib/sales/logikal/service";
+import {
   addChannelEvent,
   changeDossierStatus,
   createAanvraag,
@@ -296,6 +301,44 @@ export async function loadOffertesAction(filter: { supplier?: string; status?: s
   } catch (error) {
     const failed = await fail(error);
     return { ...failed, rows: [] };
+  }
+}
+
+export async function createLogikalProjectAction(dossierId: string) {
+  const auth = await userOrError();
+  if ("error" in auth) return { error: auth.error };
+  try {
+    const link = await createLogikalProjectForDossier(auth.user, dossierId);
+    refresh();
+    return { ok: true as const, ...link };
+  } catch (error) {
+    return await fail(error);
+  }
+}
+
+export async function previewLogikalExportAction(dossierId: string, form: FormData) {
+  const auth = await userOrError();
+  if ("error" in auth) return { error: auth.error };
+  const file = form.get("file");
+  if (!(file instanceof File)) return await fail(new SalesError("logikalExportInvalid"));
+  try {
+    return { ok: true as const, ...(await previewLogikalExport(auth.user, dossierId, file)) };
+  } catch (error) {
+    return await fail(error);
+  }
+}
+
+export async function confirmLogikalImportAction(dossierId: string, form: FormData) {
+  const auth = await userOrError();
+  if ("error" in auth) return { error: auth.error };
+  const file = form.get("file");
+  if (!(file instanceof File)) return await fail(new SalesError("logikalExportInvalid"));
+  try {
+    const positions = await confirmLogikalImport(auth.user, dossierId, file);
+    refresh();
+    return { ok: true as const, positions };
+  } catch (error) {
+    return await fail(error);
   }
 }
 

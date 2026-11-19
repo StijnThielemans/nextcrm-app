@@ -13,6 +13,7 @@ import {
   assertCanWriteOpportunity,
   opportunityReadScopeWhere,
 } from "@/lib/authz/scopes/crm";
+import { serializeDecimalsList } from "@/lib/serialize-decimals";
 import { SalesError } from "./errors";
 import { dossierIsReadOnly } from "./dossier-lock";
 import { buildDossierStepper, currentDossierStep } from "./dossier-step";
@@ -594,6 +595,20 @@ export type DossierDetail = {
   customerQuotes: { id: string; name: string }[];
   sends: { id: string; sentAt: string; followUp: string; quoteId: string; label: string }[];
   acceptedQuote: { id: string; name: string; gross: number | null } | null;
+  logikal: {
+    projectId: string | null;
+    projectName: string | null;
+    linkState: string | null;
+    importedAt: string | null;
+    positions: {
+      id: string;
+      name: string;
+      quantity: number;
+      quoteText: string | null;
+      description: string | null;
+      hasDrawing: boolean;
+    }[];
+  };
 };
 
 export async function getDossier(user: AuthzUser, dossierId: string): Promise<DossierDetail | null> {
@@ -643,6 +658,7 @@ export async function getDossier(user: AuthzUser, dossierId: string): Promise<Do
           document: { select: { id: true, document_name: true, document_system_type: true, filing_category: true, deletedAt: true } },
         },
       },
+      logikal_positions: { orderBy: { sort_order: "asc" } },
     },
   });
   if (!row || !row.assigned_account) return null;
@@ -735,6 +751,20 @@ export async function getDossier(user: AuthzUser, dossierId: string): Promise<Do
           gross: money(row.accepted_quote.total_bruto),
         }
       : null,
+    logikal: {
+      projectId: row.logikal_project_id,
+      projectName: row.logikal_project_name,
+      linkState: row.logikal_link_state,
+      importedAt: row.logikal_imported_at?.toISOString() ?? null,
+      positions: serializeDecimalsList(row.logikal_positions).map((position) => ({
+        id: position.id,
+        name: position.position_name,
+        quantity: Number(position.quantity),
+        quoteText: position.quote_text,
+        description: position.description,
+        hasDrawing: position.drawing_key != null,
+      })),
+    },
   };
 }
 

@@ -304,7 +304,17 @@ model crm_Opportunities {
   quote_families       crm_ExternalQuoteFamilies[]
   quote_sends          crm_QuoteSends[]
   offertebox_items     crm_OfferteboxItems[]
+  logikal_positions    crm_LogikalPositions[]
   accepted_quote       crm_ExternalQuotes?             @relation("AcceptedQuote", fields: [accepted_quote_id], references: [id], onDelete: Restrict)
+
+  /// Logikal-project bij dit offertedossier. Leeg tot de koppeling vaststaat.
+  logikal_project_id        String?
+  logikal_project_name      String?
+  /// LINKED of NEEDS_CHECK. NEEDS_CHECK: niet opnieuw aanmaken.
+  logikal_link_state        String?
+  logikal_create_token      String?
+  logikal_create_started_at DateTime?
+  logikal_imported_at       DateTime?
   deletedAt            DateTime?
   deletedBy            String?   @db.Uuid
 
@@ -2556,6 +2566,27 @@ model crm_OfferteboxAttachments {
   item crm_OfferteboxItems @relation(fields: [item_id], references: [id], onDelete: Cascade)
 
   @@index([item_id])
+}
+
+/// Eén rij per raampositie uit een Logikal ERP-export. De vorige lijst blijft staan tot de nieuwe import volledig slaagt.
+model crm_LogikalPositions {
+  id            String   @id @default(uuid()) @db.Uuid
+  dossier_id    String   @db.Uuid
+  elevation_key String
+  position_name String
+  quantity      Decimal  @db.Decimal(18, 2)
+  quote_text    String?
+  description   String?
+  drawing_key   String?
+  drawing_name  String?
+  drawing_mime  String?
+  sort_order    Int
+  createdAt     DateTime @default(now())
+
+  dossier crm_Opportunities @relation(fields: [dossier_id], references: [id], onDelete: Cascade)
+
+  @@unique([dossier_id, elevation_key])
+  @@index([dossier_id])
 }
 
 /// One row per user and record. Opening the page again updates opened_at.

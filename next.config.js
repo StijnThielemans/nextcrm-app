@@ -10,6 +10,11 @@ const nextConfig = {
   // sign-in page stays on the server HTML and the send button stays disabled.
   allowedDevOrigins: ["*.trycloudflare.com"],
   serverExternalPackages: ["pdf-parse", "pdfjs-dist"],
+  experimental: {
+    serverActions: {
+      bodySizeLimit: "32mb",
+    },
+  },
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "localhost" },
