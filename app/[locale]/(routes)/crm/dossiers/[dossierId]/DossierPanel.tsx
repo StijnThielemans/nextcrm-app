@@ -40,6 +40,7 @@ import { uploadDocumentFile, uploadPdf } from "../../sales/upload-pdf";
 import { FileAttachmentsDialog } from "../../sales/FileAttachmentsDialog";
 import type { PendingOfferteboxAttachment } from "@/lib/sales/offertebox-filing";
 import { QuotePositionsSection } from "./QuotePositionsSection";
+import { DossierProjectDialog } from "./DossierProjectDialog";
 
 const today = new Date().toISOString().slice(0, 10);
 
@@ -206,6 +207,7 @@ export function DossierPanel({
   const [closeMode, setCloseMode] = useState<"won" | "lost" | null>(null);
   const [quoteToDelete, setQuoteToDelete] = useState<{ id: string; name: string } | null>(null);
   const [filingOpen, setFilingOpen] = useState(promptAttachments && pendingAttachments.length > 0);
+  const [editingProject, setEditingProject] = useState(false);
   const versions = dossier.families.flatMap((family) => family.quotes);
   const canChooseWinner = versions.some((quote) => quoteCanWin(quote.gross));
 
@@ -376,7 +378,20 @@ export function DossierPanel({
       </Dialog>
       <section className="grid gap-4 lg:grid-cols-3">
         <div className="rounded-md border p-4 space-y-2 text-sm">
-          <h2 className="text-lg font-semibold">{t("customerAndDossier")}</h2>
+          <div className="flex items-start justify-between gap-2">
+            <h2 className="text-lg font-semibold">{t("customerAndDossier")}</h2>
+            {!dossier.terminal && (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                data-testid="edit-dossier-project"
+                onClick={() => setEditingProject(true)}
+              >
+                {t("editDossier")}
+              </Button>
+            )}
+          </div>
           <p><span className="text-muted-foreground">{t("customer")} </span><Link className="underline" href={`/crm/accounts/${dossier.customer.id}`}>{dossier.customer.name}</Link></p>
           <p><span className="text-muted-foreground">{t("contactType")} </span>{dossier.customer.role && t.has(`roles.${dossier.customer.role}`) ? t(`roles.${dossier.customer.role}`) : "—"}</p>
           <p><span className="text-muted-foreground">{t("email")} </span>{dossier.customer.email ?? "—"}</p>
@@ -385,19 +400,29 @@ export function DossierPanel({
           <p><span className="text-muted-foreground">{t("vat")} </span>{dossier.customer.vat ?? "—"}</p>
           <p><span className="text-muted-foreground">{t("address")} </span>{dossier.customer.address || "—"}</p>
           <p><span className="text-muted-foreground">{t("projectNumber")} </span>{dossier.number ?? "—"}</p>
-          <p><span className="text-muted-foreground">{t("projectDescription")} </span>{dossier.name ?? "—"}</p>
-          <p><span className="text-muted-foreground">{t("seller")} </span>{dossier.seller ?? "—"}</p>
+          <p data-testid="dossier-project-description"><span className="text-muted-foreground">{t("projectDescription")} </span>{dossier.name ?? "—"}</p>
+          <p data-testid="dossier-seller"><span className="text-muted-foreground">{t("seller")} </span>{dossier.seller ?? "—"}</p>
           <p>
             <span className="text-muted-foreground">{t("architect")} </span>
             {dossier.architectName
               ? `${dossier.architectName}${dossier.architectExternalId ? ` (${dossier.architectExternalId})` : ""}`
               : "—"}
           </p>
-          <p><span className="text-muted-foreground">{t("projectGroup")} </span>{dossier.projectGroup && t.has(`groups.${dossier.projectGroup}`) ? t(`groups.${dossier.projectGroup}`) : "—"}</p>
+          <p data-testid="dossier-project-group"><span className="text-muted-foreground">{t("projectGroup")} </span>{dossier.projectGroup && t.has(`groups.${dossier.projectGroup}`) ? t(`groups.${dossier.projectGroup}`) : "—"}</p>
           <p><span className="text-muted-foreground">{t("priceRequestDate")} </span>{dossier.priceRequestDate ?? dossier.requestDate ?? "—"}</p>
           <p><span className="text-muted-foreground">{t("siteAddress")} </span>{dossier.projectAddress || "—"}</p>
           <p data-dossier-status={stepper.currentLabel}><span className="text-muted-foreground">{t("status")} </span>{(() => { const current = stepper.steps.find((step) => step.state === "current"); return current ? t(`steps.${current.id}`) : stepper.currentLabel; })()}</p>
           {dossier.lostReason && <p>{t("lostReasonLine", { reason: dossier.lostReason })}</p>}
+          {editingProject && (
+            <DossierProjectDialog
+              dossier={dossier}
+              onClose={() => setEditingProject(false)}
+              onSaved={() => {
+                setEditingProject(false);
+                router.refresh();
+              }}
+            />
+          )}
         </div>
 
         <div

@@ -4,6 +4,7 @@ import { getTranslations } from "next-intl/server";
 import { revalidatePath } from "next/cache";
 import { requireAuthenticated, AuthenticationError } from "@/lib/authz";
 import { suggestAddresses } from "@/lib/sales/aanvraag-fields";
+import type { DossierProjectInput } from "@/lib/sales/dossier-project";
 import { SalesError } from "@/lib/sales/errors";
 import { SALES_ERROR_TEXT, type DossierDocumentCategory, type DossierStatus, type RequestChannel } from "@/lib/sales/labels";
 import { addOfferteboxRequest, assignOfferteboxSeller, linkOfferteboxDossier } from "@/lib/sales/offertebox";
@@ -22,6 +23,7 @@ import {
   searchCustomers,
   searchArchitects,
   updateDossierFields,
+  updateDossierProject,
   attachDossierDocument,
   attachOffertePdf,
   deleteOfferte,
@@ -194,6 +196,18 @@ export async function updateDossierAction(
     await updateDossierFields(auth.user, dossierId, input);
     refresh();
     return { ok: true };
+  } catch (error) {
+    return await fail(error);
+  }
+}
+
+export async function updateDossierProjectAction(dossierId: string, input: DossierProjectInput) {
+  const auth = await userOrError();
+  if ("error" in auth) return { error: auth.error };
+  try {
+    await updateDossierProject(auth.user, dossierId, input);
+    refresh();
+    return { ok: true as const };
   } catch (error) {
     return await fail(error);
   }

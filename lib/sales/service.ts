@@ -2,7 +2,7 @@ import { Prisma } from "@prisma/client";
 import { prismadb } from "@/lib/prisma";
 import { allocateNumber } from "@/lib/orders/numbering";
 import { OrderError } from "@/lib/orders/types";
-import { writeAuditLog } from "@/lib/audit-log";
+import { diffObjects, writeAuditLog } from "@/lib/audit-log";
 import { newDocumentFile } from "@/lib/documents/new-document-file";
 import { inngest } from "@/inngest/client";
 import type { AuthzUser } from "@/lib/authz/session";
@@ -43,6 +43,7 @@ import {
   resolveArchitect,
   type ArchitectHit,
 } from "./architects";
+import { parseDossierProjectDraft, type DossierProjectInput } from "./dossier-project";
 
 function denyPartner(user: AuthzUser) {
   if (user.role === "partner") throw new SalesError("forbidden");
@@ -571,6 +572,10 @@ export type DossierDetail = {
   followUpDate: string | null;
   channel: string | null;
   lostReason: string | null;
+  projectStreet: string | null;
+  projectPostalCode: string | null;
+  projectCity: string | null;
+  projectCountry: string | null;
   projectAddress: string;
   terminal: boolean;
   customer: {
@@ -693,6 +698,10 @@ export async function getDossier(user: AuthzUser, dossierId: string): Promise<Do
     followUpDate: dayString(row.follow_up_date),
     channel: row.source_channel,
     lostReason: row.lost_reason,
+    projectStreet: row.project_street,
+    projectPostalCode: row.project_postal_code,
+    projectCity: row.project_city,
+    projectCountry: row.project_country,
     projectAddress: [row.project_street, row.project_postal_code, row.project_city, row.project_country].filter(Boolean).join(", "),
     terminal: dossierIsReadOnly(row.dossier_status),
     customer: {
@@ -798,6 +807,91 @@ export async function updateDossierFields(
     entityId: dossierId,
     action: "updated",
     changes: [{ field: "follow_up", old: null, new: input.followUpDate ?? input.nextStep ?? input.lostReason ?? "" }],
+    userId: user.id,
+  });
+}
+
+export async function updateDossierProject(user: AuthzUser, dossierId: string, input: DossierProjectInput) {
+  const writable = await loadWritableDossier(user, dossierId);
+  assertOpen(writable.dossier_status);
+  const draft = parseDossierProjectDraft(input);
+  let architect: { name: string; externalId: string } | null = null;
+  try {
+    architect = await resolveArchitect(draft.architectName ?? undefined, draft.architectExternalId ?? undefined);
+  } catch (error) {
+    if (error instanceof ArchitectSelectionError) throw new SalesError("architectInvalid");
+    if (error instanceof ArchitectDirectoryError) throw new SalesError("architectUnavailable");
+    throw error;
+  }
+
+  const current = await prismadb.crm_Opportunities.findFirst({
+    where: { id: dossierId, is_dossier: true, deletedAt: null },
+    select: {
+      name: true,
+      seller_name: true,
+      assigned_to: true,
+      project_group: true,
+      price_request_date: true,
+      project_street: true,
+      project_postal_code: true,
+      project_city: true,
+      project_country: true,
+      architect_name: true,
+      architect_external_id: true,
+    },
+  });
+  if (!current) throw new SalesError("notFound");
+
+  const sellerChanged = (current.seller_name ?? "") !== draft.sellerName;
+  let assignedTo: string | undefined;
+  if (sellerChanged) {
+    const sellers = await prismadb.users.findMany({ select: { id: true, name: true } });
+    const matched = matchSellerUser(sellers, draft.sellerName);
+    if (matched) assignedTo = matched.id;
+  }
+
+  const next = {
+    name: draft.name,
+    seller_name: draft.sellerName,
+    project_group: draft.projectGroup,
+    price_request_date: day(draft.priceRequestDate),
+    project_street: draft.projectStreet,
+    project_postal_code: draft.projectPostalCode,
+    project_city: draft.projectCity,
+    project_country: draft.projectCountry,
+    architect_name: architect?.name ?? null,
+    architect_external_id: architect?.externalId ?? null,
+    ...(assignedTo ? { assigned_to: assignedTo } : {}),
+  };
+
+  await prismadb.crm_Opportunities.update({
+    where: { id: dossierId },
+    data: { ...next, updatedBy: user.id },
+  });
+
+  await writeAuditLog({
+    entityType: "opportunity",
+    entityId: dossierId,
+    action: "updated",
+    changes: diffObjects(
+      {
+        name: current.name,
+        seller_name: current.seller_name,
+        project_group: current.project_group,
+        price_request_date: dayString(current.price_request_date),
+        project_street: current.project_street,
+        project_postal_code: current.project_postal_code,
+        project_city: current.project_city,
+        project_country: current.project_country,
+        architect_name: current.architect_name,
+        architect_external_id: current.architect_external_id,
+        ...(assignedTo ? { assigned_to: current.assigned_to } : {}),
+      },
+      {
+        ...next,
+        price_request_date: draft.priceRequestDate,
+      },
+    ),
     userId: user.id,
   });
 }
