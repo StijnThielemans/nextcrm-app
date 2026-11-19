@@ -46,7 +46,7 @@ export function SetLanguage({ userId }: Props) {
   return (
     <Select value={current} onValueChange={onChange} disabled={pending}>
       <SelectTrigger aria-label="NL FR ENG" className="h-9 w-[5.75rem]" data-testid="language-switch">
-        <SelectValue />
+        <SelectValue>{LANGUAGES.find((language) => language.value === current)?.label}</SelectValue>
       </SelectTrigger>
       <SelectContent>
         {LANGUAGES.map((language) => (
