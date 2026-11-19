@@ -13,14 +13,14 @@ jest.mock("@/lib/minio", () => ({
   MINIO_BUCKET: "nextcrm",
   MINIO_PUBLIC_URL: "https://files.example",
   MINIO_ENDPOINT: "http://minio:9000",
-  presignGet: jest.fn(async (key: string) => `https://files.example/nextcrm/${key}?X-Amz-Signature=sig`),
+  minioClient: { send: jest.fn() },
 }));
 
 import { NextRequest } from "next/server";
 import { getSession } from "@/lib/auth-server";
 import { prismadb } from "@/lib/prisma";
 import { prismaBase } from "@/lib/prisma-base";
-import { presignGet } from "@/lib/minio";
+import { minioClient } from "@/lib/minio";
 import { GET } from "../route";
 
 const gs = getSession as jest.MockedFunction<typeof getSession>;
@@ -32,10 +32,25 @@ const fd = prismaBase.documents.findUnique as jest.MockedFunction<
   typeof prismaBase.documents.findUnique
 >;
 
-/** Object key the route asked S3 to sign (the external storage boundary). */
-function signedKey() {
-  const calls = (presignGet as jest.Mock).mock.calls;
-  return calls.length ? calls[0][0] : undefined;
+/** Object key the route asked S3 to read (the external storage boundary). */
+function fetchedKey() {
+  const calls = (minioClient.send as jest.Mock).mock.calls;
+  return calls.length ? calls[0][0].input.Key : undefined;
+}
+
+function storedBytes(bytes: string) {
+  (minioClient.send as jest.Mock).mockResolvedValue({
+    ContentLength: Buffer.byteLength(bytes),
+    Body: {
+      transformToWebStream: () =>
+        new ReadableStream({
+          start(controller) {
+            controller.enqueue(Buffer.from(bytes));
+            controller.close();
+          },
+        }),
+    },
+  });
 }
 
 function call() {
@@ -67,19 +82,54 @@ describe("GET /api/documents/[documentId]/file", () => {
     expect(res.headers.get("location")).toBeNull();
   });
 
-  it("readable document: redirects to a short-lived presigned URL for its key", async () => {
+  it("readable PDF: returns the file inline from its key", async () => {
     signedIn("user");
     scopeCheck.mockResolvedValue({ id: "d1" } as any);
     fd.mockResolvedValue({
       key: "documents/a.pdf",
+      document_name: "Offerte.pdf",
+      document_file_mimeType: "application/pdf",
       document_file_url: "https://files.example/nextcrm/documents/a.pdf",
     } as any);
+    storedBytes("%PDF-1.4 offerte");
     const res = await call();
-    expect([302, 307]).toContain(res.status);
-    expect(res.headers.get("location")).toBe(
-      "https://files.example/nextcrm/documents/a.pdf?X-Amz-Signature=sig",
-    );
+    expect(res.status).toBe(200);
+    expect(res.headers.get("location")).toBeNull();
+    expect(res.headers.get("content-type")).toBe("application/pdf");
+    expect(res.headers.get("content-disposition")).toContain("inline");
+    expect(res.headers.get("content-disposition")).toContain('filename="Offerte.pdf"');
     expect(res.headers.get("cache-control")).toBe("private, no-store");
+    expect(res.headers.get("x-content-type-options")).toBe("nosniff");
+    expect(await res.text()).toBe("%PDF-1.4 offerte");
+    expect(fetchedKey()).toBe("documents/a.pdf");
+  });
+
+  it("image: opens inline; a word file downloads under its name", async () => {
+    signedIn("user");
+    scopeCheck.mockResolvedValue({ id: "d1" } as any);
+    fd.mockResolvedValue({
+      key: "images/foto.png",
+      document_name: "foto.png",
+      document_file_mimeType: "image/png",
+      document_file_url: "https://files.example/nextcrm/images/foto.png",
+    } as any);
+    storedBytes("png");
+    const image = await call();
+    expect(image.headers.get("content-type")).toBe("image/png");
+    expect(image.headers.get("content-disposition")).toContain("inline");
+
+    fd.mockResolvedValue({
+      key: "documents/plan.docx",
+      document_name: "plan.docx",
+      document_file_mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      document_file_url: "https://files.example/nextcrm/documents/plan.docx",
+    } as any);
+    storedBytes("docx");
+    const word = await call();
+    expect(word.status).toBe(200);
+    expect(word.headers.get("content-type")).toBe("application/octet-stream");
+    expect(word.headers.get("content-disposition")).toContain("attachment");
+    expect(word.headers.get("content-disposition")).toContain('filename="plan.docx"');
   });
 
   it("legacy row without key: key comes from the stored public URL", async () => {
@@ -87,11 +137,14 @@ describe("GET /api/documents/[documentId]/file", () => {
     scopeCheck.mockResolvedValue({ id: "d1" } as any);
     fd.mockResolvedValue({
       key: null,
+      document_name: "b c.png",
+      document_file_mimeType: "image/png",
       document_file_url: "https://files.example/nextcrm/images/b%20c.png",
     } as any);
+    storedBytes("png");
     const res = await call();
-    expect([302, 307]).toContain(res.status);
-    expect(signedKey()).toBe("images/b c.png");
+    expect(res.status).toBe(200);
+    expect(fetchedKey()).toBe("images/b c.png");
   });
 
   it("legacy row holding the internal MINIO_ENDPOINT URL: key derived too", async () => {
@@ -99,10 +152,13 @@ describe("GET /api/documents/[documentId]/file", () => {
     scopeCheck.mockResolvedValue({ id: "d1" } as any);
     fd.mockResolvedValue({
       key: null,
+      document_name: "old.pdf",
+      document_file_mimeType: "application/pdf",
       document_file_url: "http://minio:9000/nextcrm/documents/old.pdf",
     } as any);
+    storedBytes("%PDF");
     await call();
-    expect(signedKey()).toBe("documents/old.pdf");
+    expect(fetchedKey()).toBe("documents/old.pdf");
   });
 
   it("legacy row with a foreign-host URL: no key derived, 404", async () => {
@@ -114,7 +170,7 @@ describe("GET /api/documents/[documentId]/file", () => {
     } as any);
     const res = await call();
     expect(res.status).toBe(404);
-    expect(presignGet).not.toHaveBeenCalled();
+    expect(minioClient.send).not.toHaveBeenCalled();
   });
 
   it.each([
@@ -128,7 +184,7 @@ describe("GET /api/documents/[documentId]/file", () => {
     const res = await call();
     expect([302, 307]).toContain(res.status);
     expect(res.headers.get("location")).toBe(url);
-    expect(presignGet).not.toHaveBeenCalled();
+    expect(minioClient.send).not.toHaveBeenCalled();
   });
 
   it.each(["https://evil.example/phish", "https://utfs.io.evil.example/f/x"])(
@@ -155,6 +211,6 @@ describe("GET /api/documents/[documentId]/file", () => {
     fd.mockResolvedValue({ key, document_file_url: url } as any);
     const res = await call();
     expect(res.status).toBe(404);
-    expect(presignGet).not.toHaveBeenCalled();
+    expect(minioClient.send).not.toHaveBeenCalled();
   });
 });

@@ -23,6 +23,7 @@ import {
   type DossierDocumentCategory,
   type RequestChannel,
 } from "@/lib/sales/labels";
+import { documentFileRoute } from "@/lib/documents/file-key";
 import { groupDocumentsIntoFolders, type DocumentFolder } from "@/lib/sales/document-folders";
 import { DOSSIER_FOLLOW_UP_AFTER_DAYS, stepperForDossier } from "@/lib/sales/dossier-step";
 import { MISSING_QUOTE_PRICE, quoteCanWin, quotePriceLabel } from "@/lib/sales/quote-choice";
@@ -36,7 +37,7 @@ import {
   markSentAction,
 } from "@/actions/crm/sales/actions";
 import { uploadDocumentFile, uploadPdf } from "../../sales/upload-pdf";
-import { LogikalSection } from "./LogikalSection";
+import { QuotePositionsSection } from "./QuotePositionsSection";
 
 const today = new Date().toISOString().slice(0, 10);
 
@@ -45,6 +46,27 @@ function folderTitle(label: string, category: string | null | undefined, t: Retu
   return label;
 }
 
+
+function AcceptedQuoteLine({ dossier }: { dossier: DossierDetail }) {
+  const t = useTranslations("Sales");
+  const quote = dossier.acceptedQuote;
+  if (!quote) return null;
+  const pdfId = dossier.families.flatMap((family) => family.quotes).find((item) => item.id === quote.id)?.pdfId;
+  const sentence = t("wonQuote", { name: quote.name });
+  const at = sentence.indexOf(quote.name);
+  const name = pdfId
+    ? <a className="underline break-all" href={documentFileRoute(pdfId)}>{quote.name}</a>
+    : quote.name;
+  return (
+    <p data-accepted-quote={quote.id}>
+      {at < 0 ? sentence : sentence.slice(0, at)}
+      {at < 0 ? " " : null}
+      {name}
+      {at < 0 ? null : sentence.slice(at + quote.name.length)}{" "}
+      <span data-accepted-price="">{shownPrice(quote.gross, t("noPrice"))}</span>
+    </p>
+  );
+}
 
 function shownPrice(gross: number | null, missing: string) {
   const label = quotePriceLabel(gross);
@@ -92,7 +114,7 @@ function DocumentFolderRow({ folder }: { folder: DocumentFolder }) {
           {folder.files.map((doc) => (
             <li key={doc.id} data-file={doc.name} className="flex items-start gap-2">
               <FileText className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" aria-hidden />
-              <a className="underline break-all" href={`/api/documents/${doc.id}/file`}>{doc.name}</a>
+              <a className="underline break-all" href={documentFileRoute(doc.id)}>{doc.name}</a>
             </li>
           ))}
         </ul>
@@ -129,7 +151,7 @@ function WinningQuoteChoices({ quotes }: { quotes: DossierDetail["families"][num
                   defaultChecked={quote.id === defaultId}
                   className="mt-1"
                 />
-                <span className="min-w-0 flex-1 break-all">{quote.pdfName}</span>
+                <a className="min-w-0 flex-1 break-all underline" href={documentFileRoute(quote.pdfId)}>{quote.pdfName}</a>
                 <span className="shrink-0 tabular-nums" data-winning-price={quote.id}>{shownPrice(quote.gross, t("noPrice"))}</span>
               </label>
             </li>
@@ -298,10 +320,7 @@ export function DossierPanel({ dossier }: { dossier: DossierDetail }) {
           </div>
         )}
         {dossier.status === "GEWONNEN" && dossier.acceptedQuote && (
-          <p data-accepted-quote={dossier.acceptedQuote.id}>
-            {t("wonQuote", { name: dossier.acceptedQuote.name })}{" "}
-            <span data-accepted-price="">{shownPrice(dossier.acceptedQuote.gross, t("noPrice"))}</span>
-          </p>
+          <AcceptedQuoteLine dossier={dossier} />
         )}
       </section>
       <Dialog open={closeMode != null} onOpenChange={(open) => { if (!open) setCloseMode(null); }}>
@@ -416,7 +435,7 @@ export function DossierPanel({ dossier }: { dossier: DossierDetail }) {
             {quoteRows.map((quote) => (
               <li key={quote.id} className="rounded-md border p-2 space-y-2">
                 <div className="flex items-start justify-between gap-3">
-                  <a className="font-medium underline break-all" href={`/api/documents/${quote.pdfId}/file`}>{quote.pdfName}</a>
+                  <a className="font-medium underline break-all" href={documentFileRoute(quote.pdfId)}>{quote.pdfName}</a>
                   <span
                     className={cn("shrink-0 tabular-nums", quote.gross == null && "text-muted-foreground")}
                     data-quote-gross={quote.id}
@@ -629,7 +648,10 @@ export function DossierPanel({ dossier }: { dossier: DossierDetail }) {
         )}
       </section>
 
-      <LogikalSection dossier={dossier} />
+      <QuotePositionsSection
+        dossierId={dossier.id}
+        quotes={quoteRows.map((quote) => ({ pdfId: quote.pdfId, pdfName: quote.pdfName }))}
+      />
 
       {error && <p className="text-sm text-destructive">{error}</p>}
     </div>

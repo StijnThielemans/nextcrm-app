@@ -3,6 +3,7 @@
 import { ColumnDef } from "@tanstack/react-table";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
+import { documentFileRoute } from "@/lib/documents/file-key";
 import { DocumentRow } from "../data/schema";
 import { DataTableColumnHeader } from "./data-table-column-header";
 import { DataTableRowActions } from "./data-table-row-actions";
@@ -78,9 +79,9 @@ export const columns: ColumnDef<DocumentRow>[] = [
             {mimeLabel.label}
           </Badge>
           <div className="min-w-0">
-            <span className="font-medium truncate block">
+            <a className="font-medium truncate block underline" href={documentFileRoute(row.original.id)}>
               {row.getValue("document_name")}
-            </span>
+            </a>
             {isProcessing ? (
               <span className="text-xs text-muted-foreground italic">
                 Generating summary...

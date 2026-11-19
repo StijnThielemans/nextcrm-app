@@ -1,6 +1,7 @@
 "use client";
 
 import { ColumnDef } from "@tanstack/react-table";
+import { documentFileRoute } from "@/lib/documents/file-key";
 
 import { Badge } from "@/components/ui/badge";
 
@@ -41,9 +42,9 @@ export const columns: ColumnDef<Task>[] = [
       return (
         <div className="flex space-x-2">
           {label && <Badge variant="outline">{label.label}</Badge>}
-          <span className="max-w-[500px] truncate font-medium">
+          <a className="max-w-[500px] truncate font-medium underline" href={documentFileRoute(row.original.id)}>
             {row.original.document_name}
-          </span>
+          </a>
         </div>
       );
     },
