@@ -1,11 +1,13 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { createAccount } from "@/actions/crm/accounts/create-account";
 import { CustomerFields, type CustomerDraft } from "@/components/crm/CustomerFields";
 import type { AccountRole } from "@/lib/sales/aanvraag-fields";
 
 export function NewAccountForm({ onFinish }: { onFinish: () => void }) {
+  const t = useTranslations("Sales");
   async function onSubmit(draft: CustomerDraft) {
     const result = await createAccount({
       name: draft.name,
@@ -21,10 +23,10 @@ export function NewAccountForm({ onFinish }: { onFinish: () => void }) {
       billing_country: draft.address.country,
     });
     if (result?.error) return result.error;
-    toast.success("Klant aangemaakt");
+    toast.success(t("customerCreated"));
     onFinish();
     return null;
   }
 
-  return <CustomerFields layout="overview" submitLabel="Klant aanmaken" onSubmit={onSubmit} />;
+  return <CustomerFields layout="overview" submitLabel={t("createCustomer")} onSubmit={onSubmit} />;
 }

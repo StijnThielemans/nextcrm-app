@@ -1,5 +1,6 @@
 "use server";
 
+import { getTranslations } from "next-intl/server";
 import { revalidatePath } from "next/cache";
 import { requireAuthenticated, AuthenticationError } from "@/lib/authz";
 import { suggestAddresses } from "@/lib/sales/aanvraag-fields";
@@ -30,17 +31,25 @@ async function userOrError() {
   try {
     return { user: await requireAuthenticated() };
   } catch (error) {
-    if (error instanceof AuthenticationError) return { error: "Je bent niet ingelogd." as const };
+    if (error instanceof AuthenticationError) {
+      const t = await getTranslations("Sales");
+      return { error: t("errors.unauthorized") };
+    }
     throw error;
   }
 }
 
-function fail(error: unknown): { error: string; code?: string } {
+async function fail(error: unknown): Promise<{ error: string; code?: string }> {
+  const t = await getTranslations("Sales");
   if (error instanceof SalesError) {
-    return { error: SALES_ERROR_TEXT[error.code] ?? "Er ging iets mis.", code: error.code };
+    const key = `errors.${error.code}`;
+    return {
+      error: t.has(key) ? t(key) : (SALES_ERROR_TEXT[error.code] ?? t("errors.generic")),
+      code: error.code,
+    };
   }
   console.error("[sales]", error);
-  return { error: "Er ging iets mis." };
+  return { error: t("errors.generic") };
 }
 
 function refresh() {
@@ -56,7 +65,7 @@ export async function searchCustomersAction(query: string) {
   try {
     return { hits: await searchCustomers(auth.user, query) };
   } catch (error) {
-    const failed = fail(error);
+    const failed = await fail(error);
     return { ...failed, hits: [] };
   }
 }
@@ -67,7 +76,7 @@ export async function searchArchitectsAction(query: string) {
   try {
     return { hits: await searchArchitects(auth.user, query) };
   } catch (error) {
-    const failed = fail(error);
+    const failed = await fail(error);
     return { ...failed, hits: [] as Awaited<ReturnType<typeof searchArchitects>> };
   }
 }
@@ -78,7 +87,7 @@ export async function suggestAddressesAction(query: string) {
   try {
     return { suggestions: await suggestAddresses(query) };
   } catch (error) {
-    const failed = fail(error);
+    const failed = await fail(error);
     return { ...failed, suggestions: [] as Awaited<ReturnType<typeof suggestAddresses>> };
   }
 }
@@ -91,7 +100,7 @@ export async function createAanvraagAction(input: AanvraagInput) {
     refresh();
     return { id: created.id, number: created.number };
   } catch (error) {
-    return fail(error);
+    return await fail(error);
   }
 }
 
@@ -101,7 +110,7 @@ export async function loadDossiersAction() {
   try {
     return { rows: await listDossiers(auth.user) };
   } catch (error) {
-    const failed = fail(error);
+    const failed = await fail(error);
     return { ...failed, rows: [] };
   }
 }
@@ -112,7 +121,7 @@ export async function loadDossierAction(id: string) {
   try {
     return { dossier: await getDossier(auth.user, id) };
   } catch (error) {
-    const failed = fail(error);
+    const failed = await fail(error);
     return { ...failed, dossier: null };
   }
 }
@@ -125,7 +134,7 @@ export async function addChannelAction(dossierId: string, input: { channel: Requ
     refresh();
     return { ok: true };
   } catch (error) {
-    return fail(error);
+    return await fail(error);
   }
 }
 
@@ -140,7 +149,7 @@ export async function updateDossierAction(
     refresh();
     return { ok: true };
   } catch (error) {
-    return fail(error);
+    return await fail(error);
   }
 }
 
@@ -167,7 +176,7 @@ export async function registerQuoteAction(
     refresh();
     return { id };
   } catch (error) {
-    return fail(error);
+    return await fail(error);
   }
 }
 
@@ -182,7 +191,7 @@ export async function attachDossierDocumentAction(
     refresh();
     return { id };
   } catch (error) {
-    return fail(error);
+    return await fail(error);
   }
 }
 
@@ -194,7 +203,7 @@ export async function attachOffertePdfAction(dossierId: string, file: QuoteFile 
     refresh();
     return { id };
   } catch (error) {
-    return fail(error);
+    return await fail(error);
   }
 }
 
@@ -206,7 +215,7 @@ export async function uploadCustomerQuoteAction(dossierId: string, file: QuoteFi
     refresh();
     return { id };
   } catch (error) {
-    return fail(error);
+    return await fail(error);
   }
 }
 
@@ -218,7 +227,7 @@ export async function markReadyAction(dossierId: string) {
     refresh();
     return { ok: true };
   } catch (error) {
-    return fail(error);
+    return await fail(error);
   }
 }
 
@@ -233,7 +242,7 @@ export async function markSentAction(
     refresh();
     return { ok: true };
   } catch (error) {
-    return fail(error);
+    return await fail(error);
   }
 }
 
@@ -248,7 +257,7 @@ export async function changeStatusAction(
     refresh();
     return { ok: true };
   } catch (error) {
-    return fail(error);
+    return await fail(error);
   }
 }
 
@@ -258,7 +267,7 @@ export async function loadOffertesAction(filter: { supplier?: string; status?: s
   try {
     return { rows: await listOffertes(auth.user, filter) };
   } catch (error) {
-    const failed = fail(error);
+    const failed = await fail(error);
     return { ...failed, rows: [] };
   }
 }
@@ -269,7 +278,7 @@ export async function loadDashboardAction() {
   try {
     return { tiles: await getSalesDashboard(auth.user) };
   } catch (error) {
-    const failed = fail(error);
+    const failed = await fail(error);
     return { ...failed, tiles: null };
   }
 }

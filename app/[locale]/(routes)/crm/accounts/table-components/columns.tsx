@@ -1,11 +1,11 @@
 "use client";
 
-import { ColumnDef } from "@tanstack/react-table";
+import { Column, ColumnDef } from "@tanstack/react-table";
+import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { Account } from "../table-data/schema";
 import { DataTableColumnHeader } from "./data-table-column-header";
 import { DataTableRowActions } from "./data-table-row-actions";
-import { ACCOUNT_ROLE_LABELS, vatChoiceLabel, type AccountRole } from "@/lib/sales/aanvraag-fields";
 
 type CustomerRow = Account & {
   account_role?: string | null;
@@ -23,15 +23,27 @@ function text(value: string | null | undefined) {
   return value?.trim() ? value : "—";
 }
 
-function roleLabel(value: string | null | undefined) {
-  if (value && value in ACCOUNT_ROLE_LABELS) return ACCOUNT_ROLE_LABELS[value as AccountRole];
-  return "—";
+function SalesHeader({ column, label }: { column: Column<CustomerRow, unknown>; label: string }) {
+  const t = useTranslations("Sales");
+  return <DataTableColumnHeader column={column} title={t(label)} />;
+}
+
+function RoleCell({ value }: { value: string | null | undefined }) {
+  const t = useTranslations("Sales");
+  if (value && t.has(`roles.${value}`)) return <>{t(`roles.${value}`)}</>;
+  return <>—</>;
+}
+
+function VatCell({ value }: { value: string | null | undefined }) {
+  const t = useTranslations("Sales");
+  if (value && t.has(`vatChoice.${value}`)) return <>{t(`vatChoice.${value}`)}</>;
+  return <>—</>;
 }
 
 export const columns: ColumnDef<CustomerRow>[] = [
   {
     accessorKey: "name",
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Naam" />,
+    header: ({ column }) => <SalesHeader column={column} label="name" />,
     cell: ({ row }) => (
       <Link href={`/crm/accounts/${row.original.id}`} data-testid="account-row-name" className="font-medium">
         {row.original.name}
@@ -42,37 +54,37 @@ export const columns: ColumnDef<CustomerRow>[] = [
   },
   {
     accessorKey: "account_role",
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Contacttype" />,
-    cell: ({ row }) => roleLabel(row.original.account_role),
+    header: ({ column }) => <SalesHeader column={column} label="contactType" />,
+    cell: ({ row }) => <RoleCell value={row.original.account_role} />,
   },
   {
     accessorKey: "office_phone",
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Telefoon" />,
+    header: ({ column }) => <SalesHeader column={column} label="phone" />,
     cell: ({ row }) => text(row.original.office_phone),
   },
   {
     accessorKey: "mobile_phone",
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Gsm" />,
+    header: ({ column }) => <SalesHeader column={column} label="gsm" />,
     cell: ({ row }) => text(row.original.mobile_phone),
   },
   {
     accessorKey: "email",
-    header: ({ column }) => <DataTableColumnHeader column={column} title="E-mail" />,
+    header: ({ column }) => <SalesHeader column={column} label="email" />,
     cell: ({ row }) => text(row.original.email),
   },
   {
     accessorKey: "vat_choice",
-    header: ({ column }) => <DataTableColumnHeader column={column} title="BTW" />,
-    cell: ({ row }) => text(vatChoiceLabel(row.original.vat_choice)),
+    header: ({ column }) => <SalesHeader column={column} label="vat" />,
+    cell: ({ row }) => <VatCell value={row.original.vat_choice} />,
   },
   {
     accessorKey: "vat",
-    header: ({ column }) => <DataTableColumnHeader column={column} title="BTW-nummer" />,
+    header: ({ column }) => <SalesHeader column={column} label="vatNumber" />,
     cell: ({ row }) => text(row.original.vat),
   },
   {
     id: "address",
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Adres" />,
+    header: ({ column }) => <SalesHeader column={column} label="address" />,
     cell: ({ row }) => text([row.original.billing_street, row.original.billing_postal_code, row.original.billing_city].filter(Boolean).join(", ")),
   },
   {

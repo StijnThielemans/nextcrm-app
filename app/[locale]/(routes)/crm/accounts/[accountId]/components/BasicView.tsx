@@ -1,3 +1,4 @@
+import { getTranslations } from "next-intl/server";
 import {
   Card,
   CardContent,
@@ -5,7 +6,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { AccountDetailActions } from "./AccountDetailActions";
-import { ACCOUNT_ROLE_LABELS, vatChoiceLabel, type AccountRole } from "@/lib/sales/aanvraag-fields";
+import { ACCOUNT_ROLES, type AccountRole } from "@/lib/sales/aanvraag-fields";
 
 function line(label: string, value: string | null | undefined) {
   return (
@@ -17,12 +18,13 @@ function line(label: string, value: string | null | undefined) {
 }
 
 export async function BasicView({ data }: { data: any }) {
-  if (!data) return <div>Klant niet gevonden</div>;
-  const role = data.account_role && data.account_role in ACCOUNT_ROLE_LABELS
-    ? ACCOUNT_ROLE_LABELS[data.account_role as AccountRole]
+  const t = await getTranslations("Sales");
+  if (!data) return <div>{t("customerNotFound")}</div>;
+  const role = data.account_role && (ACCOUNT_ROLES as readonly string[]).includes(data.account_role)
+    ? t(`roles.${data.account_role as AccountRole}`)
     : null;
   const address = [data.billing_street, data.billing_postal_code, data.billing_city, data.billing_country].filter(Boolean).join(", ");
-  const tax = vatChoiceLabel(data.vat_choice);
+  const tax = data.vat_choice && t.has(`vatChoice.${data.vat_choice}`) ? t(`vatChoice.${data.vat_choice}`) : "";
 
   return (
     <Card>
@@ -33,13 +35,13 @@ export async function BasicView({ data }: { data: any }) {
         </div>
       </CardHeader>
       <CardContent className="space-y-1 text-sm">
-        {line("Contacttype", role)}
-        {line("Adres", address)}
-        {line("Telefoonnummer", data.office_phone)}
-        {line("Gsm-nummer", data.mobile_phone)}
-        {line("E-mailadres", data.email)}
-        {line("BTW", tax)}
-        {line("BTW-nummer", data.vat)}
+        {line(t("contactType"), role)}
+        {line(t("address"), address)}
+        {line(t("phoneNumber"), data.office_phone)}
+        {line(t("mobileNumber"), data.mobile_phone)}
+        {line(t("emailAddress"), data.email)}
+        {line(t("vat"), tax)}
+        {line(t("vatNumber"), data.vat)}
       </CardContent>
     </Card>
   );

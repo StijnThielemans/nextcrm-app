@@ -1,18 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { CHANNEL_LABELS, CHANNELS, SALES_ERROR_TEXT, type RequestChannel } from "@/lib/sales/labels";
+import { CHANNELS, type RequestChannel } from "@/lib/sales/labels";
 import {
-  ACCOUNT_ROLE_LABELS,
   ACCOUNT_ROLES,
-  PROJECT_GROUP_LABELS,
   PROJECT_GROUPS,
   SELLERS,
-  VAT_CHOICE_LABELS,
   VAT_CHOICES,
   siteAddressFromBilling,
   type AccountRole,
@@ -49,6 +47,7 @@ export function AanvraagForm({
   projectNumber: string;
 }) {
   const router = useRouter();
+  const t = useTranslations("Sales");
   const [channel, setChannel] = useState<RequestChannel>("PHONE");
   const [priceRequestDate, setPriceRequestDate] = useState(today);
   const [query, setQuery] = useState("");
@@ -145,15 +144,15 @@ export function AanvraagForm({
     event.preventDefault();
     setError(null);
     if (!accountId && !showNew) {
-      setError("Kies een klant of maak een nieuwe klant.");
+      setError(t("errors.customerRequired"));
       return;
     }
     if (!accountId && showNew && !phone.trim() && !mobile.trim()) {
-      setError(SALES_ERROR_TEXT.phoneOrMobileRequired);
+      setError(t("errors.phoneOrMobileRequired"));
       return;
     }
     if (!accountId && showNew && !vatChoice) {
-      setError(SALES_ERROR_TEXT.vatChoiceRequired);
+      setError(t("errors.vatChoiceRequired"));
       return;
     }
     if (!seller || !projectGroup) return;
@@ -199,21 +198,21 @@ export function AanvraagForm({
   return (
     <form onSubmit={onCreate} className="space-y-8 max-w-3xl">
       <section className="space-y-3">
-        <h2 className="text-lg font-semibold">Offertedossier</h2>
+        <h2 className="text-lg font-semibold">{t("dossierSection")}</h2>
         <label className="space-y-1 block">
-          <span className="text-sm">Project-Nr</span>
+          <span className="text-sm">{t("projectNumber")}</span>
           <Input value={projectNumber} readOnly disabled />
         </label>
         <div className="space-y-1">
-          <span className="text-sm">Klant</span>
+          <span className="text-sm">{t("customer")}</span>
           <Input
             value={query}
             onChange={(event) => {
               setQuery(event.target.value);
               setAccountId(null);
             }}
-            placeholder="Zoek een bestaande klant"
-            aria-label="Klant"
+            placeholder={t("searchCustomer")}
+            aria-label={t("customer")}
             role="combobox"
             aria-expanded={hits.length > 0}
           />
@@ -224,14 +223,14 @@ export function AanvraagForm({
                   <button type="button" className="w-full px-3 py-2 text-left text-sm hover:bg-muted" onClick={() => chooseCustomer(hit)}>
                     <span className="font-medium">{hit.name}</span>
                     <span className="block text-muted-foreground">
-                      {[hit.email, hit.phone, hit.address].filter(Boolean).join(" · ") || "Geen contactgegevens"}
+                      {[hit.email, hit.phone, hit.address].filter(Boolean).join(" · ") || t("noContactDetails")}
                     </span>
                   </button>
                 </li>
               ))}
             </ul>
           )}
-          {accountId && <p className="text-sm">Geselecteerde klant wordt gekoppeld.</p>}
+          {accountId && <p className="text-sm">{t("customerLinked")}</p>}
           <Button
             type="button"
             variant="outline"
@@ -241,45 +240,45 @@ export function AanvraagForm({
               setHits([]);
             }}
           >
-            Nieuwe klant
+            {t("newCustomer")}
           </Button>
         </div>
         {showNew && !accountId && (
           <div className="grid gap-3 rounded-md border p-3">
-            <h3 className="text-sm font-semibold">Nieuwe klant</h3>
+            <h3 className="text-sm font-semibold">{t("newCustomer")}</h3>
             <label className="space-y-1">
-              <span className="text-sm">Naam</span>
+              <span className="text-sm">{t("name")}</span>
               <Input value={customerName} onChange={(event) => onCustomerName(event.target.value)} required />
             </label>
             <label className="space-y-1">
-              <span className="text-sm">Contacttype</span>
+              <span className="text-sm">{t("contactType")}</span>
               <select
                 className="flex h-9 w-full rounded-md border bg-transparent px-3 text-sm"
                 value={role}
                 required
                 onChange={(event) => setRole(event.target.value as AccountRole)}
               >
-                <option value="">Kies</option>
+                <option value="">{t("choose")}</option>
                 {ACCOUNT_ROLES.map((item) => (
-                  <option key={item} value={item}>{ACCOUNT_ROLE_LABELS[item]}</option>
+                  <option key={item} value={item}>{t(`roles.${item}`)}</option>
                 ))}
               </select>
             </label>
-            <AddressBox label="Adres" value={customerAddress} onChange={setCustomerAddress} required />
+            <AddressBox label={t("address")} value={customerAddress} onChange={setCustomerAddress} required />
             <label className="space-y-1">
-              <span className="text-sm">Telefoonnummer</span>
+              <span className="text-sm">{t("phoneNumber")}</span>
               <Input value={phone} onChange={(event) => setPhone(event.target.value)} />
             </label>
             <label className="space-y-1">
-              <span className="text-sm">Gsm-nummer</span>
+              <span className="text-sm">{t("mobileNumber")}</span>
               <Input value={mobile} onChange={(event) => setMobile(event.target.value)} />
             </label>
             <label className="space-y-1">
-              <span className="text-sm">E-mailadres</span>
+              <span className="text-sm">{t("emailAddress")}</span>
               <Input type="email" value={email} onChange={(event) => setEmail(event.target.value)} required />
             </label>
             <label className="space-y-1">
-              <span className="text-sm">BTW</span>
+              <span className="text-sm">{t("vat")}</span>
               <select
                 className="flex h-9 w-full rounded-md border bg-transparent px-3 text-sm"
                 value={vatChoice}
@@ -287,30 +286,30 @@ export function AanvraagForm({
                 onChange={(event) => setVatChoice(event.target.value as VatChoice)}
               >
                 {VAT_CHOICES.map((item) => (
-                  <option key={item} value={item}>{VAT_CHOICE_LABELS[item]}</option>
+                  <option key={item} value={item}>{t(`vatChoice.${item}`)}</option>
                 ))}
               </select>
             </label>
             <label className="space-y-1">
-              <span className="text-sm">BTW-nummer</span>
+              <span className="text-sm">{t("vatNumber")}</span>
               <Input value={vat} onChange={(event) => setVat(event.target.value)} />
             </label>
           </div>
         )}
         <label className="space-y-1 block">
-          <span className="text-sm">Projectbeschrijving</span>
+          <span className="text-sm">{t("projectDescription")}</span>
           <Input value={description} onChange={(event) => setDescription(event.target.value)} required />
         </label>
         <div className="space-y-1">
-          <span className="text-sm">Architect</span>
+          <span className="text-sm">{t("architect")}</span>
           <Input
             value={architectQuery}
             onChange={(event) => {
               setArchitectQuery(event.target.value);
               setArchitect(null);
             }}
-            placeholder="Zoek een architect op naam of stamnummer"
-            aria-label="Architect"
+            placeholder={t("searchArchitect")}
+            aria-label={t("architect")}
             role="combobox"
             aria-expanded={architectHits.length > 0}
             autoComplete="off"
@@ -330,58 +329,58 @@ export function AanvraagForm({
             </ul>
           )}
           {architect && (
-            <p className="text-sm">Gekozen architect: {architect.name} ({architect.id}).</p>
+            <p className="text-sm">{t("architectChosen", { name: architect.name, id: architect.id })}</p>
           )}
-          <p className="text-sm text-muted-foreground">Optioneel. Kies een architect uit het register van de Orde.</p>
+          <p className="text-sm text-muted-foreground">{t("architectOptional")}</p>
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="space-y-1">
-            <span className="text-sm">Verkoper</span>
+            <span className="text-sm">{t("seller")}</span>
             <select
               className="flex h-9 w-full rounded-md border bg-transparent px-3 text-sm"
               value={seller}
               required
               onChange={(event) => setSeller(event.target.value as SellerName)}
             >
-              <option value="">Kies</option>
+              <option value="">{t("choose")}</option>
               {SELLERS.map((name) => (
                 <option key={name} value={name}>{name}</option>
               ))}
             </select>
           </label>
           <label className="space-y-1">
-            <span className="text-sm">Projectgroep</span>
+            <span className="text-sm">{t("projectGroup")}</span>
             <select
               className="flex h-9 w-full rounded-md border bg-transparent px-3 text-sm"
               value={projectGroup}
               required
               onChange={(event) => setProjectGroup(event.target.value as ProjectGroup)}
             >
-              <option value="">Kies</option>
+              <option value="">{t("choose")}</option>
               {PROJECT_GROUPS.map((group) => (
-                <option key={group} value={group}>{PROJECT_GROUP_LABELS[group]}</option>
+                <option key={group} value={group}>{t(`groups.${group}`)}</option>
               ))}
             </select>
           </label>
           <label className="space-y-1">
-            <span className="text-sm">Datum prijsaanvraag</span>
+            <span className="text-sm">{t("priceRequestDate")}</span>
             <Input type="date" value={priceRequestDate} onChange={(event) => setPriceRequestDate(event.target.value)} required />
           </label>
           <label className="space-y-1 sm:col-span-2">
-            <span className="text-sm">Kanaal</span>
+            <span className="text-sm">{t("channel")}</span>
             <select
               className="flex h-9 w-full rounded-md border bg-transparent px-3 text-sm"
               value={channel}
               onChange={(event) => setChannel(event.target.value as RequestChannel)}
             >
               {CHANNELS.map((item) => (
-                <option key={item} value={item}>{CHANNEL_LABELS[item]}</option>
+                <option key={item} value={item}>{t(`channels.${item}`)}</option>
               ))}
             </select>
           </label>
         </div>
         <AddressBox
-          label="Werfadres"
+          label={t("siteAddress")}
           value={site}
           onChange={setSite}
           ignoreQuery={copySiteFromCustomer ? siteSource?.query : null}
@@ -395,9 +394,9 @@ export function AanvraagForm({
                   disabled={!customerChosen}
                   onChange={(event) => setCopySiteFromCustomer(event.target.checked)}
                 />
-                Werfadres idem huidig adres
+                {t("siteSameAsCurrent")}
               </label>
-              {!customerChosen && <span className="text-sm text-muted-foreground">Kies eerst een klant.</span>}
+              {!customerChosen && <span className="text-sm text-muted-foreground">{t("chooseCustomerFirst")}</span>}
             </span>
           }
         />
@@ -405,9 +404,9 @@ export function AanvraagForm({
 
       {error && <p className="text-sm text-destructive">{error}</p>}
       <Button type="submit" disabled={pending}>
-        {pending ? "Opslaan…" : "Dossier aanmaken"}
+        {pending ? t("saving") : t("createDossier")}
       </Button>
-      <Label className="sr-only">Nieuwe aanvraag</Label>
+      <Label className="sr-only">{t("newRequest")}</Label>
     </form>
   );
 }

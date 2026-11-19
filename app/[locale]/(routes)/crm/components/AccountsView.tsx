@@ -37,6 +37,7 @@ interface AccountsViewProps {
 const AccountsView = ({ data, crmData }: AccountsViewProps) => {
   const [open, setOpen] = useState(false);
   const t = useTranslations("CrmPage");
+  const sales = useTranslations("Sales");
 
   const { industries } = crmData;
 
@@ -47,7 +48,7 @@ const AccountsView = ({ data, crmData }: AccountsViewProps) => {
           <div>
             <CardTitle>
               <Link href="/crm/accounts" className="hover:underline">
-                Klanten
+                {sales("customers")}
               </Link>
             </CardTitle>
           </div>
@@ -61,9 +62,9 @@ const AccountsView = ({ data, crmData }: AccountsViewProps) => {
                 className="!inset-0 !h-dvh !w-screen !max-w-none overflow-y-auto border-0 p-8 sm:!max-w-none"
               >
                 <SheetHeader>
-                  <SheetTitle>Nieuwe klant</SheetTitle>
+                  <SheetTitle>{sales("newCustomer")}</SheetTitle>
                   <SheetDescription>
-                    Naam, contacttype, adres, telefoon, gsm, e-mail, btw en btw-nummer.
+                    {sales("customerFieldsDescription")}
                   </SheetDescription>
                 </SheetHeader>
                 <div className="mt-8">

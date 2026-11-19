@@ -1,46 +1,48 @@
+import { getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import { requireAuthenticated } from "@/lib/authz";
-import { NewCustomerButton } from "./NewCustomerButton";
-import { DOSSIER_STATUSES, DOSSIER_STATUS_LABELS, euro, percentLabel } from "@/lib/sales/labels";
+import { DOSSIER_STATUSES, euro, percentLabel } from "@/lib/sales/labels";
 import { listRecentOpens } from "@/lib/sales/recent-opens";
 import { getSalesDashboard } from "@/lib/sales/service";
+import { NewCustomerButton } from "./NewCustomerButton";
 
 export async function SalesDashboard() {
   const user = await requireAuthenticated();
+  const t = await getTranslations("Sales");
   const [tiles, recent] = await Promise.all([getSalesDashboard(user), listRecentOpens(user)]);
   const cards = [
-    ["Open dossiers", String(tiles.openCount)],
-    ["Op te volgen", String(tiles.followUpCount)],
-    ["Nieuwe aanvragen deze maand", String(tiles.newThisMonth)],
-    ["Gewonnen deze maand", String(tiles.wonCount)],
-    ["Verloren deze maand", String(tiles.lostCount)],
-    ["Open verkoopwaarde", euro(tiles.openSell)],
-    ["Open marge", euro(tiles.openMargin)],
-    ["Open marge %", percentLabel(tiles.openMarginPercent)],
-    ["Gewonnen verkoop deze maand", euro(tiles.wonSell)],
-    ["Gewonnen marge deze maand", euro(tiles.wonMargin)],
-    ["Verloren verkoop deze maand", euro(tiles.lostSell)],
+    [t("tiles.openDossiers"), String(tiles.openCount)],
+    [t("tiles.toFollowUp"), String(tiles.followUpCount)],
+    [t("tiles.newThisMonth"), String(tiles.newThisMonth)],
+    [t("tiles.wonThisMonth"), String(tiles.wonCount)],
+    [t("tiles.lostThisMonth"), String(tiles.lostCount)],
+    [t("tiles.openSell"), euro(tiles.openSell)],
+    [t("tiles.openMargin"), euro(tiles.openMargin)],
+    [t("tiles.openMarginPercent"), percentLabel(tiles.openMarginPercent)],
+    [t("tiles.wonSell"), euro(tiles.wonSell)],
+    [t("tiles.wonMargin"), euro(tiles.wonMargin)],
+    [t("tiles.lostSell"), euro(tiles.lostSell)],
   ];
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap gap-2">
         <Link href="/crm/aanvraag" className="inline-flex h-9 items-center rounded-md bg-primary px-4 text-sm text-primary-foreground">
-          + Nieuwe aanvraag
+          {t("newRequestPlus")}
         </Link>
         <NewCustomerButton
-          label="+ Nieuwe klant"
-          title="Nieuwe klant"
-          description="Naam, contacttype, adres, telefoon, gsm, e-mail, btw en btw-nummer."
+          label={`+ ${t("newCustomer")}`}
+          title={t("newCustomer")}
+          description={t("customerFieldsDescription")}
         />
         <Link href="/crm/dossiers" className="inline-flex h-9 items-center rounded-md border px-4 text-sm">
-          Offertedossiers
+          {t("dossiers")}
         </Link>
       </div>
       <div className="grid gap-3 lg:grid-cols-2">
         <section className="rounded-md border p-4">
-          <h2 className="mb-2 text-lg font-semibold">Laatste klanten</h2>
+          <h2 className="mb-2 text-lg font-semibold">{t("recentCustomers")}</h2>
           {recent.customers.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Nog niets geopend.</p>
+            <p className="text-sm text-muted-foreground">{t("nothingOpened")}</p>
           ) : (
             <ul className="space-y-1 text-sm">
               {recent.customers.map((customer) => (
@@ -52,9 +54,9 @@ export async function SalesDashboard() {
           )}
         </section>
         <section className="rounded-md border p-4">
-          <h2 className="mb-2 text-lg font-semibold">Laatste offertedossiers</h2>
+          <h2 className="mb-2 text-lg font-semibold">{t("recentDossiers")}</h2>
           {recent.dossiers.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Nog niets geopend.</p>
+            <p className="text-sm text-muted-foreground">{t("nothingOpened")}</p>
           ) : (
             <ul className="space-y-1 text-sm">
               {recent.dossiers.map((dossier) => (
@@ -75,11 +77,11 @@ export async function SalesDashboard() {
         ))}
       </div>
       <div>
-        <h2 className="mb-2 text-lg font-semibold">Per status</h2>
+        <h2 className="mb-2 text-lg font-semibold">{t("byStatus")}</h2>
         <ul className="grid gap-2 sm:grid-cols-2 text-sm">
           {DOSSIER_STATUSES.map((status) => (
             <li key={status} className="flex justify-between rounded-md border px-3 py-2">
-              <span>{DOSSIER_STATUS_LABELS[status]}</span>
+              <span>{t(`dossierStatus.${status}`)}</span>
               <span>{tiles.byStatus[status] ?? 0}</span>
             </li>
           ))}

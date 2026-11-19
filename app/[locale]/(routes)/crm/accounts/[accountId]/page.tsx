@@ -29,6 +29,7 @@ import { ActivitiesSection } from "./components/ActivitiesSection";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { HistoryTab } from "./components/HistoryTab";
 import { listDossiersForAccount } from "@/lib/sales/service";
+import { stepMessageKey } from "@/lib/sales/step-text";
 import { recordRecentOpen } from "@/lib/sales/recent-opens";
 import {
   serializeDecimals,
@@ -62,18 +63,19 @@ const AccountDetailPage = async (props: AccountDetailPageProps) => {
   const dossiers = actorUser.role === "partner" ? [] : await listDossiersForAccount(actorUser, accountId);
   const crmData = await getAllCrmData();
 
-  if (!account) return <div>Klant niet gevonden</div>;
+  const sales = await getTranslations("Sales");
+  if (!account) return <div>{sales("customerNotFound")}</div>;
   await recordRecentOpen(actorUser.id, "ACCOUNT", account.id);
 
   return (
     <Container
-      title={`Klant: ${account.name}`}
-      description="Contacten, offertedossiers en documenten"
+      title={sales("customerTitle", { name: account.name })}
+      description={sales("customersDescription")}
     >
       <Tabs defaultValue="overview">
         <TabsList>
-          <TabsTrigger value="overview">Overzicht</TabsTrigger>
-          <TabsTrigger value="history">Historiek</TabsTrigger>
+          <TabsTrigger value="overview">{sales("overview")}</TabsTrigger>
+          <TabsTrigger value="history">{sales("history")}</TabsTrigger>
           {await Promise.all(pluginTabs.map(async ({ plugin, tab }) => {
             const tp = await getTranslations(`plugins.${plugin.definition.id}` as never);
             return <TabsTrigger key={`${plugin.definition.id}:${tab.id}`} value={`plugin-${plugin.definition.id}-${tab.id}`}>{tp(tab.title as never)}</TabsTrigger>;
@@ -89,17 +91,20 @@ const AccountDetailPage = async (props: AccountDetailPageProps) => {
             <FindSimilarButton entityType="account" recordId={accountId} />
             <section className="space-y-2">
               <div className="flex items-center justify-between">
-                <h2 className="text-lg font-semibold">Offertedossiers</h2>
-                <Link href="/crm/aanvraag" className="text-sm underline">+ Nieuwe aanvraag</Link>
+                <h2 className="text-lg font-semibold">{sales("dossiers")}</h2>
+                <Link href="/crm/aanvraag" className="text-sm underline">{sales("newRequestPlus")}</Link>
               </div>
               <ul className="text-sm space-y-1">
-                {dossiers.map((row) => (
+                {dossiers.map((row) => {
+                  const stepKey = stepMessageKey(row.stepLabel);
+                  return (
                   <li key={row.id}>
                     <Link className="underline" href={`/crm/dossiers/${row.id}`}>{row.number}</Link>
-                    {" · "}{row.name}{" · "}{row.stepLabel}
+                    {" · "}{row.name}{" · "}{stepKey ? sales(stepKey) : row.stepLabel}
                   </li>
-                ))}
-                {dossiers.length === 0 && <li className="text-muted-foreground">Nog geen dossiers.</li>}
+                  );
+                })}
+                {dossiers.length === 0 && <li className="text-muted-foreground">{sales("noDossiers")}</li>}
               </ul>
             </section>
             <AccountsTasksView data={tasks} account={account} />

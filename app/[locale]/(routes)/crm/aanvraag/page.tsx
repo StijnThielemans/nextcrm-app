@@ -1,15 +1,17 @@
+import { getTranslations } from "next-intl/server";
 import Container from "@/app/[locale]/(routes)/components/ui/Container";
 import { previewDossierNumber } from "@/lib/sales/service";
 import { AanvraagForm } from "./AanvraagForm";
 
 export default async function AanvraagPage() {
+  const t = await getTranslations("Sales");
   const projectNumber = await previewDossierNumber();
   return (
     <Container
-      title="Nieuwe aanvraag"
-      description="Het projectnummer wordt automatisch toegekend. Zoek de klant, of maak er een nieuwe."
+      title={t("newRequest")}
+      description={t("newRequestDescription")}
     >
-      <AanvraagForm projectNumber={projectNumber ?? "Automatisch"} />
+      <AanvraagForm projectNumber={projectNumber ?? t("automatic")} />
     </Container>
   );
 }

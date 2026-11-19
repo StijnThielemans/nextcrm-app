@@ -14,29 +14,24 @@ import { NavItem } from "../nav-main";
 type Props = {
   localizations: {
     title: string;
-    accounts: string;
-    contacts: string;
-    leads: string;
-    opportunities: string;
-    contracts: string;
-    products: string;
-    priceLists: string;
-    orders: string;
+    dashboard: string;
+    customers: string;
+    dossiers: string;
+    quotes: string;
   };
   /** Current user's role — the Approvals queue is manager/admin only. */
   role?: string;
 };
 
 export const getCrmMenuItem = ({ localizations }: Props): NavItem => {
-  void localizations;
   return {
-    title: "Verkoop",
+    title: localizations.title,
     icon: Coins,
     items: [
-      { title: "Dashboard", url: "/crm/dashboard" },
-      { title: "Klanten", url: "/crm/accounts" },
-      { title: "Offertedossiers", url: "/crm/dossiers" },
-      { title: "Offertes", url: "/crm/offertes" },
+      { title: localizations.dashboard, url: "/crm/dashboard" },
+      { title: localizations.customers, url: "/crm/accounts" },
+      { title: localizations.dossiers, url: "/crm/dossiers" },
+      { title: localizations.quotes, url: "/crm/offertes" },
     ],
   };
 };

@@ -1,4 +1,5 @@
 import React, { Suspense } from "react";
+import { getTranslations } from "next-intl/server";
 
 import AccountsView from "../components/AccountsView";
 import Container from "../../components/ui/Container";
@@ -8,11 +9,12 @@ import { getAccounts } from "@/actions/crm/get-accounts";
 const AccountsPage = async () => {
   const crmData = await getAllCrmData();
   const accounts = await getAccounts();
+  const t = await getTranslations("Sales");
 
   return (
     <Container
-      title="Klanten"
-      description="Naam, contacttype, adres, telefoon, e-mail, btw en btw-nummer."
+      title={t("customers")}
+      description={t("customersDescription")}
     >
       <Suspense fallback={<CrmAccountsSkeleton />}>
         <AccountsView crmData={crmData} data={accounts} />

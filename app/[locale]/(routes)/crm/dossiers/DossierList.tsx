@@ -1,9 +1,11 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 
 import { Link } from "@/i18n/navigation";
 import { Input } from "@/components/ui/input";
+import { stepMessageKey } from "@/lib/sales/step-text";
 import {
   dossierAddress,
   dossierArchitect,
@@ -16,23 +18,23 @@ import {
   type DossierSearchRow,
 } from "./dossier-search";
 
-const HEADERS = [
-  "Project-Nr",
-  "Projectbeschrijving",
-  "Klant",
-  "Contacttype",
-  "E-mail",
-  "Telefoon",
-  "Gsm",
-  "BTW",
-  "Adres",
-  "Verkoper",
-  "Architect",
-  "Projectgroep",
-  "Datum prijsaanvraag",
-  "Werfadres",
-  "Status",
-  "Opvolging",
+const HEADER_KEYS = [
+  "projectNumber",
+  "projectDescription",
+  "customer",
+  "contactType",
+  "email",
+  "phone",
+  "gsm",
+  "vat",
+  "address",
+  "seller",
+  "architect",
+  "projectGroup",
+  "priceRequestDate",
+  "siteAddress",
+  "status",
+  "followUp",
 ] as const;
 
 function show(value: string) {
@@ -40,8 +42,10 @@ function show(value: string) {
 }
 
 export function DossierList({ rows }: { rows: DossierSearchRow[] }) {
+  const t = useTranslations("Sales");
   const [query, setQuery] = useState("");
   const visible = useMemo(() => rows.filter((row) => dossierMatchesSearch(row, query)), [rows, query]);
+  const headers = HEADER_KEYS.map((key) => t(key));
 
   return (
     <>
@@ -50,10 +54,10 @@ export function DossierList({ rows }: { rows: DossierSearchRow[] }) {
           href="/crm/aanvraag"
           className="inline-flex h-9 items-center rounded-md bg-primary px-4 text-sm text-primary-foreground"
         >
-          + Nieuwe aanvraag
+          {t("newRequestPlus")}
         </Link>
         <Input
-          placeholder="Zoeken …"
+          placeholder={t("search")}
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           className="h-8 w-[150px] lg:w-[250px]"
@@ -64,7 +68,7 @@ export function DossierList({ rows }: { rows: DossierSearchRow[] }) {
         <table className="w-full min-w-max text-sm" data-testid="dossiers-table">
           <thead>
             <tr className="border-b text-left">
-              {HEADERS.map((header) => (
+              {headers.map((header) => (
                 <th key={header} className="whitespace-nowrap py-2 pr-3">
                   {header}
                 </th>
@@ -81,7 +85,7 @@ export function DossierList({ rows }: { rows: DossierSearchRow[] }) {
                 </td>
                 <td className="whitespace-nowrap py-2 pr-3">{show(row.name?.trim() ?? "")}</td>
                 <td className="whitespace-nowrap py-2 pr-3">{show(row.customer?.trim() ?? "")}</td>
-                <td className="whitespace-nowrap py-2 pr-3">{show(dossierContactType(row.contactType))}</td>
+                <td className="whitespace-nowrap py-2 pr-3">{show(row.contactType && t.has(`roles.${row.contactType}`) ? t(`roles.${row.contactType}`) : dossierContactType(row.contactType))}</td>
                 <td className="whitespace-nowrap py-2 pr-3">{show(row.email?.trim() ?? "")}</td>
                 <td className="whitespace-nowrap py-2 pr-3">{show(row.phone?.trim() ?? "")}</td>
                 <td className="whitespace-nowrap py-2 pr-3">{show(row.mobile?.trim() ?? "")}</td>
@@ -89,17 +93,17 @@ export function DossierList({ rows }: { rows: DossierSearchRow[] }) {
                 <td className="whitespace-nowrap py-2 pr-3">{show(dossierAddress(row))}</td>
                 <td className="whitespace-nowrap py-2 pr-3">{show(row.seller?.trim() ?? "")}</td>
                 <td className="whitespace-nowrap py-2 pr-3">{show(dossierArchitect(row))}</td>
-                <td className="whitespace-nowrap py-2 pr-3">{show(dossierProjectGroup(row.projectGroup))}</td>
+                <td className="whitespace-nowrap py-2 pr-3">{show(row.projectGroup && t.has(`groups.${row.projectGroup}`) ? t(`groups.${row.projectGroup}`) : dossierProjectGroup(row.projectGroup))}</td>
                 <td className="whitespace-nowrap py-2 pr-3">{show(dossierPriceRequestDate(row))}</td>
                 <td className="whitespace-nowrap py-2 pr-3">{show(dossierSiteAddress(row))}</td>
-                <td className="whitespace-nowrap py-2 pr-3">{show(dossierStatusText(row))}</td>
+                <td className="whitespace-nowrap py-2 pr-3">{show((() => { const key = stepMessageKey(dossierStatusText(row)); return key && t.has(key) ? t(key) : dossierStatusText(row); })())}</td>
                 <td className="whitespace-nowrap py-2">{show(row.followUpDate?.trim() ?? "")}</td>
               </tr>
             ))}
             {visible.length === 0 && (
               <tr>
-                <td className="py-4 text-muted-foreground" colSpan={HEADERS.length}>
-                  {rows.length === 0 ? "Nog geen offertedossiers." : "Geen dossiers gevonden."}
+                <td className="py-4 text-muted-foreground" colSpan={HEADER_KEYS.length}>
+                  {rows.length === 0 ? t("noDossiers") : t("noDossiersFound")}
                 </td>
               </tr>
             )}

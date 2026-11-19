@@ -70,9 +70,14 @@ export default async function AppLayout({
 
   // Extract translations as plain object for client component
   const translations = {
+    navigation: dict("navigation"),
     dashboard: dict("dashboard"),
     crm: {
       title: dict("crm.title"),
+      dashboard: dict("dashboard"),
+      customers: dict("crm.customers"),
+      dossiers: dict("crm.dossiers"),
+      quotes: dict("crm.quotes"),
       accounts: dict("crm.accounts"),
       opportunities: dict("crm.opportunities"),
       contacts: dict("crm.contacts"),

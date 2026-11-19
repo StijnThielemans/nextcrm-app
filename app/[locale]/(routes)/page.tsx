@@ -1,11 +1,13 @@
+import { getTranslations } from "next-intl/server";
 import Container from "./components/ui/Container";
 import { SalesDashboard } from "./crm/sales/SalesDashboard";
 
-export default function HomePage() {
+export default async function HomePage() {
+  const t = await getTranslations("Sales");
   return (
     <Container
-      title="Verkoop"
-      description="Aanvraag, offerte en opvolging. Gewonnen sluit het verkooppad."
+      title={t("sales")}
+      description={t("homeDescription")}
     >
       <SalesDashboard />
     </Container>

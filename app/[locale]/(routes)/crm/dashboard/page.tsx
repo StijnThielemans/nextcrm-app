@@ -1,11 +1,13 @@
+import { getTranslations } from "next-intl/server";
 import Container from "../../components/ui/Container";
 import { SalesDashboard } from "../sales/SalesDashboard";
 
-export default function CrmDashboardPage() {
+export default async function CrmDashboardPage() {
+  const t = await getTranslations("Sales");
   return (
     <Container
-      title="Verkoop"
-      description="Aantallen en waarden van offertedossiers. De waarde is de laatst verstuurde versie, excl. btw."
+      title={t("sales")}
+      description={t("dashboardDescription")}
     >
       <SalesDashboard />
     </Container>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "@/i18n/navigation";
+import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { updateAccount } from "@/actions/crm/accounts/update-account";
 import { CustomerFields, type CustomerDraft } from "@/components/crm/CustomerFields";
@@ -29,6 +30,7 @@ export function UpdateAccountForm({
   open: (value: boolean) => void;
 }) {
   const router = useRouter();
+  const t = useTranslations("Sales");
   const street = initialData.billing_street ?? "";
   const postalCode = initialData.billing_postal_code ?? "";
   const city = initialData.billing_city ?? "";
@@ -50,7 +52,7 @@ export function UpdateAccountForm({
       billing_country: draft.address.country,
     });
     if (result?.error) return result.error;
-    toast.success("Klant bijgewerkt");
+    toast.success(t("customerUpdated"));
     open(false);
     router.refresh();
     return null;
@@ -58,7 +60,7 @@ export function UpdateAccountForm({
 
   return (
     <CustomerFields
-      submitLabel="Opslaan"
+      submitLabel={t("save")}
       initial={{
         name: initialData.name ?? "",
         role: initialData.account_role ?? "",

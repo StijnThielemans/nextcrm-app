@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { useTranslations } from "next-intl";
 import { Input } from "@/components/ui/input";
 import { suggestAddressesAction } from "@/actions/crm/sales/actions";
 import type { AddressSuggestion } from "@/lib/sales/aanvraag-fields";
@@ -31,6 +32,7 @@ export function AddressBox({
   ignoreQuery?: string | null;
 }) {
   const inputId = useId();
+  const t = useTranslations("Sales");
   const [suggestions, setSuggestions] = useState<AddressSuggestion[]>([]);
   const [open, setOpen] = useState(false);
   const skipQuery = useRef("");
@@ -75,7 +77,7 @@ export function AddressBox({
         id={inputId}
         value={value.query}
         autoComplete="street-address"
-        placeholder="Begin te typen voor adressuggesties"
+        placeholder={t("addressPlaceholder")}
         required={required && !value.street}
         onChange={(event) => {
           onChange({ ...value, query: event.target.value });
@@ -94,22 +96,22 @@ export function AddressBox({
           ))}
         </ul>
       )}
-      <p className="text-xs text-muted-foreground">Suggesties via OpenStreetMap (Photon). De browser kan ook een adres voorstellen.</p>
+      <p className="text-xs text-muted-foreground">{t("addressHint")}</p>
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="space-y-1 sm:col-span-2">
-          <span className="text-sm">Straat</span>
+          <span className="text-sm">{t("street")}</span>
           <Input value={value.street} required={required} onChange={(event) => onChange({ ...value, street: event.target.value })} />
         </label>
         <label className="space-y-1">
-          <span className="text-sm">Postcode</span>
+          <span className="text-sm">{t("postalCode")}</span>
           <Input value={value.postalCode} required={required} onChange={(event) => onChange({ ...value, postalCode: event.target.value })} />
         </label>
         <label className="space-y-1">
-          <span className="text-sm">Plaats</span>
+          <span className="text-sm">{t("city")}</span>
           <Input value={value.city} required={required} onChange={(event) => onChange({ ...value, city: event.target.value })} />
         </label>
         <label className="space-y-1">
-          <span className="text-sm">Land</span>
+          <span className="text-sm">{t("country")}</span>
           <Input value={value.country} required={required} onChange={(event) => onChange({ ...value, country: event.target.value })} />
         </label>
       </div>

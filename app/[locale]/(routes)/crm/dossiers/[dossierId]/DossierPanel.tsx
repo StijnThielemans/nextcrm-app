@@ -18,17 +18,14 @@ import {
 } from "@/components/ui/dialog";
 import {
   DOSSIER_DOCUMENT_CATEGORIES,
-  DOSSIER_DOCUMENT_LABELS,
-  FOLLOW_UP_CHANNEL_LABELS,
   FOLLOW_UP_CHANNELS,
   followUpChannelLabel,
   type DossierDocumentCategory,
   type RequestChannel,
 } from "@/lib/sales/labels";
-import { ACCOUNT_ROLE_LABELS, PROJECT_GROUP_LABELS, type AccountRole, type ProjectGroup } from "@/lib/sales/aanvraag-fields";
 import { groupDocumentsIntoFolders, type DocumentFolder } from "@/lib/sales/document-folders";
 import { stepperForDossier } from "@/lib/sales/dossier-step";
-import { quoteCanWin, quotePriceLabel } from "@/lib/sales/quote-choice";
+import { MISSING_QUOTE_PRICE, quoteCanWin, quotePriceLabel } from "@/lib/sales/quote-choice";
 import type { DossierDetail } from "@/lib/sales/service";
 import {
   addChannelAction,
@@ -44,6 +41,12 @@ const today = new Date().toISOString().slice(0, 10);
 function folderTitle(label: string, category: string | null | undefined, t: ReturnType<typeof useTranslations>) {
   if (category && t.has(`folders.${category}`)) return t(`folders.${category}`);
   return label;
+}
+
+
+function shownPrice(gross: number | null, missing: string) {
+  const label = quotePriceLabel(gross);
+  return label === MISSING_QUOTE_PRICE ? missing : label;
 }
 
 function asPdf(file: File): File | null {
@@ -97,13 +100,14 @@ function DocumentFolderRow({ folder }: { folder: DocumentFolder }) {
 }
 
 function WinningQuoteChoices({ quotes }: { quotes: DossierDetail["families"][number]["quotes"] }) {
+  const t = useTranslations("Sales");
   const priced = quotes.filter((quote) => quoteCanWin(quote.gross));
   const defaultId = priced.length === 1 ? priced[0]?.id : "";
 
   return (
     <fieldset className="space-y-2">
-      <legend className="text-sm font-medium">Welke offerte is gewonnen?</legend>
-      {quotes.length === 0 && <p className="text-sm text-muted-foreground">Nog geen offertes.</p>}
+      <legend className="text-sm font-medium">{t("whichQuoteWon")}</legend>
+      {quotes.length === 0 && <p className="text-sm text-muted-foreground">{t("noQuotes")}</p>}
       <ul className="space-y-2">
         {quotes.map((quote) => {
           const enabled = quoteCanWin(quote.gross);
@@ -124,23 +128,24 @@ function WinningQuoteChoices({ quotes }: { quotes: DossierDetail["families"][num
                   className="mt-1"
                 />
                 <span className="min-w-0 flex-1 break-all">{quote.pdfName}</span>
-                <span className="shrink-0 tabular-nums" data-winning-price={quote.id}>{quotePriceLabel(quote.gross)}</span>
+                <span className="shrink-0 tabular-nums" data-winning-price={quote.id}>{shownPrice(quote.gross, t("noPrice"))}</span>
               </label>
             </li>
           );
         })}
       </ul>
       {quotes.length > 0 && priced.length === 0 && (
-        <p className="text-sm text-muted-foreground">Geen offerte met een totaal bruto.</p>
+        <p className="text-sm text-muted-foreground">{t("noPricedQuote")}</p>
       )}
     </fieldset>
   );
 }
 
 function DocumentFolders({ documents }: { documents: DossierDetail["documents"] }) {
+  const t = useTranslations("Sales");
   const folders = groupDocumentsIntoFolders(documents);
   if (folders.length === 0) {
-    return <p className="text-muted-foreground">Nog geen documenten.</p>;
+    return <p className="text-muted-foreground">{t("noDocuments")}</p>;
   }
 
   return (
@@ -153,6 +158,7 @@ function DocumentFolders({ documents }: { documents: DossierDetail["documents"] 
 }
 
 export function DossierPanel({ dossier }: { dossier: DossierDetail }) {
+  const t = useTranslations("Sales");
   const router = useRouter();
   const quoteInput = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
@@ -198,7 +204,7 @@ export function DossierPanel({ dossier }: { dossier: DossierDetail }) {
     if (!file) return;
     const pdf = asPdf(file);
     if (!pdf) {
-      setError("Alleen een PDF is toegestaan.");
+      setError(t("pdfOnly"));
       return;
     }
     await run(async () => {
@@ -252,7 +258,7 @@ export function DossierPanel({ dossier }: { dossier: DossierDetail }) {
 
   return (
     <div className="space-y-8 max-w-5xl">
-      <section className="rounded-md border p-4 space-y-3" aria-label="Status">
+      <section className="rounded-md border p-4 space-y-3" aria-label={t("status")}>
         <ol className="flex flex-wrap items-center gap-y-3">
           {stepper.steps.map((step, index) => (
             <li key={step.id} className="flex items-center">
@@ -277,30 +283,30 @@ export function DossierPanel({ dossier }: { dossier: DossierDetail }) {
                 >
                   {step.state === "complete" ? <Check className="size-3.5" aria-hidden /> : index + 1}
                 </span>
-                {step.label}
+                {t(`steps.${step.id}`)}
               </span>
             </li>
           ))}
         </ol>
         {!dossier.terminal && (
           <div className="flex flex-wrap gap-2">
-            <Button type="button" size="sm" disabled={busy} onClick={() => setCloseMode("won")}>Gewonnen</Button>
-            <Button type="button" size="sm" variant="outline" disabled={busy} onClick={() => setCloseMode("lost")}>Verloren</Button>
+            <Button type="button" size="sm" disabled={busy} onClick={() => setCloseMode("won")}>{t("won")}</Button>
+            <Button type="button" size="sm" variant="outline" disabled={busy} onClick={() => setCloseMode("lost")}>{t("lost")}</Button>
           </div>
         )}
         {dossier.status === "GEWONNEN" && dossier.acceptedQuote && (
           <p data-accepted-quote={dossier.acceptedQuote.id}>
-            Gewonnen offerte {dossier.acceptedQuote.name}{" "}
-            <span data-accepted-price="">{quotePriceLabel(dossier.acceptedQuote.gross)}</span>
+            {t("wonQuote", { name: dossier.acceptedQuote.name })}{" "}
+            <span data-accepted-price="">{shownPrice(dossier.acceptedQuote.gross, t("noPrice"))}</span>
           </p>
         )}
       </section>
       <Dialog open={closeMode != null} onOpenChange={(open) => { if (!open) setCloseMode(null); }}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{closeMode === "lost" ? "Verloren" : "Gewonnen"}</DialogTitle>
+            <DialogTitle>{closeMode === "lost" ? t("lost") : t("won")}</DialogTitle>
             <DialogDescription>
-              {closeMode === "lost" ? "Vul de reden van verlies in." : "Kies welke offerte gewonnen is. De prijs staat naast de naam."}
+              {closeMode === "lost" ? t("lostPrompt") : t("wonPrompt")}
             </DialogDescription>
           </DialogHeader>
           <form
@@ -321,43 +327,43 @@ export function DossierPanel({ dossier }: { dossier: DossierDetail }) {
           >
             {closeMode === "lost" ? (
               <label className="space-y-1 text-sm">
-                <span>Reden verloren</span>
+                <span>{t("lostReason")}</span>
                 <Input name="lostReason" required maxLength={500} />
               </label>
             ) : (
               <WinningQuoteChoices quotes={versions} />
             )}
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setCloseMode(null)}>Annuleren</Button>
-              <Button type="submit" disabled={busy || (closeMode === "won" && !canChooseWinner)}>Opslaan</Button>
+              <Button type="button" variant="outline" onClick={() => setCloseMode(null)}>{t("cancel")}</Button>
+              <Button type="submit" disabled={busy || (closeMode === "won" && !canChooseWinner)}>{t("save")}</Button>
             </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
       <section className="grid gap-4 lg:grid-cols-3">
         <div className="rounded-md border p-4 space-y-2 text-sm">
-          <h2 className="text-lg font-semibold">Klant en dossier</h2>
-          <p><span className="text-muted-foreground">Klant </span><Link className="underline" href={`/crm/accounts/${dossier.customer.id}`}>{dossier.customer.name}</Link></p>
-          <p><span className="text-muted-foreground">Contacttype </span>{dossier.customer.role && dossier.customer.role in ACCOUNT_ROLE_LABELS ? ACCOUNT_ROLE_LABELS[dossier.customer.role as AccountRole] : "—"}</p>
-          <p><span className="text-muted-foreground">E-mail </span>{dossier.customer.email ?? "—"}</p>
-          <p><span className="text-muted-foreground">Telefoon </span>{dossier.customer.phone ?? "—"}</p>
-          <p><span className="text-muted-foreground">Gsm </span>{dossier.customer.mobile ?? "—"}</p>
-          <p><span className="text-muted-foreground">BTW </span>{dossier.customer.vat ?? "—"}</p>
-          <p><span className="text-muted-foreground">Adres </span>{dossier.customer.address || "—"}</p>
-          <p><span className="text-muted-foreground">Project-Nr </span>{dossier.number ?? "—"}</p>
-          <p><span className="text-muted-foreground">Projectbeschrijving </span>{dossier.name ?? "—"}</p>
-          <p><span className="text-muted-foreground">Verkoper </span>{dossier.seller ?? "—"}</p>
+          <h2 className="text-lg font-semibold">{t("customerAndDossier")}</h2>
+          <p><span className="text-muted-foreground">{t("customer")} </span><Link className="underline" href={`/crm/accounts/${dossier.customer.id}`}>{dossier.customer.name}</Link></p>
+          <p><span className="text-muted-foreground">{t("contactType")} </span>{dossier.customer.role && t.has(`roles.${dossier.customer.role}`) ? t(`roles.${dossier.customer.role}`) : "—"}</p>
+          <p><span className="text-muted-foreground">{t("email")} </span>{dossier.customer.email ?? "—"}</p>
+          <p><span className="text-muted-foreground">{t("phone")} </span>{dossier.customer.phone ?? "—"}</p>
+          <p><span className="text-muted-foreground">{t("gsm")} </span>{dossier.customer.mobile ?? "—"}</p>
+          <p><span className="text-muted-foreground">{t("vat")} </span>{dossier.customer.vat ?? "—"}</p>
+          <p><span className="text-muted-foreground">{t("address")} </span>{dossier.customer.address || "—"}</p>
+          <p><span className="text-muted-foreground">{t("projectNumber")} </span>{dossier.number ?? "—"}</p>
+          <p><span className="text-muted-foreground">{t("projectDescription")} </span>{dossier.name ?? "—"}</p>
+          <p><span className="text-muted-foreground">{t("seller")} </span>{dossier.seller ?? "—"}</p>
           <p>
-            <span className="text-muted-foreground">Architect </span>
+            <span className="text-muted-foreground">{t("architect")} </span>
             {dossier.architectName
               ? `${dossier.architectName}${dossier.architectExternalId ? ` (${dossier.architectExternalId})` : ""}`
               : "—"}
           </p>
-          <p><span className="text-muted-foreground">Projectgroep </span>{dossier.projectGroup && dossier.projectGroup in PROJECT_GROUP_LABELS ? PROJECT_GROUP_LABELS[dossier.projectGroup as ProjectGroup] : "—"}</p>
-          <p><span className="text-muted-foreground">Datum prijsaanvraag </span>{dossier.priceRequestDate ?? dossier.requestDate ?? "—"}</p>
-          <p><span className="text-muted-foreground">Werfadres </span>{dossier.projectAddress || "—"}</p>
-          <p data-dossier-status={stepper.currentLabel}><span className="text-muted-foreground">Status </span>{stepper.currentLabel}</p>
-          {dossier.lostReason && <p>Verliesreden: {dossier.lostReason}</p>}
+          <p><span className="text-muted-foreground">{t("projectGroup")} </span>{dossier.projectGroup && t.has(`groups.${dossier.projectGroup}`) ? t(`groups.${dossier.projectGroup}`) : "—"}</p>
+          <p><span className="text-muted-foreground">{t("priceRequestDate")} </span>{dossier.priceRequestDate ?? dossier.requestDate ?? "—"}</p>
+          <p><span className="text-muted-foreground">{t("siteAddress")} </span>{dossier.projectAddress || "—"}</p>
+          <p data-dossier-status={stepper.currentLabel}><span className="text-muted-foreground">{t("status")} </span>{(() => { const current = stepper.steps.find((step) => step.state === "current"); return current ? t(`steps.${current.id}`) : stepper.currentLabel; })()}</p>
+          {dossier.lostReason && <p>{t("lostReasonLine", { reason: dossier.lostReason })}</p>}
         </div>
 
         <div
@@ -377,14 +383,14 @@ export function DossierPanel({ dossier }: { dossier: DossierDetail }) {
           }}
         >
           <div className="flex items-center justify-between gap-2">
-            <h2 className="text-lg font-semibold">Offertes</h2>
+            <h2 className="text-lg font-semibold">{t("quotes")}</h2>
             {!dossier.terminal && (
               <Button
                 type="button"
                 size="icon"
                 variant="outline"
                 className="h-8 w-8"
-                aria-label="Offerte toevoegen"
+                aria-label={t("addQuote")}
                 disabled={busy}
                 onClick={() => quoteInput.current?.click()}
               >
@@ -402,7 +408,7 @@ export function DossierPanel({ dossier }: { dossier: DossierDetail }) {
               }}
             />
           </div>
-          {quoteRows.length === 0 && <p className="text-muted-foreground">Nog geen offertes.</p>}
+          {quoteRows.length === 0 && <p className="text-muted-foreground">{t("noQuotes")}</p>}
           <ul className="space-y-3">
             {quoteRows.map((quote) => (
               <li key={quote.id} className="rounded-md border p-2 space-y-2">
@@ -413,14 +419,14 @@ export function DossierPanel({ dossier }: { dossier: DossierDetail }) {
                     data-quote-gross={quote.id}
                     data-total-bruto=""
                   >
-                    {quotePriceLabel(quote.gross)}
+                    {shownPrice(quote.gross, t("noPrice"))}
                   </span>
                 </div>
-                <p><span className="text-muted-foreground">Datum </span>{quote.date}</p>
+                <p><span className="text-muted-foreground">{t("date")} </span>{quote.date}</p>
                 {quote.sentAt ? (
-                  <p>Verstuurd {quote.sentAt}</p>
+                  <p>{t("sentOn", { date: quote.sentAt })}</p>
                 ) : !dossier.terminal ? (
-                  <Button type="button" size="sm" disabled={busy} onClick={() => sendQuote(quote.id, quote.pdfId)}>Versturen</Button>
+                  <Button type="button" size="sm" disabled={busy} onClick={() => sendQuote(quote.id, quote.pdfId)}>{t("send")}</Button>
                 ) : null}
               </li>
             ))}
@@ -436,11 +442,11 @@ export function DossierPanel({ dossier }: { dossier: DossierDetail }) {
           >
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Totaal bruto</DialogTitle>
+                <DialogTitle>{t("grossTotal")}</DialogTitle>
                 <DialogDescription>
                   {priceFile
-                    ? `${priceFile.fileName} heeft geen leesbaar totaal. Vul het totaal bruto in.`
-                    : "Vul het totaal bruto in."}
+                    ? t("grossMissingFile", { file: priceFile.fileName })
+                    : t("grossMissing")}
                 </DialogDescription>
               </DialogHeader>
               <form
@@ -451,7 +457,7 @@ export function DossierPanel({ dossier }: { dossier: DossierDetail }) {
                 }}
               >
                 <label className="space-y-1 text-sm">
-                  <span>Totaal bruto</span>
+                  <span>{t("grossTotal")}</span>
                   <Input
                     value={price}
                     onChange={(event) => setPrice(event.target.value)}
@@ -470,9 +476,9 @@ export function DossierPanel({ dossier }: { dossier: DossierDetail }) {
                       setPrice("");
                     }}
                   >
-                    Annuleren
+                    {t("cancel")}
                   </Button>
-                  <Button type="submit" disabled={busy || price.trim() === ""}>Opslaan</Button>
+                  <Button type="submit" disabled={busy || price.trim() === ""}>{t("save")}</Button>
                 </DialogFooter>
               </form>
             </DialogContent>
@@ -480,7 +486,7 @@ export function DossierPanel({ dossier }: { dossier: DossierDetail }) {
         </div>
 
         <div className="rounded-md border p-4 space-y-3 text-sm">
-          <h2 className="text-lg font-semibold">Documentbeheer</h2>
+          <h2 className="text-lg font-semibold">{t("documentsTitle")}</h2>
           {!dossier.terminal && (
             <label
               className={`flex min-h-28 cursor-pointer items-center justify-center rounded-md border border-dashed px-3 text-center ${dragging ? "bg-muted" : ""}`}
@@ -495,7 +501,7 @@ export function DossierPanel({ dossier }: { dossier: DossierDetail }) {
                 queueFile(event.dataTransfer.files[0]);
               }}
             >
-              Sleep een document hierheen of kies een bestand
+              {t("dropDocument")}
               <input
                 className="sr-only"
                 type="file"
@@ -510,25 +516,25 @@ export function DossierPanel({ dossier }: { dossier: DossierDetail }) {
           <Dialog open={pendingFile != null} onOpenChange={(open) => { if (!open) setPendingFile(null); }}>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Categorie kiezen</DialogTitle>
+                <DialogTitle>{t("chooseCategoryTitle")}</DialogTitle>
                 <DialogDescription>{pendingFile?.name}</DialogDescription>
               </DialogHeader>
               <label className="space-y-1 block text-sm">
-                <span>Categorie</span>
+                <span>{t("category")}</span>
                 <select
                   className="flex h-9 w-full rounded-md border bg-transparent px-2"
                   value={category}
                   onChange={(event) => setCategory(event.target.value as DossierDocumentCategory)}
                 >
-                  <option value="">Kies een categorie</option>
+                  <option value="">{t("chooseCategory")}</option>
                   {DOSSIER_DOCUMENT_CATEGORIES.map((item) => (
-                    <option key={item} value={item}>{DOSSIER_DOCUMENT_LABELS[item]}</option>
+                    <option key={item} value={item}>{t(`folders.${item}`)}</option>
                   ))}
                 </select>
               </label>
               <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setPendingFile(null)}>Annuleren</Button>
-                <Button type="button" disabled={!category || busy} onClick={() => void storeQueued()}>Opslaan</Button>
+                <Button type="button" variant="outline" onClick={() => setPendingFile(null)}>{t("cancel")}</Button>
+                <Button type="button" disabled={!category || busy} onClick={() => void storeQueued()}>{t("save")}</Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
@@ -537,13 +543,13 @@ export function DossierPanel({ dossier }: { dossier: DossierDetail }) {
 
       </section>
 
-      <section className="space-y-3" aria-label="Opvolging">
-        <h2 className="text-lg font-semibold">Opvolging</h2>
+      <section className="space-y-3" aria-label={t("followUp")}>
+        <h2 className="text-lg font-semibold">{t("followUp")}</h2>
         <ul className="text-sm space-y-1">
           {dossier.channels.map((event) => (
             <li key={event.id}>
-              {event.at} · {followUpChannelLabel(event.channel)} · {event.seller}
-              {event.original ? " · oorspronkelijk" : ""}
+              {event.at} · {(event.channel === "EMAIL_OFFERTE" || event.channel === "EMAIL_SELLER") ? t("followUpChannels.EMAIL_SELLER") : t.has(`followUpChannels.${event.channel}`) ? t(`followUpChannels.${event.channel}`) : followUpChannelLabel(event.channel)} · {event.seller}
+              {event.original ? ` · ${t("original")}` : ""}
               {event.note ? ` · ${event.note}` : ""}
             </li>
           ))}
@@ -566,12 +572,12 @@ export function DossierPanel({ dossier }: { dossier: DossierDetail }) {
               });
             }}
           >
-            <select name="channel" aria-label="Opvolging" className="h-9 rounded-md border bg-transparent px-2 text-sm" defaultValue="PHONE">
-              {FOLLOW_UP_CHANNELS.map((item) => <option key={item} value={item}>{FOLLOW_UP_CHANNEL_LABELS[item]}</option>)}
+            <select name="channel" aria-label={t("channel")} className="h-9 rounded-md border bg-transparent px-2 text-sm" defaultValue="PHONE">
+              {FOLLOW_UP_CHANNELS.map((item) => <option key={item} value={item}>{t(`followUpChannels.${item}`)}</option>)}
             </select>
             <Input name="date" type="date" defaultValue={today} required className="w-40" />
-            <Input name="note" placeholder="Notitie" className="w-56" />
-            <Button type="submit" variant="secondary" disabled={busy}>Opvolging toevoegen</Button>
+            <Input name="note" placeholder={t("note")} className="w-56" />
+            <Button type="submit" variant="secondary" disabled={busy}>{t("addFollowUp")}</Button>
           </form>
         )}
       </section>

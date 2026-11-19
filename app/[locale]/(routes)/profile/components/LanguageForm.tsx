@@ -21,11 +21,9 @@ export function LanguageForm({ userId }: { userId: string }) {
   const t = useTranslations("LanguageSelector");
 
   const languages = [
-    { label: t("english"), value: "en" },
-    { label: t("czech"), value: "cz" },
-    { label: t("german"), value: "de" },
-    { label: t("ukrainian"), value: "uk" },
-    { label: t("dutch"), value: "nl" },
+    { label: "NL", value: "nl" },
+    { label: "FR", value: "fr" },
+    { label: "ENG", value: "en" },
   ];
 
   async function handleChange(language: string) {

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { MoreHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -24,14 +25,15 @@ interface AccountDetailActionsProps {
 
 export function AccountDetailActions({ account }: AccountDetailActionsProps) {
   const [updateOpen, setUpdateOpen] = useState(false);
+  const t = useTranslations("Sales");
 
   return (
     <>
       <Sheet open={updateOpen} onOpenChange={setUpdateOpen}>
         <SheetContent className="w-full md:max-w-[771px] overflow-y-auto">
           <SheetHeader>
-            <SheetTitle>Klant bewerken — {account?.name}</SheetTitle>
-            <SheetDescription>Naam, contacttype, adres, telefoon, gsm, e-mail, btw en btw-nummer.</SheetDescription>
+            <SheetTitle>{t("editCustomer", { name: account?.name ?? "" })}</SheetTitle>
+            <SheetDescription>{t("customerFieldsDescription")}</SheetDescription>
           </SheetHeader>
           <div className="mt-6 space-y-4">
             <UpdateAccountForm initialData={account} open={setUpdateOpen} />
