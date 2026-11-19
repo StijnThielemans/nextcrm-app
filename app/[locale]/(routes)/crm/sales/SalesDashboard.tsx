@@ -54,8 +54,14 @@ export async function SalesDashboard() {
               <ul className="max-h-64 space-y-1 overflow-y-auto text-sm">
                 {tasks[column.kind].map((task) => (
                   <li key={task.id}>
-                    <Link className="underline" href={`/crm/dossiers/${task.id}`} data-testid="sales-task-row">
-                      {task.label}
+                    <Link
+                      className="underline"
+                      href={task.href}
+                      data-testid={task.request ? "sales-task-request" : "sales-task-row"}
+                    >
+                      {task.request
+                        ? t("tasksDistributed", { sender: task.request.sender, subject: task.request.subject })
+                        : task.label}
                     </Link>
                   </li>
                 ))}

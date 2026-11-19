@@ -987,6 +987,7 @@
     "tasksInProgress": "En cours, documents déjà présents",
     "tasksFollowUp": "Suivi requis",
     "tasksEmpty": "Rien d'ouvert.",
+    "tasksDistributed": "Demande de {sender} : {subject}",
     "byStatus": "Par statut",
     "search": "Rechercher …",
     "resetColumns": "Par défaut",

@@ -990,6 +990,7 @@
     "tasksInProgress": "In progress, documents already in",
     "tasksFollowUp": "Follow-up required",
     "tasksEmpty": "Nothing open.",
+    "tasksDistributed": "Poptávka od {sender}: {subject}",
     "byStatus": "By status",
     "search": "Search …",
     "resetColumns": "Default",

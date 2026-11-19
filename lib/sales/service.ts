@@ -23,6 +23,7 @@ import { quoteMargin } from "./margin";
 import { salesTiles, type DashRow, type SalesTiles } from "./dashboard-math";
 import { dossierOpenLabel } from "./recent-opens";
 import { dossierTaskKind, type DossierTaskKind } from "./task-lists";
+import { distributedMailsToMake, mergeDistributedIntoToMake, type DistributedMail } from "./distributed-requests";
 import { DOSSIER_STATUSES, DOSSIER_DOCUMENT_CATEGORIES, systemTypeForFiling, type DossierDocumentCategory, type DossierStatus, type RequestChannel, CHANNELS } from "./labels";
 import { uploadExtension } from "@/lib/upload-content-types";
 import { previewNumber } from "@/lib/orders/numbering";
@@ -1461,7 +1462,13 @@ export async function getSalesDashboard(user: AuthzUser): Promise<SalesTiles> {
   return salesTiles(dashRows, monthStart, monthEnd, today);
 }
 
-export type SalesTask = { id: string; label: string };
+export type SalesTask = {
+  id: string;
+  label: string;
+  href: string;
+  /** A distributed Offertebox mail that still has no dossier. Null for a dossier row. */
+  request: { sender: string; subject: string } | null;
+};
 
 export type SalesTaskLists = Record<DossierTaskKind, SalesTask[]>;
 
@@ -1469,24 +1476,46 @@ export async function listSalesTasks(user: AuthzUser): Promise<SalesTaskLists> {
   denyPartner(user);
   const now = new Date();
   const today = now.toISOString().slice(0, 10);
-  const rows = await prismadb.crm_Opportunities.findMany({
-    where: { is_dossier: true, ...opportunityReadScopeWhere(user) },
-    select: {
-      id: true,
-      dossier_number: true,
-      name: true,
-      dossier_status: true,
-      follow_up_date: true,
-      assigned_account: { select: { name: true } },
-      quote_sends: { select: { sent_at: true }, orderBy: { sent_at: "desc" }, take: 1 },
-      documents: {
-        where: { document: { deletedAt: null } },
-        select: { document_id: true },
-        take: 1,
+  const [rows, mails] = await Promise.all([
+    prismadb.crm_Opportunities.findMany({
+      where: { is_dossier: true, ...opportunityReadScopeWhere(user) },
+      select: {
+        id: true,
+        dossier_number: true,
+        name: true,
+        dossier_status: true,
+        follow_up_date: true,
+        assigned_account: { select: { name: true } },
+        quote_sends: { select: { sent_at: true }, orderBy: { sent_at: "desc" }, take: 1 },
+        documents: {
+          where: { document: { deletedAt: null } },
+          select: { document_id: true },
+          take: 1,
+        },
       },
-    },
-    orderBy: [{ request_date: "asc" }, { createdAt: "asc" }],
-  });
+      orderBy: [{ request_date: "asc" }, { createdAt: "asc" }],
+    }),
+    prismadb.crm_OfferteboxItems.findMany({
+      select: {
+        id: true,
+        seller_name: true,
+        from_name: true,
+        from_email: true,
+        subject: true,
+        dossier: { select: { id: true, deletedAt: true, seller_name: true } },
+      },
+      orderBy: [{ received_at: "desc" }, { createdAt: "desc" }],
+    }),
+  ]);
+  const readable = new Map(
+    rows.map((row) => [
+      row.id,
+      {
+        label: dossierOpenLabel(row.dossier_number, row.assigned_account?.name ?? row.name),
+        quoteSent: row.quote_sends.length > 0,
+      },
+    ]),
+  );
   const lists: SalesTaskLists = { toMake: [], inProgress: [], followUp: [] };
   for (const row of rows) {
     const kind = dossierTaskKind({
@@ -1498,10 +1527,41 @@ export async function listSalesTasks(user: AuthzUser): Promise<SalesTaskLists> {
       today,
     });
     if (!kind) continue;
+    const known = readable.get(row.id);
     lists[kind].push({
       id: row.id,
-      label: dossierOpenLabel(row.dossier_number, row.assigned_account?.name ?? row.name),
+      label: known?.label ?? dossierOpenLabel(row.dossier_number, row.assigned_account?.name ?? row.name),
+      href: `/crm/dossiers/${row.id}`,
+      request: null,
     });
   }
+  const listed = new Set([...lists.toMake, ...lists.inProgress, ...lists.followUp].map((task) => task.id));
+  const additions = distributedMailsToMake(listed, mails.map((mail) => toDistributedMail(mail, readable)));
+  lists.toMake = mergeDistributedIntoToMake(lists.toMake, additions);
   return lists;
+}
+
+function toDistributedMail(
+  mail: {
+    id: string;
+    seller_name: string | null;
+    from_name: string | null;
+    from_email: string | null;
+    subject: string;
+    dossier: { id: string; deletedAt: Date | null; seller_name: string | null } | null;
+  },
+  readable: ReadonlyMap<string, { label: string; quoteSent: boolean }>,
+): DistributedMail {
+  const active = mail.dossier && !mail.dossier.deletedAt ? mail.dossier : null;
+  const known = active ? readable.get(active.id) : undefined;
+  const seller = (active?.seller_name ?? mail.seller_name)?.trim() || null;
+  return {
+    id: mail.id,
+    sellerName: seller,
+    fromName: mail.from_name?.trim() ?? "",
+    fromEmail: mail.from_email?.trim() ?? "",
+    subject: mail.subject?.trim() ?? "",
+    dossier: active && known ? { id: active.id, label: known.label, quoteSent: known.quoteSent } : null,
+    dossierHidden: Boolean(active) && !known,
+  };
 }

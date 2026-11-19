@@ -1091,6 +1091,7 @@
     "tasksInProgress": "Bezig, met documenten",
     "tasksFollowUp": "Opvolging vereist",
     "tasksEmpty": "Niets open.",
+    "tasksDistributed": "Aanvraag van {sender}: {subject}",
     "byStatus": "Per status",
     "search": "Zoeken …",
     "resetColumns": "Standaard",
