@@ -65,13 +65,15 @@ export function NavMain({ items, dict }: NavMainProps) {
 
   // Helper function to check if a route is active
   const isRouteActive = (url: string, exact?: boolean): boolean => {
+    // Browser paths include the locale (/en/crm/...). Menu urls do not.
+    const bare = pathname.replace(/^\/[a-z]{2}(?=\/|$)/, "") || "/"
     if (url === "/" || url === "") {
-      return pathname === "/" || pathname === ""
+      return bare === "/"
     }
     if (exact) {
-      return pathname === url || pathname.replace(/^\/[a-z]{2}(?=\/|$)/, "") === url
+      return bare === url
     }
-    return pathname.startsWith(url)
+    return bare.startsWith(url)
   }
 
   // Helper to check if any sub-item is active

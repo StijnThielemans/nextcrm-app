@@ -13,7 +13,6 @@ import { Puzzle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { NavMain } from "./nav-main";
 import { NavUser } from "./nav-user";
-import getDashboardMenuItem from "./menu-items/Dashboard";
 import getCrmMenuItem from "./menu-items/Crm";
 import getEmailsMenuItem from "./menu-items/Emails";
 import getDocumentsMenuItem from "./menu-items/Documents";
@@ -27,11 +26,11 @@ import { partnerNavItems } from "@/lib/partner-routes";
  * Implements shadcn/ui sidebar pattern with:
  * - Logo and "N" branding symbol with rotation animation
  * - Build version display in footer (when expanded)
- * - Navigation with Dashboard and module items
+ * - Navigation with the Verkoop group and the other module items
  * - Nav-user section in footer for user profile and actions
  *
  * Phase 2 Updates:
- * - Task 2.2: Added Dashboard menu item integration
+ * - The sales dashboard lives under Verkoop, not as its own top-level item
  * - Task 2.3: Added CRM module navigation (collapsible group with module filtering)
  * - Task 2.4: Added Projects module navigation (simple item with module filtering)
  * - Task 2.5: Added Emails module navigation (simple item with module filtering)
@@ -92,7 +91,6 @@ export function AppSidebar({
   const isExpanded = state === "expanded";
 
   const navItems = [
-    getDashboardMenuItem({ title: dict?.dashboard || "Dashboard" }),
     getCrmMenuItem({ localizations: dict.crm, role: session?.user?.role ?? undefined }),
     getEmailsMenuItem({ title: dict?.emails || "E-mails" }),
     getDocumentsMenuItem({ title: dict?.documents || "Documenten" }),
