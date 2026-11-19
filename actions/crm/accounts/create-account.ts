@@ -12,6 +12,7 @@ import {
 } from "@/lib/authz";
 import { parseVatChoice, type AccountRole, type VatChoice } from "@/lib/sales/aanvraag-fields";
 import { SALES_ERROR_TEXT } from "@/lib/sales/labels";
+import { serializeDecimals } from "@/lib/serialize-decimals";
 
 function customerContactPatch(data: {
   office_phone?: string | null;
@@ -139,7 +140,7 @@ export const createAccount = async (data: {
     });
     void inngest.send({ name: "crm/account.saved", data: { record_id: account.id } });
     revalidatePath("/[locale]/(routes)/crm/accounts", "page");
-    return { data: account };
+    return { data: serializeDecimals(account) };
   } catch (error) {
     const ruleMessage = await pluginRuleErrorMessage(error);
     if (ruleMessage) return { error: ruleMessage };

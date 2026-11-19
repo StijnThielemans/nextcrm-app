@@ -1182,7 +1182,7 @@
     "filter": "Filter",
     "editCustomer": "Klant bewerken — {name}",
     "customerFieldsDescription": "Naam, contacttype, adres, telefoon, gsm, e-mail, btw en btw-nummer.",
-    "customerCreated": "Klant aangemaakt",
+    "customerCreated": "Klant is aangemaakt",
     "customerUpdated": "Klant bijgewerkt",
     "createCustomer": "Klant aanmaken",
     "addressPlaceholder": "Begin te typen voor adressuggesties",

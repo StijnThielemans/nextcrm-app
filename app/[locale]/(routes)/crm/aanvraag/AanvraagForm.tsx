@@ -6,20 +6,25 @@ import { useRouter } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { CHANNELS, type RequestChannel } from "@/lib/sales/labels";
 import {
-  ACCOUNT_ROLES,
   PROJECT_GROUPS,
   SELLERS,
-  VAT_CHOICES,
   isSellerName,
   siteAddressFromBilling,
-  type AccountRole,
   type ProjectGroup,
   type SellerName,
-  type VatChoice,
 } from "@/lib/sales/aanvraag-fields";
 import { createAanvraagAction, searchArchitectsAction, searchCustomersAction } from "@/actions/crm/sales/actions";
+import { NewAccountForm } from "@/app/[locale]/(routes)/crm/accounts/components/NewAccountForm";
 import type { ArchitectHit } from "@/lib/sales/architects";
 import type { OfferteboxPrefill } from "@/lib/sales/offertebox";
 import type { CustomerHit } from "@/lib/sales/service";
@@ -57,7 +62,8 @@ export function AanvraagForm({
   const [query, setQuery] = useState(fromBox?.fromName ?? "");
   const [hits, setHits] = useState<CustomerHit[]>([]);
   const [accountId, setAccountId] = useState<string | null>(null);
-  const [showNew, setShowNew] = useState(false);
+  const [newCustomerOpen, setNewCustomerOpen] = useState(false);
+  const [createdNotice, setCreatedNotice] = useState(false);
   const [description, setDescription] = useState(fromBox?.subject ?? "");
   const [prefill, setPrefill] = useState(fromBox?.fromName ?? "");
   const [seller, setSeller] = useState<SellerName | "">(fromBox && isSellerName(fromBox.sellerName) ? fromBox.sellerName : "");
@@ -68,14 +74,6 @@ export function AanvraagForm({
   const [architectQuery, setArchitectQuery] = useState("");
   const [architectHits, setArchitectHits] = useState<ArchitectHit[]>([]);
   const [architect, setArchitect] = useState<ArchitectHit | null>(null);
-  const [customerName, setCustomerName] = useState(fromBox?.fromName ?? "");
-  const [role, setRole] = useState<AccountRole | "">("");
-  const [customerAddress, setCustomerAddress] = useState<AddressValue>(emptyAddress);
-  const [phone, setPhone] = useState("");
-  const [mobile, setMobile] = useState("");
-  const [email, setEmail] = useState(fromBox?.fromEmail ?? "");
-  const [vatChoice, setVatChoice] = useState<VatChoice | "">("");
-  const [vat, setVat] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
@@ -105,8 +103,8 @@ export function AanvraagForm({
     return () => clearTimeout(handle);
   }, [architectQuery, architect]);
 
-  const customerChosen = Boolean(accountId) || showNew;
-  const siteSource = accountId ? selectedCustomerAddress : showNew ? customerAddress : null;
+  const customerChosen = Boolean(accountId);
+  const siteSource = accountId ? selectedCustomerAddress : null;
 
   useEffect(() => {
     if (!copySiteFromCustomer || !siteSource) return;
@@ -115,7 +113,7 @@ export function AanvraagForm({
 
   function chooseCustomer(hit: CustomerHit) {
     setAccountId(hit.id);
-    setShowNew(false);
+    setCreatedNotice(false);
     setSelectedCustomerAddress(
       siteAddressFromBilling({
         street: hit.street,
@@ -136,27 +134,19 @@ export function AanvraagForm({
     setArchitectHits([]);
   }
 
-  function onCustomerName(value: string) {
-    setCustomerName(value);
-    if (accountId) return;
-    const next = value.trim();
-    setDescription((current) => applyCustomerName(current, prefill, next));
-    setPrefill(next);
+  function onCustomerCreated(customer?: CustomerHit) {
+    if (customer) {
+      chooseCustomer(customer);
+      setCreatedNotice(true);
+    }
+    setNewCustomerOpen(false);
   }
 
   async function onCreate(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
-    if (!accountId && !showNew) {
+    if (!accountId) {
       setError(t("errors.customerRequired"));
-      return;
-    }
-    if (!accountId && showNew && !phone.trim() && !mobile.trim()) {
-      setError(t("errors.phoneOrMobileRequired"));
-      return;
-    }
-    if (!accountId && showNew && !vatChoice) {
-      setError(t("errors.vatChoiceRequired"));
       return;
     }
     if (!seller || !projectGroup) return;
@@ -165,22 +155,7 @@ export function AanvraagForm({
       channel,
       requestDate: priceRequestDate,
       priceRequestDate,
-      accountId: accountId ?? undefined,
-      customer: accountId
-        ? undefined
-        : {
-            name: customerName,
-            role: role as AccountRole,
-            street: customerAddress.street,
-            postalCode: customerAddress.postalCode,
-            city: customerAddress.city,
-            country: customerAddress.country,
-            phone,
-            mobile,
-            email,
-            vatChoice: vatChoice as VatChoice,
-            vat,
-          },
+      accountId,
       projectName: description,
       sellerName: seller,
       projectGroup,
@@ -215,6 +190,7 @@ export function AanvraagForm({
             onChange={(event) => {
               setQuery(event.target.value);
               setAccountId(null);
+              setCreatedNotice(false);
             }}
             placeholder={t("searchCustomer")}
             aria-label={t("customer")}
@@ -236,71 +212,37 @@ export function AanvraagForm({
             </ul>
           )}
           {accountId && <p className="text-sm">{t("customerLinked")}</p>}
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => {
-              setShowNew(true);
-              setAccountId(null);
-              setHits([]);
-            }}
-          >
+          {createdNotice && (
+            <p className="text-sm font-medium" role="status" data-testid="customer-created">
+              {t("customerCreated")}
+            </p>
+          )}
+          <Button type="button" variant="outline" onClick={() => setNewCustomerOpen(true)}>
             {t("newCustomer")}
           </Button>
+          <Dialog open={newCustomerOpen} onOpenChange={setNewCustomerOpen}>
+            <DialogContent
+              className="max-h-[90vh] overflow-y-auto sm:max-w-3xl"
+              data-testid="new-customer-dialog"
+            >
+              <DialogHeader>
+                <DialogTitle>{t("newCustomer")}</DialogTitle>
+                <DialogDescription>{t("customerFieldsDescription")}</DialogDescription>
+              </DialogHeader>
+              {newCustomerOpen && (
+                <NewAccountForm
+                  initial={accountId ? undefined : { name: query, email: fromBox?.fromEmail ?? "" }}
+                  onFinish={onCustomerCreated}
+                />
+              )}
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setNewCustomerOpen(false)}>
+                  {t("cancel")}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </div>
-        {showNew && !accountId && (
-          <div className="grid gap-3 rounded-md border p-3">
-            <h3 className="text-sm font-semibold">{t("newCustomer")}</h3>
-            <label className="space-y-1">
-              <span className="text-sm">{t("name")}</span>
-              <Input value={customerName} onChange={(event) => onCustomerName(event.target.value)} required />
-            </label>
-            <label className="space-y-1">
-              <span className="text-sm">{t("contactType")}</span>
-              <select
-                className="flex h-9 w-full rounded-md border bg-transparent px-3 text-sm"
-                value={role}
-                required
-                onChange={(event) => setRole(event.target.value as AccountRole)}
-              >
-                <option value="">{t("choose")}</option>
-                {ACCOUNT_ROLES.map((item) => (
-                  <option key={item} value={item}>{t(`roles.${item}`)}</option>
-                ))}
-              </select>
-            </label>
-            <AddressBox label={t("address")} value={customerAddress} onChange={setCustomerAddress} required />
-            <label className="space-y-1">
-              <span className="text-sm">{t("phoneNumber")}</span>
-              <Input value={phone} onChange={(event) => setPhone(event.target.value)} />
-            </label>
-            <label className="space-y-1">
-              <span className="text-sm">{t("mobileNumber")}</span>
-              <Input value={mobile} onChange={(event) => setMobile(event.target.value)} />
-            </label>
-            <label className="space-y-1">
-              <span className="text-sm">{t("emailAddress")}</span>
-              <Input type="email" value={email} onChange={(event) => setEmail(event.target.value)} required />
-            </label>
-            <label className="space-y-1">
-              <span className="text-sm">{t("vat")}</span>
-              <select
-                className="flex h-9 w-full rounded-md border bg-transparent px-3 text-sm"
-                value={vatChoice}
-                required
-                onChange={(event) => setVatChoice(event.target.value as VatChoice)}
-              >
-                {VAT_CHOICES.map((item) => (
-                  <option key={item} value={item}>{t(`vatChoice.${item}`)}</option>
-                ))}
-              </select>
-            </label>
-            <label className="space-y-1">
-              <span className="text-sm">{t("vatNumber")}</span>
-              <Input value={vat} onChange={(event) => setVat(event.target.value)} />
-            </label>
-          </div>
-        )}
         <label className="space-y-1 block">
           <span className="text-sm">{t("projectDescription")}</span>
           <Input value={description} onChange={(event) => setDescription(event.target.value)} required />
