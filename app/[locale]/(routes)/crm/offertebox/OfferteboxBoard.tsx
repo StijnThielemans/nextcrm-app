@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import type { OfferteboxRow, OfferteboxView } from "@/lib/sales/offertebox";
 import { addOfferteboxRequestAction, assignOfferteboxSellerAction } from "@/actions/crm/sales/actions";
 import { FileAttachmentsDialog } from "../sales/FileAttachmentsDialog";
+import { OpenStoredFile } from "@/components/files/OpenStoredFile";
 
 const IMAGE_PREVIEW_BYTES = 200_000;
 
@@ -290,13 +291,17 @@ function MailColumn({
                             className="h-14 w-14 rounded border object-cover"
                           />
                         )}
-                        <a
+                        <OpenStoredFile
+                          kind="attachment"
+                          id={attachment.id}
+                          name={attachment.fileName}
+                          mimeType={attachment.contentType}
+                          image={attachment.isImage}
                           className="underline"
-                          href={`/api/crm/offertebox/attachments/${attachment.id}?download=1`}
-                          data-testid="offertebox-attachment"
+                          testId="offertebox-attachment"
                         >
                           {attachment.fileName}
-                        </a>
+                        </OpenStoredFile>
                       </li>
                     ))}
                   </ul>

@@ -4,7 +4,7 @@ import { Column, ColumnDef } from "@tanstack/react-table";
 import "@/components/crm/table-column-meta";
 import { useTranslations } from "next-intl";
 
-import { documentFileRoute } from "@/lib/documents/file-key";
+import { OpenStoredFile } from "@/components/files/OpenStoredFile";
 import { Link } from "@/i18n/navigation";
 import { DataTableColumnHeader } from "../accounts/table-components/data-table-column-header";
 import { MISSING_OFFERTE_PRICE, offertePriceLabel, type OfferteSearchRow } from "./offerte-search";
@@ -41,9 +41,15 @@ export const columns: ColumnDef<OfferteSearchRow>[] = [
     accessorFn: (row) => row.name,
     header: ({ column }) => <SalesHeader column={column} label="quote" />,
     cell: ({ row }) => (
-      <a className="underline" href={documentFileRoute(row.original.pdfId)}>
+      <OpenStoredFile
+        kind="document"
+        id={row.original.pdfId}
+        name={row.original.name}
+        mimeType="application/pdf"
+        className="underline"
+      >
         {show(row.original.name)}
-      </a>
+      </OpenStoredFile>
     ),
     enableHiding: false,
     meta: { labelKey: "quote" },

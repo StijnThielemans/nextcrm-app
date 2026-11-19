@@ -22,6 +22,7 @@ import { prismadb } from "@/lib/prisma";
 import { prismaBase } from "@/lib/prisma-base";
 import { minioClient } from "@/lib/minio";
 import { GET } from "../route";
+import { signOpenToken } from "@/lib/documents/open-token";
 
 const gs = getSession as jest.MockedFunction<typeof getSession>;
 const fu = prismadb.users.findUnique as jest.MockedFunction<typeof prismadb.users.findUnique>;
@@ -53,8 +54,10 @@ function storedBytes(bytes: string) {
   });
 }
 
-function call() {
-  return GET(new NextRequest("http://localhost/api/documents/d1/file"), {
+function call(open?: string) {
+  const url = new URL("http://localhost/api/documents/d1/file");
+  if (open) url.searchParams.set("open", open);
+  return GET(new NextRequest(url), {
     params: Promise.resolve({ documentId: "d1" }),
   });
 }
@@ -102,6 +105,48 @@ describe("GET /api/documents/[documentId]/file", () => {
     expect(res.headers.get("x-content-type-options")).toBe("nosniff");
     expect(await res.text()).toBe("%PDF-1.4 offerte");
     expect(fetchedKey()).toBe("documents/a.pdf");
+  });
+
+  it("open token: a PDF is inline without a session, and Word is not an attachment", async () => {
+    gs.mockResolvedValue(null as any);
+    fd.mockResolvedValue({
+      key: "documents/a.pdf",
+      document_name: "Offerte.pdf",
+      document_file_mimeType: "application/pdf",
+      document_file_url: "https://files.example/nextcrm/documents/a.pdf",
+    } as any);
+    storedBytes("%PDF-1.4 offerte");
+    const pdf = await call(signOpenToken("document", "d1"));
+    expect(pdf.status).toBe(200);
+    expect(pdf.headers.get("content-type")).toBe("application/pdf");
+    expect(pdf.headers.get("content-disposition")?.startsWith("inline")).toBe(true);
+    expect(fetchedKey()).toBe("documents/a.pdf");
+
+    fd.mockResolvedValue({
+      key: "documents/plan.docx",
+      document_name: "plan.docx",
+      document_file_mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      document_file_url: "https://files.example/nextcrm/documents/plan.docx",
+    } as any);
+    storedBytes("docx");
+    const word = await call(signOpenToken("document", "d1"));
+    expect(word.status).toBe(200);
+    expect(word.headers.get("content-type")).toBe(
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    );
+    expect(word.headers.get("content-disposition")?.startsWith("inline")).toBe(true);
+    expect(word.headers.get("content-disposition")).not.toContain("attachment;");
+  });
+
+  it("open token for another file, or a bad token, still requires a login", async () => {
+    gs.mockResolvedValue(null as any);
+    const other = await call(signOpenToken("document", "d2"));
+    expect(other.status).toBe(401);
+    const attachment = await call(signOpenToken("attachment", "d1"));
+    expect(attachment.status).toBe(401);
+    const bogus = await call("not-a-token");
+    expect(bogus.status).toBe(401);
+    expect(minioClient.send).not.toHaveBeenCalled();
   });
 
   it("image: opens inline; a word file downloads under its name", async () => {

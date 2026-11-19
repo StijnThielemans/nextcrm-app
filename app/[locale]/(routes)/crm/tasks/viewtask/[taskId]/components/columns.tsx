@@ -1,7 +1,7 @@
 "use client";
 
 import { ColumnDef } from "@tanstack/react-table";
-import { documentFileRoute } from "@/lib/documents/file-key";
+import { OpenStoredFile } from "@/components/files/OpenStoredFile";
 
 import { Badge } from "@/components/ui/badge";
 
@@ -42,9 +42,15 @@ export const columns: ColumnDef<Task>[] = [
       return (
         <div className="flex space-x-2">
           {label && <Badge variant="outline">{label.label}</Badge>}
-          <a className="max-w-[500px] truncate font-medium underline" href={documentFileRoute(row.original.id)}>
+          <OpenStoredFile
+            kind="document"
+            id={row.original.id}
+            name={row.original.document_name}
+            mimeType={row.original.document_file_mimeType}
+            className="max-w-[500px] truncate font-medium underline"
+          >
             {row.original.document_name}
-          </a>
+          </OpenStoredFile>
         </div>
       );
     },

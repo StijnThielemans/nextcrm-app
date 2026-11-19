@@ -23,7 +23,7 @@ import {
   type DossierDocumentCategory,
   type RequestChannel,
 } from "@/lib/sales/labels";
-import { documentFileRoute } from "@/lib/documents/file-key";
+import { OpenStoredFile } from "@/components/files/OpenStoredFile";
 import { groupDocumentsIntoFolders, type DocumentFolder } from "@/lib/sales/document-folders";
 import { DOSSIER_FOLLOW_UP_AFTER_DAYS, stepperForDossier } from "@/lib/sales/dossier-step";
 import { MISSING_QUOTE_PRICE, quoteCanWin, quotePriceLabel } from "@/lib/sales/quote-choice";
@@ -58,7 +58,7 @@ function AcceptedQuoteLine({ dossier }: { dossier: DossierDetail }) {
   const sentence = t("wonQuote", { name: quote.name });
   const at = sentence.indexOf(quote.name);
   const name = pdfId
-    ? <a className="underline break-all" href={documentFileRoute(pdfId)}>{quote.name}</a>
+    ? <OpenStoredFile kind="document" id={pdfId} name={quote.name} mimeType="application/pdf" className="underline break-all">{quote.name}</OpenStoredFile>
     : quote.name;
   return (
     <p data-accepted-quote={quote.id}>
@@ -117,7 +117,7 @@ function DocumentFolderRow({ folder }: { folder: DocumentFolder }) {
           {folder.files.map((doc) => (
             <li key={doc.id} data-file={doc.name} className="flex items-start gap-2">
               <FileText className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" aria-hidden />
-              <a className="underline break-all" href={documentFileRoute(doc.id)}>{doc.name}</a>
+              <OpenStoredFile kind="document" id={doc.id} name={doc.name} className="underline break-all">{doc.name}</OpenStoredFile>
             </li>
           ))}
         </ul>
@@ -154,7 +154,7 @@ function WinningQuoteChoices({ quotes }: { quotes: DossierDetail["families"][num
                   defaultChecked={quote.id === defaultId}
                   className="mt-1"
                 />
-                <a className="min-w-0 flex-1 break-all underline" href={documentFileRoute(quote.pdfId)}>{quote.pdfName}</a>
+                <OpenStoredFile kind="document" id={quote.pdfId} name={quote.pdfName} mimeType="application/pdf" className="min-w-0 flex-1 break-all underline">{quote.pdfName}</OpenStoredFile>
                 <span className="shrink-0 tabular-nums" data-winning-price={quote.id}>{shownPrice(quote.gross, t("noPrice"))}</span>
               </label>
             </li>
@@ -296,9 +296,9 @@ export function DossierPanel({
   const stepper = stepperForDossier(dossier);
 
   return (
-    <div className="space-y-8 max-w-5xl">
-      <section className="rounded-md border p-4 space-y-3" aria-label={t("status")}>
-        <ol className="flex flex-wrap items-center gap-y-3">
+    <div className="space-y-5">
+      <section className="flex flex-wrap items-center justify-between gap-3 rounded-md border px-4 py-3" aria-label={t("status")}>
+        <ol className="flex min-w-0 flex-1 flex-nowrap items-center overflow-x-auto">
           {stepper.steps.map((step, index) => (
             <li key={step.id} className="flex items-center">
               {index > 0 && <span aria-hidden className="mx-2 h-px w-6 shrink-0 bg-border sm:w-8" />}
@@ -376,10 +376,10 @@ export function DossierPanel({
           </form>
         </DialogContent>
       </Dialog>
-      <section className="grid gap-4 lg:grid-cols-3">
-        <div className="rounded-md border p-4 space-y-2 text-sm">
-          <div className="flex items-start justify-between gap-2">
-            <h2 className="text-lg font-semibold">{t("customerAndDossier")}</h2>
+      <section className="grid items-start gap-4 xl:grid-cols-[minmax(0,1.45fr)_minmax(18rem,0.8fr)]">
+        <div className="rounded-md border text-sm xl:col-span-2">
+          <div className="flex items-center justify-between gap-2 border-b px-4 py-3">
+            <h2 className="text-base font-bold">{t("customerAndDossier")}</h2>
             {!dossier.terminal && (
               <Button
                 type="button"
@@ -392,6 +392,8 @@ export function DossierPanel({
               </Button>
             )}
           </div>
+          <div className="grid gap-x-10 gap-y-1.5 p-4 lg:grid-cols-2">
+          <div className="space-y-1.5">
           <p><span className="text-muted-foreground">{t("customer")} </span><Link className="underline" href={`/crm/accounts/${dossier.customer.id}`}>{dossier.customer.name}</Link></p>
           <p><span className="text-muted-foreground">{t("contactType")} </span>{dossier.customer.role && t.has(`roles.${dossier.customer.role}`) ? t(`roles.${dossier.customer.role}`) : "—"}</p>
           <p><span className="text-muted-foreground">{t("email")} </span>{dossier.customer.email ?? "—"}</p>
@@ -399,6 +401,8 @@ export function DossierPanel({
           <p><span className="text-muted-foreground">{t("gsm")} </span>{dossier.customer.mobile ?? "—"}</p>
           <p><span className="text-muted-foreground">{t("vat")} </span>{dossier.customer.vat ?? "—"}</p>
           <p><span className="text-muted-foreground">{t("address")} </span>{dossier.customer.address || "—"}</p>
+          </div>
+          <div className="space-y-1.5">
           <p><span className="text-muted-foreground">{t("projectNumber")} </span>{dossier.number ?? "—"}</p>
           <p data-testid="dossier-project-description"><span className="text-muted-foreground">{t("projectDescription")} </span>{dossier.name ?? "—"}</p>
           <p data-testid="dossier-seller"><span className="text-muted-foreground">{t("seller")} </span>{dossier.seller ?? "—"}</p>
@@ -413,6 +417,8 @@ export function DossierPanel({
           <p><span className="text-muted-foreground">{t("siteAddress")} </span>{dossier.projectAddress || "—"}</p>
           <p data-dossier-status={stepper.currentLabel}><span className="text-muted-foreground">{t("status")} </span>{(() => { const current = stepper.steps.find((step) => step.state === "current"); return current ? t(`steps.${current.id}`) : stepper.currentLabel; })()}</p>
           {dossier.lostReason && <p>{t("lostReasonLine", { reason: dossier.lostReason })}</p>}
+          </div>
+          </div>
           {editingProject && (
             <DossierProjectDialog
               dossier={dossier}
@@ -472,7 +478,7 @@ export function DossierPanel({
             {quoteRows.map((quote) => (
               <li key={quote.id} className="rounded-md border p-2 space-y-2">
                 <div className="flex items-start justify-between gap-3">
-                  <a className="font-medium underline break-all" href={documentFileRoute(quote.pdfId)}>{quote.pdfName}</a>
+                  <OpenStoredFile kind="document" id={quote.pdfId} name={quote.pdfName} mimeType="application/pdf" className="font-medium underline break-all">{quote.pdfName}</OpenStoredFile>
                   <span
                     className={cn("shrink-0 tabular-nums", quote.gross == null && "text-muted-foreground")}
                     data-quote-gross={quote.id}

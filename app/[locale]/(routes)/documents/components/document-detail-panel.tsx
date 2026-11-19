@@ -16,7 +16,7 @@ import { getDocumentVersions } from "@/actions/documents/get-document-versions";
 import { retryEnrichment } from "@/actions/documents/retry-enrichment";
 import { toast } from "sonner";
 import moment from "moment";
-import { documentFileRoute } from "@/lib/documents/file-key";
+import { OpenStoredFile } from "@/components/files/OpenStoredFile";
 import { DocumentRow } from "../data/schema";
 
 interface DocumentDetailPanelProps {
@@ -58,7 +58,15 @@ export function DocumentDetailPanel({
       <SheetContent className="w-[400px] sm:w-[540px] overflow-y-auto">
         <SheetHeader>
           <SheetTitle className="text-left">
-            <a className="underline" href={documentFileRoute(document.id)}>{document.document_name}</a>
+            <OpenStoredFile
+              kind="document"
+              id={document.id}
+              name={document.document_name}
+              mimeType={document.document_file_mimeType}
+              className="underline"
+            >
+              {document.document_name}
+            </OpenStoredFile>
           </SheetTitle>
         </SheetHeader>
 

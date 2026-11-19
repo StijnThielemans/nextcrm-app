@@ -18,6 +18,7 @@ export const PARTNER_ROUTES = [
   "/api/auth",
   "/api/invoices/*/pdf",
   "/api/documents/*/file",
+  "/api/documents/*/open",
 ];
 
 export function isPartnerAllowedPath(pathname: string): boolean {

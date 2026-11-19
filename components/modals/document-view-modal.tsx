@@ -2,6 +2,8 @@
 
 import { Button } from "@/components/ui/button";
 import ModalDocumentView from "../ui/modal-document-view";
+import { OpenStoredFile } from "@/components/files/OpenStoredFile";
+import { fileLaunch } from "@/lib/documents/open-file";
 import { documentFileRoute } from "@/lib/documents/file-key";
 
 interface AlertModalProps {
@@ -34,12 +36,11 @@ const DocumentViewModal = ({
     "image/webp",
   ];
 
-  console.log(document.document_file_mimeType, "mimeType");
-
-  // Files are private: always read through the authenticated route.
+  // Images stay in the browser. PDF and Office open through the shared opener.
   const fileUrl = documentFileRoute(document.id);
+  const launch = fileLaunch(document.document_name ?? "", document.document_file_mimeType);
 
-  if (imageTypes.includes(document.document_file_mimeType)) {
+  if (launch === "image" || imageTypes.includes(document.document_file_mimeType)) {
     return (
       <ModalDocumentView isOpen={isOpen} onClose={onClose}>
         <div className="flex flex-col h-full ">
@@ -57,43 +58,26 @@ const DocumentViewModal = ({
     );
   }
 
-  if (document.document_file_mimeType === "application/pdf") {
-    return (
-      <ModalDocumentView isOpen={isOpen} onClose={onClose}>
-        <div className="flex flex-col h-full ">
-          <embed
-            style={{
-              width: "100%",
-              height: "100%",
-            }}
-            type="application/pdf"
-            src={fileUrl}
-          />
-          <div className="pt-6 space-x-2 flex items-center justify-end w-full ">
-            <Button disabled={loading} variant={"outline"} onClick={onClose}>
-              Cancel
-            </Button>
-          </div>
-        </div>
-      </ModalDocumentView>
-    );
-  } else {
-    return (
-      <ModalDocumentView isOpen={isOpen} onClose={onClose}>
-        <div className="flex flex-col h-full ">
-          This format can not be previewed. Please download the file to view it.
-          <Button>
-            <a href={fileUrl}> Download</a>
+  return (
+    <ModalDocumentView isOpen={isOpen} onClose={onClose}>
+      <div className="flex flex-col h-full ">
+        <OpenStoredFile
+          kind="document"
+          id={document.id}
+          name={document.document_name ?? "bestand"}
+          mimeType={document.document_file_mimeType}
+          className="underline"
+        >
+          {document.document_name}
+        </OpenStoredFile>
+        <div className="pt-6 space-x-2 flex items-center justify-end w-full ">
+          <Button disabled={loading} variant={"outline"} onClick={onClose}>
+            Cancel
           </Button>
-          <div className="pt-6 space-x-2 flex items-center justify-end w-full ">
-            <Button disabled={loading} variant={"outline"} onClick={onClose}>
-              Cancel
-            </Button>
-          </div>
         </div>
-      </ModalDocumentView>
-    );
-  }
+      </div>
+    </ModalDocumentView>
+  );
 };
 
 export default DocumentViewModal;

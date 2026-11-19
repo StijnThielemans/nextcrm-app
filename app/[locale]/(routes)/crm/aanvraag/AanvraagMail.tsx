@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { attachmentOpensInline, mailPanelBody } from "@/lib/sales/aanvraag-mail";
+import { OpenStoredFile } from "@/components/files/OpenStoredFile";
+import { fileLaunch } from "@/lib/documents/open-file";
+import { mailPanelBody } from "@/lib/sales/aanvraag-mail";
 import type { OfferteboxMailAside } from "@/lib/sales/offertebox";
 
 const DATE_LOCALE: Record<string, string> = { cz: "cs" };
@@ -20,7 +22,6 @@ export function AanvraagMail({ mail }: { mail: OfferteboxMailAside }) {
   });
   const body = mailPanelBody(mail.html, mail.body);
   const preview = mail.attachments.find((attachment) => attachment.id === previewId) ?? null;
-  const previewKind = preview ? attachmentOpensInline(preview.fileName, preview.contentType, preview.isImage) : null;
   const sender = mail.fromName || mail.fromEmail || "—";
 
   useEffect(() => {
@@ -53,17 +54,20 @@ export function AanvraagMail({ mail }: { mail: OfferteboxMailAside }) {
           <p className="text-xs font-medium text-muted-foreground">{t("offertebox.attachments")}</p>
           <ul className="mt-1 space-y-1">
             {mail.attachments.map((attachment) => {
-              const kind = attachmentOpensInline(attachment.fileName, attachment.contentType, attachment.isImage);
-              if (!kind) {
+              const launch = fileLaunch(attachment.fileName, attachment.contentType, attachment.isImage);
+              if (launch !== "image") {
                 return (
                   <li key={attachment.id}>
-                    <a
+                    <OpenStoredFile
+                      kind="attachment"
+                      id={attachment.id}
+                      name={attachment.fileName}
+                      mimeType={attachment.contentType}
                       className="underline"
-                      href={`/api/crm/offertebox/attachments/${attachment.id}?download=1`}
-                      data-testid="aanvraag-mail-attachment"
+                      testId="aanvraag-mail-attachment"
                     >
                       {attachment.fileName}
-                    </a>
+                    </OpenStoredFile>
                   </li>
                 );
               }
@@ -86,32 +90,19 @@ export function AanvraagMail({ mail }: { mail: OfferteboxMailAside }) {
         </div>
       )}
       </div>
-      {preview && previewKind && (
+      {preview && (
         <div className="mt-3 shrink-0 space-y-2" data-testid="aanvraag-mail-preview">
           <div className="flex items-center justify-between gap-2">
             <p className="min-w-0 truncate text-sm font-medium">{preview.fileName}</p>
-            <div className="flex shrink-0 gap-3 text-sm">
-              <a className="underline" href={`/api/crm/offertebox/attachments/${preview.id}?download=1`}>
-                {t("offertebox.downloadFile")}
-              </a>
-              <button type="button" className="underline" onClick={() => setPreviewId(null)}>
-                {t("offertebox.closePreview")}
-              </button>
-            </div>
+            <button type="button" className="underline" onClick={() => setPreviewId(null)}>
+              {t("offertebox.closePreview")}
+            </button>
           </div>
-          {previewKind === "image" ? (
-            <img
-              src={`/api/crm/offertebox/attachments/${preview.id}`}
-              alt={preview.fileName}
-              className="max-h-[70vh] w-full rounded border object-contain"
-            />
-          ) : (
-            <iframe
-              title={preview.fileName}
-              src={`/api/crm/offertebox/attachments/${preview.id}`}
-              className="h-[min(28rem,45vh)] w-full rounded border bg-white"
-            />
-          )}
+          <img
+            src={`/api/crm/offertebox/attachments/${preview.id}`}
+            alt={preview.fileName}
+            className="max-h-[70vh] w-full rounded border object-contain"
+          />
         </div>
       )}
       {body.kind === "html" ? (

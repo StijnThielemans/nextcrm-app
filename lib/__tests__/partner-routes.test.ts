@@ -23,6 +23,8 @@ describe("isPartnerAllowedPath (partner route allow-list, deny by default)", () 
     "/api/auth/sign-out",
     "/api/invoices/abc/pdf",
     "/api/documents/abc/file",
+    "/api/documents/abc/file/offerte.pdf",
+    "/api/documents/abc/open",
   ])("allows %s", (path) => {
     expect(isPartnerAllowedPath(path)).toBe(true);
   });
