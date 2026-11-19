@@ -181,10 +181,13 @@ export function AanvraagForm({
   }
 
   return (
-    <form onSubmit={onCreate} className="space-y-6">
+    <form onSubmit={onCreate} className="max-w-3xl space-y-8">
       {fromBox && <p className="text-sm text-muted-foreground">{t("offertebox.fromBox")}</p>}
-      <section className="grid gap-4 lg:grid-cols-2">
-        <h2 className="text-base font-bold lg:col-span-2">{t("dossierSection")}</h2>
+      <section className="grid gap-5 lg:grid-cols-2">
+        <h2 className="flex items-center gap-2 text-sm font-medium lg:col-span-2">
+          <span aria-hidden className="size-1.5 rounded-full bg-[hsl(var(--tilo))]" />
+          {t("dossierSection")}
+        </h2>
         <label className="space-y-1 block">
           <span className="text-sm">{t("projectNumber")}</span>
           <Input value={projectNumber} readOnly disabled />
@@ -283,7 +286,7 @@ export function AanvraagForm({
           <label className="space-y-1">
             <span className="text-sm">{t("seller")}</span>
             <select
-              className="flex h-9 w-full rounded-md border bg-transparent px-3 text-sm"
+              className="flex h-10 w-full rounded-lg border border-input bg-transparent px-3 text-sm"
               value={seller}
               required
               onChange={(event) => setSeller(event.target.value as SellerName)}
@@ -297,7 +300,7 @@ export function AanvraagForm({
           <label className="space-y-1">
             <span className="text-sm">{t("projectGroup")}</span>
             <select
-              className="flex h-9 w-full rounded-md border bg-transparent px-3 text-sm"
+              className="flex h-10 w-full rounded-lg border border-input bg-transparent px-3 text-sm"
               value={projectGroup}
               required
               onChange={(event) => setProjectGroup(event.target.value as ProjectGroup)}
@@ -315,7 +318,7 @@ export function AanvraagForm({
           <label className="space-y-1 sm:col-span-2">
             <span className="text-sm">{t("channel")}</span>
             <select
-              className="flex h-9 w-full rounded-md border bg-transparent px-3 text-sm"
+              className="flex h-10 w-full rounded-lg border border-input bg-transparent px-3 text-sm"
               value={channel}
               onChange={(event) => setChannel(event.target.value as RequestChannel)}
             >
@@ -351,7 +354,7 @@ export function AanvraagForm({
       </section>
 
       {error && <p className="text-sm text-destructive">{error}</p>}
-      <Button type="submit" disabled={pending}>
+      <Button type="submit" className="rounded-full px-5" disabled={pending}>
         {pending ? t("saving") : t("createDossier")}
       </Button>
       <Label className="sr-only">{t("newRequest")}</Label>

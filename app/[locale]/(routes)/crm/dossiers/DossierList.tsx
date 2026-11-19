@@ -17,7 +17,7 @@ export function DossierList({ rows }: { rows: DossierSearchRow[] }) {
       columns={columns}
       data={rows}
       actions={
-        <Button size="sm" className="h-8" asChild>
+        <Button size="sm" className="h-9 rounded-full px-4" asChild>
           <Link href="/crm/aanvraag">{t("newRequestPlus")}</Link>
         </Button>
       }

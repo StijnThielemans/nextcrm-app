@@ -35,7 +35,7 @@ const AccountsView = ({ data, crmData }: AccountsViewProps) => {
   const addButton = (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
-        <Button size="sm" className="h-8" aria-label={t("accounts.addNew")} data-testid="add-account-btn">+ {sales("newCustomer")}</Button>
+        <Button size="sm" className="h-9 rounded-full px-4" aria-label={t("accounts.addNew")} data-testid="add-account-btn">+ {sales("newCustomer")}</Button>
       </SheetTrigger>
       <SheetContent
         data-testid="new-customer-screen"

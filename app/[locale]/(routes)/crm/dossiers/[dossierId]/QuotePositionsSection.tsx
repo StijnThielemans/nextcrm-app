@@ -53,10 +53,13 @@ export function QuotePositionsSection({ dossierId, quotes }: { dossierId: string
   }, [dossierId, pdfId]);
 
   return (
-    <section className="space-y-3 rounded-md border p-4" aria-label={t("positions.title")} data-quote-positions="">
+    <section className="space-y-4 border-t border-border/70 pt-10" aria-label={t("positions.title")} data-quote-positions="">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div className="min-w-0">
-          <h2 className="text-base font-bold">{t("positions.title")}</h2>
+          <h2 className="flex items-center gap-2 text-sm font-medium">
+            <span aria-hidden className="size-1.5 rounded-full bg-[hsl(var(--tilo))]" />
+            {t("positions.title")}
+          </h2>
           <p className="text-sm text-muted-foreground">{t("positions.lead")}</p>
         </div>
         {pdfs.length > 0 && (
@@ -87,7 +90,7 @@ export function QuotePositionsSection({ dossierId, quotes }: { dossierId: string
           {positions.map((position) => {
             const title = position.title !== position.number ? position.title : "";
             return (
-              <li key={position.id} className="space-y-2 rounded-md border p-3" data-quote-position={position.number}>
+              <li key={position.id} className="space-y-2 border-b border-border/70 py-4" data-quote-position={position.number}>
                 <p className="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-sm">
                   <span className="font-semibold">{t("positions.position")} {position.number}</span>
                   {position.quantity && (

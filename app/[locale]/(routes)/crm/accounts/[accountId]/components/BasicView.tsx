@@ -4,9 +4,9 @@ import { ACCOUNT_ROLES, type AccountRole } from "@/lib/sales/aanvraag-fields";
 
 function line(label: string, value: string | null | undefined) {
   return (
-    <p>
-      <span className="text-muted-foreground">{label} </span>
-      {value?.trim() ? value : "—"}
+    <p className="flex flex-col gap-0.5">
+      <span className="text-[0.72rem] text-muted-foreground">{label}</span>
+      <span className="text-[0.95rem]">{value?.trim() ? value : "—"}</span>
     </p>
   );
 }
@@ -21,18 +21,18 @@ export async function BasicView({ data }: { data: any }) {
   const tax = data.vat_choice && t.has(`vatChoice.${data.vat_choice}`) ? t(`vatChoice.${data.vat_choice}`) : "";
 
   return (
-    <section className="rounded-md border p-4 text-sm">
+    <section className="text-sm">
       <div className="mb-3 flex justify-end">
         <AccountDetailActions account={data} />
       </div>
-      <div className="grid gap-x-10 gap-y-1.5 sm:grid-cols-2">
-        <div className="space-y-1.5">
+      <div className="grid gap-x-12 gap-y-5 sm:grid-cols-2">
+        <div className="space-y-5">
           {line(t("contactType"), role)}
           {line(t("phoneNumber"), data.office_phone)}
           {line(t("mobileNumber"), data.mobile_phone)}
           {line(t("emailAddress"), data.email)}
         </div>
-        <div className="space-y-1.5">
+        <div className="space-y-5">
           {line(t("address"), address)}
           {line(t("vat"), tax)}
           {line(t("vatNumber"), data.vat)}

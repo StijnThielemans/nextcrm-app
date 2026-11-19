@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { Check, ChevronRight, FileText, Folder, Plus } from "lucide-react";
 import { useRouter } from "@/i18n/navigation";
@@ -67,6 +67,34 @@ function AcceptedQuoteLine({ dossier }: { dossier: DossierDetail }) {
       {name}
       {at < 0 ? null : sentence.slice(at + quote.name.length)}{" "}
       <span data-accepted-price="">{shownPrice(quote.gross, t("noPrice"))}</span>
+    </p>
+  );
+}
+
+function SectionTitle({ children }: { children: ReactNode }) {
+  return (
+    <h2 className="flex items-center gap-2 text-sm font-medium">
+      <span aria-hidden className="size-1.5 rounded-full bg-[hsl(var(--tilo))]" />
+      {children}
+    </h2>
+  );
+}
+
+function Fact({
+  label,
+  children,
+  testId,
+  status,
+}: {
+  label: string;
+  children: ReactNode;
+  testId?: string;
+  status?: string;
+}) {
+  return (
+    <p className="flex flex-col gap-0.5" data-testid={testId} data-dossier-status={status}>
+      <span className="text-[0.72rem] text-muted-foreground">{label}</span>
+      <span className="text-[0.95rem]">{children}</span>
     </p>
   );
 }
@@ -296,8 +324,8 @@ export function DossierPanel({
   const stepper = stepperForDossier(dossier);
 
   return (
-    <div className="space-y-5">
-      <section className="flex flex-wrap items-center justify-between gap-3 rounded-md border px-4 py-3" aria-label={t("status")}>
+    <div className="space-y-12">
+      <section className="flex flex-wrap items-center justify-between gap-4" aria-label={t("status")}>
         <ol className="flex min-w-0 flex-1 flex-nowrap items-center overflow-x-auto">
           {stepper.steps.map((step, index) => (
             <li key={step.id} className="flex items-center">
@@ -315,8 +343,8 @@ export function DossierPanel({
                 <span
                   className={cn(
                     "flex size-6 shrink-0 items-center justify-center rounded-full border text-xs",
-                    step.state === "current" && "border-primary bg-primary text-primary-foreground",
-                    step.state === "complete" && "border-primary bg-primary/10 text-primary",
+                    step.state === "current" && "border-transparent bg-[hsl(183_42%_38%)] text-white",
+                    step.state === "complete" && "border-[hsl(183_40%_72%)] bg-[hsl(183_42%_94%)] text-[hsl(183_35%_28%)]",
                     step.state === "upcoming" && "border-dashed",
                   )}
                 >
@@ -376,15 +404,16 @@ export function DossierPanel({
           </form>
         </DialogContent>
       </Dialog>
-      <section className="grid items-start gap-4 xl:grid-cols-[minmax(0,1.45fr)_minmax(18rem,0.8fr)]">
-        <div className="rounded-md border text-sm xl:col-span-2">
-          <div className="flex items-center justify-between gap-2 border-b px-4 py-3">
-            <h2 className="text-base font-bold">{t("customerAndDossier")}</h2>
+      <section className="grid items-start gap-x-14 gap-y-12 xl:grid-cols-2">
+        <div className="text-sm xl:col-span-2">
+          <div className="mb-6 flex items-center justify-between gap-2">
+            <SectionTitle>{t("customerAndDossier")}</SectionTitle>
             {!dossier.terminal && (
               <Button
                 type="button"
                 size="sm"
                 variant="outline"
+                className="rounded-full"
                 data-testid="edit-dossier-project"
                 onClick={() => setEditingProject(true)}
               >
@@ -392,30 +421,29 @@ export function DossierPanel({
               </Button>
             )}
           </div>
-          <div className="grid gap-x-10 gap-y-1.5 p-4 lg:grid-cols-2">
-          <div className="space-y-1.5">
-          <p><span className="text-muted-foreground">{t("customer")} </span><Link className="underline" href={`/crm/accounts/${dossier.customer.id}`}>{dossier.customer.name}</Link></p>
-          <p><span className="text-muted-foreground">{t("contactType")} </span>{dossier.customer.role && t.has(`roles.${dossier.customer.role}`) ? t(`roles.${dossier.customer.role}`) : "—"}</p>
-          <p><span className="text-muted-foreground">{t("email")} </span>{dossier.customer.email ?? "—"}</p>
-          <p><span className="text-muted-foreground">{t("phone")} </span>{dossier.customer.phone ?? "—"}</p>
-          <p><span className="text-muted-foreground">{t("gsm")} </span>{dossier.customer.mobile ?? "—"}</p>
-          <p><span className="text-muted-foreground">{t("vat")} </span>{dossier.customer.vat ?? "—"}</p>
-          <p><span className="text-muted-foreground">{t("address")} </span>{dossier.customer.address || "—"}</p>
+          <div className="grid gap-x-12 gap-y-5 lg:grid-cols-2">
+          <div className="space-y-5">
+          <Fact label={t("customer")}><Link className="underline-offset-4 hover:underline" href={`/crm/accounts/${dossier.customer.id}`}>{dossier.customer.name}</Link></Fact>
+          <Fact label={t("contactType")}>{dossier.customer.role && t.has(`roles.${dossier.customer.role}`) ? t(`roles.${dossier.customer.role}`) : "—"}</Fact>
+          <Fact label={t("email")}>{dossier.customer.email ?? "—"}</Fact>
+          <Fact label={t("phone")}>{dossier.customer.phone ?? "—"}</Fact>
+          <Fact label={t("gsm")}>{dossier.customer.mobile ?? "—"}</Fact>
+          <Fact label={t("vat")}>{dossier.customer.vat ?? "—"}</Fact>
+          <Fact label={t("address")}>{dossier.customer.address || "—"}</Fact>
           </div>
-          <div className="space-y-1.5">
-          <p><span className="text-muted-foreground">{t("projectNumber")} </span>{dossier.number ?? "—"}</p>
-          <p data-testid="dossier-project-description"><span className="text-muted-foreground">{t("projectDescription")} </span>{dossier.name ?? "—"}</p>
-          <p data-testid="dossier-seller"><span className="text-muted-foreground">{t("seller")} </span>{dossier.seller ?? "—"}</p>
-          <p>
-            <span className="text-muted-foreground">{t("architect")} </span>
+          <div className="space-y-5">
+          <Fact label={t("projectNumber")}>{dossier.number ?? "—"}</Fact>
+          <Fact label={t("projectDescription")} testId="dossier-project-description">{dossier.name ?? "—"}</Fact>
+          <Fact label={t("seller")} testId="dossier-seller">{dossier.seller ?? "—"}</Fact>
+          <Fact label={t("architect")}>
             {dossier.architectName
               ? `${dossier.architectName}${dossier.architectExternalId ? ` (${dossier.architectExternalId})` : ""}`
               : "—"}
-          </p>
-          <p data-testid="dossier-project-group"><span className="text-muted-foreground">{t("projectGroup")} </span>{dossier.projectGroup && t.has(`groups.${dossier.projectGroup}`) ? t(`groups.${dossier.projectGroup}`) : "—"}</p>
-          <p><span className="text-muted-foreground">{t("priceRequestDate")} </span>{dossier.priceRequestDate ?? dossier.requestDate ?? "—"}</p>
-          <p><span className="text-muted-foreground">{t("siteAddress")} </span>{dossier.projectAddress || "—"}</p>
-          <p data-dossier-status={stepper.currentLabel}><span className="text-muted-foreground">{t("status")} </span>{(() => { const current = stepper.steps.find((step) => step.state === "current"); return current ? t(`steps.${current.id}`) : stepper.currentLabel; })()}</p>
+          </Fact>
+          <Fact label={t("projectGroup")} testId="dossier-project-group">{dossier.projectGroup && t.has(`groups.${dossier.projectGroup}`) ? t(`groups.${dossier.projectGroup}`) : "—"}</Fact>
+          <Fact label={t("priceRequestDate")}>{dossier.priceRequestDate ?? dossier.requestDate ?? "—"}</Fact>
+          <Fact label={t("siteAddress")}>{dossier.projectAddress || "—"}</Fact>
+          <Fact label={t("status")} status={stepper.currentLabel}>{(() => { const current = stepper.steps.find((step) => step.state === "current"); return current ? t(`steps.${current.id}`) : stepper.currentLabel; })()}</Fact>
           {dossier.lostReason && <p>{t("lostReasonLine", { reason: dossier.lostReason })}</p>}
           </div>
           </div>
@@ -432,7 +460,7 @@ export function DossierPanel({
         </div>
 
         <div
-          className={`rounded-md border p-4 space-y-3 text-sm ${quoteDragging ? "bg-muted" : ""}`}
+          className={`space-y-4 text-sm ${quoteDragging ? "rounded-2xl bg-[hsl(183_42%_97%)]" : ""}`}
           onDragOver={(event) => {
             if (dossier.terminal) return;
             event.preventDefault();
@@ -448,7 +476,7 @@ export function DossierPanel({
           }}
         >
           <div className="flex items-center justify-between gap-2">
-            <h2 className="text-lg font-semibold">{t("quotes")}</h2>
+            <SectionTitle>{t("quotes")}</SectionTitle>
             {!dossier.terminal && (
               <Button
                 type="button"
@@ -612,9 +640,9 @@ export function DossierPanel({
           </Dialog>
         </div>
 
-        <div className="rounded-md border p-4 space-y-3 text-sm">
+        <div className="space-y-4 text-sm">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 className="text-lg font-semibold">{t("documentsTitle")}</h2>
+            <SectionTitle>{t("documentsTitle")}</SectionTitle>
             {pendingAttachments.length > 0 && !dossier.terminal && (
               <Button type="button" variant="secondary" data-testid="file-attachments" onClick={() => setFilingOpen(true)}>
                 {t("offertebox.fileAttachments")}
@@ -623,7 +651,7 @@ export function DossierPanel({
           </div>
           {!dossier.terminal && (
             <label
-              className={`flex min-h-14 cursor-pointer items-center justify-center rounded-md border border-dashed px-3 py-3 text-center text-sm ${dragging ? "bg-muted" : ""}`}
+              className={`flex min-h-16 cursor-pointer items-center justify-center rounded-2xl border border-dashed border-border px-4 py-4 text-center text-sm text-muted-foreground ${dragging ? "border-[hsl(var(--tilo))] bg-[hsl(183_42%_97%)] text-foreground" : ""}`}
               onDragOver={(event) => {
                 event.preventDefault();
                 setDragging(true);
@@ -683,8 +711,8 @@ export function DossierPanel({
 
       </section>
 
-      <section className="space-y-3" aria-label={t("followUp")}>
-        <h2 className="text-lg font-semibold">{t("followUp")}</h2>
+      <section className="space-y-4 border-t border-border/70 pt-10" aria-label={t("followUp")}>
+        <SectionTitle>{t("followUp")}</SectionTitle>
         <ul className="text-sm space-y-1">
           {dossier.channels.map((event) => (
             <li key={event.id}>

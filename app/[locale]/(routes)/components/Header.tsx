@@ -1,6 +1,5 @@
 import FulltextSearch from "./FulltextSearch";
 
-import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { SetLanguage } from "@/components/SetLanguage";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -32,22 +31,18 @@ type Props = {
  */
 const Header = ({ id, lang }: Props) => {
   return (
-    <>
-      <div className="flex h-12 shrink-0 items-center justify-between gap-2 px-4">
-        <div className="flex items-center gap-2">
-          <SidebarTrigger className="-ml-1" />
-          <Separator orientation="vertical" className="mr-2 h-4" />
-          <FulltextSearch />
-        </div>
-        <div className="flex items-center gap-2">
-          <CommandComponent />
-          <SetLanguage userId={id} />
-          <ThemeToggle />
-          <SupportComponent />
-        </div>
+    <div className="flex h-14 shrink-0 items-center justify-between gap-3 border-b border-border/80 bg-card px-4 lg:px-8">
+      <div className="flex min-w-0 items-center gap-2">
+        <SidebarTrigger className="-ml-1 text-muted-foreground" />
+        <FulltextSearch />
       </div>
-      <Separator />
-    </>
+      <div className="flex items-center gap-1">
+        <CommandComponent />
+        <SetLanguage userId={id} />
+        <ThemeToggle />
+        <SupportComponent />
+      </div>
+    </div>
   );
 };
 

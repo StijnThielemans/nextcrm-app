@@ -28,7 +28,7 @@ export function NewCustomerButton({
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
-        <Button className="h-9" data-testid="dashboard-new-customer">{label}</Button>
+        <Button className="h-9 rounded-full px-4" variant="outline" data-testid="dashboard-new-customer">{label}</Button>
       </SheetTrigger>
       <SheetContent
         data-testid="new-customer-screen"

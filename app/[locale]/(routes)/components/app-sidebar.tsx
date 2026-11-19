@@ -117,17 +117,17 @@ export function AppSidebar({
   return (
     <Sidebar collapsible="icon" {...props}>
       {/* Header with Logo and Branding */}
-      <SidebarHeader className="border-b border-black/10">
+      <SidebarHeader className="border-b border-sidebar-border">
         <div
           className={cn(
-            "flex items-center py-1",
+            "flex items-center py-2",
             isExpanded ? "px-1" : "justify-center",
           )}
         >
           <div
             className={cn(
-              "flex items-center justify-center overflow-hidden rounded-md bg-white",
-              isExpanded ? "h-11 w-full px-2" : "size-9",
+              "flex items-center justify-center overflow-hidden rounded-lg bg-white ring-1 ring-black/[0.06]",
+              isExpanded ? "h-12 w-full px-2" : "size-9",
             )}
           >
             <Image

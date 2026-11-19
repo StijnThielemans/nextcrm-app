@@ -33,10 +33,13 @@ export function AanvraagMail({ mail }: { mail: OfferteboxMailAside }) {
     <aside
       aria-label={t("offertebox.originalMail")}
       data-testid="aanvraag-mail"
-      className="flex select-text flex-col rounded-md border bg-background p-4 lg:sticky lg:top-4 lg:max-h-[calc(100vh-6rem)] lg:overflow-hidden [&_*]:select-text"
+      className="flex select-text flex-col border-l border-border/80 p-1 pl-6 lg:sticky lg:top-4 lg:max-h-[calc(100vh-8rem)] lg:overflow-hidden [&_*]:select-text"
     >
       <div className="shrink-0">
-      <h2 className="text-lg font-semibold">{t("offertebox.originalMail")}</h2>
+      <h2 className="flex items-center gap-2 text-sm font-medium">
+        <span aria-hidden className="size-1.5 rounded-full bg-[hsl(var(--tilo))]" />
+        {t("offertebox.originalMail")}
+      </h2>
       <div className="mt-3 flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="font-medium" data-testid="aanvraag-mail-from">{sender}</p>

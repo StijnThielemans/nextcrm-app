@@ -131,22 +131,14 @@ export default async function AppLayout({
         pluginNav={pluginNav}
         appName="TILO"
       />
-      <SidebarInset>
+      <SidebarInset className="bg-card">
         <Header
           id={session.user.id as string}
           lang={session.user.userLanguage as string}
         />
-        {/*
-          Task Group 3.3: Footer Relocation
-          - Footer has been moved inside the scrollable content area
-          - This allows the footer to scroll with the page content
-          - Footer will appear at the bottom of the content, not fixed at viewport bottom
-        */}
-        <div className="flex flex-col flex-grow overflow-y-auto h-full w-full min-w-0">
-          <div className="flex-grow py-4 w-full min-w-0">
-            <div className="w-full px-4 lg:px-6 min-w-0">
-              {children}
-            </div>
+        <div className="flex h-full min-h-0 w-full min-w-0 flex-1 flex-col overflow-y-auto">
+          <div className="w-full min-w-0 flex-1 px-6 py-8 lg:px-10 lg:py-10">
+            {children}
           </div>
           <Footer />
         </div>

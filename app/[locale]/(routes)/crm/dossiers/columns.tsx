@@ -43,7 +43,12 @@ function StatusCell({ row }: { row: DossierSearchRow }) {
   const t = useTranslations("Sales");
   const text = dossierStatusText(row);
   const key = stepMessageKey(text);
-  return <>{show(key && t.has(key) ? t(key) : text)}</>;
+  const label = show(key && t.has(key) ? t(key) : text);
+  return (
+    <span className="inline-flex items-center rounded-full bg-[hsl(183_40%_94%)] px-2.5 py-0.5 text-xs font-medium text-[hsl(190_28%_24%)]">
+      {label}
+    </span>
+  );
 }
 
 export const columns: ColumnDef<DossierSearchRow>[] = [
@@ -52,7 +57,7 @@ export const columns: ColumnDef<DossierSearchRow>[] = [
     accessorFn: (row) => row.number ?? "",
     header: ({ column }) => <SalesHeader column={column} label="projectNumber" />,
     cell: ({ row }) => (
-      <Link className="underline" href={`/crm/dossiers/${row.original.id}`}>
+      <Link className="font-medium underline-offset-4 hover:underline" href={`/crm/dossiers/${row.original.id}`}>
         {show(row.original.number?.trim() ?? "")}
       </Link>
     ),

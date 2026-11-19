@@ -123,7 +123,7 @@ export function OfferteboxBoard({ view }: { view: OfferteboxView }) {
 
   return (
     <div
-      className={`space-y-6 rounded-md ${dragOver ? "ring-2 ring-primary ring-offset-2" : ""}`}
+      className={`space-y-10 rounded-2xl ${dragOver ? "ring-1 ring-[hsl(var(--tilo))]" : ""}`}
       onDragEnter={onDragEnter}
       onDragOver={onDragOver}
       onDragLeave={onDragLeave}
@@ -131,7 +131,7 @@ export function OfferteboxBoard({ view }: { view: OfferteboxView }) {
       data-testid="offertebox-list"
     >
       {!view.mailboxLinked && (
-        <div className="rounded-md border border-dashed px-4 py-3 text-sm">
+        <div className="rounded-2xl border border-dashed border-border px-4 py-3 text-sm">
           <p>{t("offertebox.mailboxMissing")}</p>
           <Link href="/emails" className="mt-1 inline-block underline">
             {t("offertebox.openEmails")}
@@ -139,7 +139,7 @@ export function OfferteboxBoard({ view }: { view: OfferteboxView }) {
         </div>
       )}
       <div
-        className={`rounded-md border border-dashed px-4 py-8 text-center ${dragOver ? "border-primary bg-primary/5" : ""}`}
+        className={`rounded-2xl border border-dashed border-border px-6 py-12 text-center ${dragOver ? "border-[hsl(var(--tilo))] bg-[hsl(183_42%_97%)]" : ""}`}
         data-testid="offertebox-drop"
       >
         <p className="font-medium">{t("offertebox.dropTitle")}</p>
@@ -164,27 +164,27 @@ export function OfferteboxBoard({ view }: { view: OfferteboxView }) {
         </label>
       </div>
       <div className="flex justify-end">
-        <Button type="button" size="sm" className="h-8" data-testid="offertebox-add" onClick={() => setAdding((open) => !open)}>
+        <Button type="button" size="sm" className="h-9 rounded-full px-4" data-testid="offertebox-add" onClick={() => setAdding((open) => !open)}>
           {t("offertebox.addRequest")}
         </Button>
       </div>
       {adding && (
-        <form onSubmit={onAdd} className="grid gap-3 rounded-md border p-4 sm:grid-cols-[1fr_1fr_1.4fr_auto]" data-testid="offertebox-add-form">
+        <form onSubmit={onAdd} className="grid gap-4 border-y border-border/80 py-6 sm:grid-cols-[1fr_1fr_1.4fr_auto]" data-testid="offertebox-add-form">
           <label className="space-y-1 text-sm">
             <span>{t("offertebox.addName")}</span>
-            <Input value={fromName} onChange={(event) => setFromName(event.target.value)} className="h-8" data-testid="offertebox-add-name" />
+            <Input value={fromName} onChange={(event) => setFromName(event.target.value)} data-testid="offertebox-add-name" />
           </label>
           <label className="space-y-1 text-sm">
             <span>{t("offertebox.addEmail")}</span>
-            <Input type="email" value={fromEmail} onChange={(event) => setFromEmail(event.target.value)} className="h-8" data-testid="offertebox-add-email" />
+            <Input type="email" value={fromEmail} onChange={(event) => setFromEmail(event.target.value)} data-testid="offertebox-add-email" />
           </label>
           <label className="space-y-1 text-sm">
             <span>{t("offertebox.addSubject")}</span>
-            <Input value={subject} onChange={(event) => setSubject(event.target.value)} className="h-8" required data-testid="offertebox-add-subject" />
+            <Input value={subject} onChange={(event) => setSubject(event.target.value)} required data-testid="offertebox-add-subject" />
           </label>
           <div className="flex items-end gap-2">
-            <Button type="submit" size="sm" className="h-8" disabled={saving}>{t("offertebox.addSave")}</Button>
-            <Button type="button" size="sm" variant="outline" className="h-8" onClick={() => setAdding(false)}>{t("offertebox.addCancel")}</Button>
+            <Button type="submit" size="sm" className="h-10 rounded-full px-4" disabled={saving}>{t("offertebox.addSave")}</Button>
+            <Button type="button" size="sm" variant="outline" className="h-10 rounded-full px-4" onClick={() => setAdding(false)}>{t("offertebox.addCancel")}</Button>
           </div>
         </form>
       )}
@@ -249,17 +249,20 @@ function MailColumn({
 }) {
   const t = useTranslations("Sales");
   return (
-    <section data-testid={testId} className="space-y-3">
+    <section data-testid={testId} className="space-y-2">
       <div className="flex items-baseline justify-between">
-        <h2 className="text-lg font-semibold">{title}</h2>
-        <span className="text-sm text-muted-foreground">{rows.length}</span>
+        <h2 className="flex items-center gap-2 text-sm font-medium">
+          <span aria-hidden className="size-1.5 rounded-full bg-[hsl(var(--tilo))]" />
+          {title}
+        </h2>
+        <span className="text-sm tabular-nums text-muted-foreground">{rows.length}</span>
       </div>
       {rows.length === 0 ? (
-        <p className="rounded-md border border-dashed px-4 py-6 text-sm text-muted-foreground">{empty}</p>
+        <p className="py-6 text-sm text-muted-foreground">{empty}</p>
       ) : (
-        <div className="space-y-3">
+        <div>
           {rows.map((row) => (
-            <article key={row.id} data-testid="offertebox-row" className="rounded-md border p-4">
+            <article key={row.id} data-testid="offertebox-row" className="border-b border-border/70 py-6">
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="font-medium">{row.fromName || row.fromEmail || "—"}</p>
@@ -309,7 +312,7 @@ function MailColumn({
               )}
               <div className="mt-4 flex flex-wrap items-center gap-3">
                 <select
-                  className="h-8 w-44 rounded-md border bg-transparent px-2 text-sm"
+                  className="h-10 w-48 rounded-full border border-input bg-transparent px-3 text-sm"
                   value={row.sellerName ?? ""}
                   disabled={pendingId === row.id}
                   aria-label={t("offertebox.seller")}

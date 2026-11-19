@@ -29,13 +29,13 @@ export function DataTableToolbar<TData>({
   const isFiltered = table.getState().columnFilters.length > 0 || globalFilter.length > 0;
 
   return (
-    <div className="flex items-center justify-between">
-      <div className="flex flex-1 items-center space-x-2">
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex min-w-0 flex-1 items-center space-x-2">
         <Input
           placeholder={t("search")}
           value={globalFilter}
           onChange={(event) => table.setGlobalFilter(event.target.value)}
-          className="h-8 w-full max-w-md"
+          className="h-10 w-full max-w-md rounded-full bg-[hsl(var(--canvas))] px-4"
           data-testid={searchTestId}
         />
         {/*         <Input
@@ -75,7 +75,7 @@ export function DataTableToolbar<TData>({
       <div className="flex items-center gap-2">
         {actions}
         {onResetColumns && (
-          <Button variant="outline" size="sm" className="h-8" data-testid="reset-columns" onClick={onResetColumns}>
+          <Button variant="outline" size="sm" className="h-9 rounded-full px-3.5 font-normal" data-testid="reset-columns" onClick={onResetColumns}>
             {t("resetColumns")}
           </Button>
         )}

@@ -134,7 +134,7 @@ export function CrmListTable<TData>({
   );
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-5">
       {hide ? (
         <div className="flex items-center justify-end gap-2 text-sm text-muted-foreground">
           <span>This content is hidden now.</span>
@@ -149,10 +149,10 @@ export function CrmListTable<TData>({
             actions={actions}
             trailing={panelToggle}
           />
-          <div className="rounded-md border overflow-x-auto">
+          <div className="overflow-x-auto">
             <DndContext id={`${tableId}-columns`} sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
               <Table data-testid={tableTestId}>
-                <TableHeader className="bg-muted/60">
+                <TableHeader>
                   {table.getHeaderGroups().map((headerGroup) => (
                     <TableRow key={headerGroup.id}>
                       <SortableContext items={headerGroup.headers.map((header) => header.column.id)} strategy={horizontalListSortingStrategy}>
@@ -176,7 +176,7 @@ export function CrmListTable<TData>({
                         data-offerte-name={tableId === "quotes" ? String((row.original as { name?: string }).name ?? "") : undefined}
                       >
                         {row.getVisibleCells().map((cell) => (
-                          <TableCell key={cell.id} className="whitespace-nowrap px-3 py-2.5">
+                          <TableCell key={cell.id} className="whitespace-nowrap px-3 py-3.5 text-[0.92rem]">
                             {flexRender(cell.column.columnDef.cell, cell.getContext())}
                           </TableCell>
                         ))}

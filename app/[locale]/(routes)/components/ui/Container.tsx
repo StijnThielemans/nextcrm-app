@@ -1,5 +1,4 @@
 import Heading from "@/components/ui/heading";
-import { Separator } from "@/components/ui/separator";
 import React from "react";
 
 interface ContainerProps {
@@ -18,8 +17,8 @@ const Container = ({
   children,
 }: ContainerProps) => {
   return (
-    <div className="flex flex-col flex-1 h-full w-full">
-      <div className="flex flex-wrap items-end justify-between gap-3">
+    <div className="flex h-full w-full flex-1 flex-col">
+      <div className="flex flex-wrap items-end justify-between gap-4">
         <Heading
           title={title}
           description={description}
@@ -27,8 +26,7 @@ const Container = ({
         />
         {actions}
       </div>
-      <Separator className="my-3" />
-      <div className="flex-1 min-h-0 w-full">
+      <div className="mt-8 min-h-0 w-full flex-1">
         {children}
       </div>
     </div>
