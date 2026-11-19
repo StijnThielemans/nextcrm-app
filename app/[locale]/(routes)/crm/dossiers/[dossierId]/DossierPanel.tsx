@@ -1,9 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import { ChevronRight, FileText, Folder } from "lucide-react";
 import { useRouter } from "@/i18n/navigation";
 import { Link } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Input } from "@/components/ui/input";
 import {
   Dialog,
@@ -21,7 +23,6 @@ import {
   DOSSIER_STATUS_LABELS,
   OPEN_STATUSES,
   channelLabel,
-  documentCategoryLabel,
   euro,
   percentLabel,
   statusLabel,
@@ -30,6 +31,7 @@ import {
   type RequestChannel,
 } from "@/lib/sales/labels";
 import { ACCOUNT_ROLE_LABELS, PROJECT_GROUP_LABELS, type AccountRole, type ProjectGroup } from "@/lib/sales/aanvraag-fields";
+import { groupDocumentsIntoFolders } from "@/lib/sales/document-folders";
 import type { DossierDetail } from "@/lib/sales/service";
 import {
   addChannelAction,
@@ -44,6 +46,42 @@ import {
 import { uploadDocumentFile, uploadPdf } from "../../sales/upload-pdf";
 
 const today = new Date().toISOString().slice(0, 10);
+
+function DocumentFolders({ documents }: { documents: DossierDetail["documents"] }) {
+  const folders = groupDocumentsIntoFolders(documents);
+  if (folders.length === 0) {
+    return <p className="text-muted-foreground">Nog geen documenten.</p>;
+  }
+
+  return (
+    <ul className="space-y-1">
+      {folders.map((folder) => (
+        <li key={folder.key}>
+          <Collapsible className="group/folder">
+            <CollapsibleTrigger
+              data-folder={folder.label}
+              className="flex w-full items-center gap-2 rounded-md px-1 py-1 text-left font-medium hover:bg-muted"
+            >
+              <ChevronRight className="size-4 shrink-0 transition-transform group-data-[state=open]/folder:rotate-90" aria-hidden />
+              <Folder className="size-4 shrink-0 text-amber-700" aria-hidden />
+              <span>{folder.label}</span>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <ul className="ml-6 space-y-1 border-l py-1 pl-3">
+                {folder.files.map((doc) => (
+                  <li key={doc.id} className="flex items-start gap-2">
+                    <FileText className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" aria-hidden />
+                    <a className="underline break-all" href={`/api/documents/${doc.id}/file`}>{doc.name}</a>
+                  </li>
+                ))}
+              </ul>
+            </CollapsibleContent>
+          </Collapsible>
+        </li>
+      ))}
+    </ul>
+  );
+}
 
 export function DossierPanel({ dossier }: { dossier: DossierDetail }) {
   const router = useRouter();
@@ -191,15 +229,7 @@ export function DossierPanel({ dossier }: { dossier: DossierDetail }) {
               </DialogFooter>
             </DialogContent>
           </Dialog>
-          <ul className="space-y-1">
-            {dossier.documents.map((doc) => (
-              <li key={doc.id}>
-                <a className="underline" href={`/api/documents/${doc.id}/file`}>{doc.name}</a>
-                {" · "}{documentCategoryLabel(doc.category)}
-              </li>
-            ))}
-            {dossier.documents.length === 0 && <li className="text-muted-foreground">Nog geen documenten.</li>}
-          </ul>
+          <DocumentFolders documents={dossier.documents} />
         </div>
       </section>
 
