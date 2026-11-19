@@ -12,6 +12,7 @@ import {
   PROJECT_GROUP_LABELS,
   PROJECT_GROUPS,
   SELLERS,
+  siteAddressFromBilling,
   type AccountRole,
   type ProjectGroup,
   type SellerName,
@@ -27,6 +28,16 @@ function applyCustomerName(current: string, previous: string, next: string) {
   if (!current.trim() || current === previous) return next;
   if (previous && current.startsWith(previous)) return next + current.slice(previous.length);
   return current;
+}
+
+function sameAddress(left: AddressValue, right: AddressValue) {
+  return (
+    left.query === right.query &&
+    left.street === right.street &&
+    left.postalCode === right.postalCode &&
+    left.city === right.city &&
+    left.country === right.country
+  );
 }
 
 export function AanvraagForm({
@@ -49,6 +60,8 @@ export function AanvraagForm({
   const [seller, setSeller] = useState<SellerName | "">("");
   const [projectGroup, setProjectGroup] = useState<ProjectGroup | "">("");
   const [site, setSite] = useState<AddressValue>(emptyAddress);
+  const [copySiteFromCustomer, setCopySiteFromCustomer] = useState(false);
+  const [selectedCustomerAddress, setSelectedCustomerAddress] = useState<AddressValue | null>(null);
   const [architectQuery, setArchitectQuery] = useState("");
   const [architectHits, setArchitectHits] = useState<ArchitectHit[]>([]);
   const [architect, setArchitect] = useState<ArchitectHit | null>(null);
@@ -89,9 +102,25 @@ export function AanvraagForm({
     return () => clearTimeout(handle);
   }, [architectQuery, architect]);
 
+  const customerChosen = Boolean(accountId) || showNew;
+  const siteSource = accountId ? selectedCustomerAddress : showNew ? customerAddress : null;
+
+  useEffect(() => {
+    if (!copySiteFromCustomer || !siteSource) return;
+    setSite((current) => (sameAddress(current, siteSource) ? current : siteSource));
+  }, [copySiteFromCustomer, siteSource]);
+
   function chooseCustomer(hit: CustomerHit) {
     setAccountId(hit.id);
     setShowNew(false);
+    setSelectedCustomerAddress(
+      siteAddressFromBilling({
+        street: hit.street,
+        postalCode: hit.postalCode,
+        city: hit.city,
+        country: hit.country,
+      }),
+    );
     setQuery(hit.name);
     setDescription((current) => applyCustomerName(current, prefill, hit.projectLabel));
     setPrefill(hit.projectLabel);
@@ -352,7 +381,27 @@ export function AanvraagForm({
             </select>
           </label>
         </div>
-        <AddressBox label="Werfadres" value={site} onChange={setSite} />
+        <AddressBox
+          label="Werfadres"
+          value={site}
+          onChange={setSite}
+          ignoreQuery={copySiteFromCustomer ? siteSource?.query : null}
+          aside={
+            <span className="flex flex-col items-start gap-1">
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 accent-primary disabled:cursor-not-allowed"
+                  checked={copySiteFromCustomer}
+                  disabled={!customerChosen}
+                  onChange={(event) => setCopySiteFromCustomer(event.target.checked)}
+                />
+                Werfadres idem huidig adres
+              </label>
+              {!customerChosen && <span className="text-sm text-muted-foreground">Kies eerst een klant.</span>}
+            </span>
+          }
+        />
       </section>
 
       {error && <p className="text-sm text-destructive">{error}</p>}

@@ -100,6 +100,11 @@ export type CustomerHit = {
   email: string | null;
   phone: string | null;
   address: string;
+  street: string | null;
+  postalCode: string | null;
+  city: string | null;
+  country: string | null;
+  state: string | null;
   kind: string | null;
   projectLabel: string;
 };
@@ -149,6 +154,8 @@ export async function searchCustomers(user: AuthzUser, rawQuery: string): Promis
       billing_street: true,
       billing_postal_code: true,
       billing_city: true,
+      billing_country: true,
+      billing_state: true,
       customer_kind: true,
       mobile_phone: true,
       contacts: {
@@ -167,6 +174,11 @@ export async function searchCustomers(user: AuthzUser, rawQuery: string): Promis
     email: row.email ?? row.contacts[0]?.email ?? null,
     phone: row.office_phone ?? row.mobile_phone ?? row.contacts[0]?.mobile_phone ?? row.contacts[0]?.office_phone ?? null,
     address: [row.billing_street, row.billing_postal_code, row.billing_city].filter(Boolean).join(", "),
+    street: row.billing_street,
+    postalCode: row.billing_postal_code,
+    city: row.billing_city,
+    country: row.billing_country,
+    state: row.billing_state,
     kind: row.customer_kind,
     projectLabel: customerProjectLabel({
       name: row.name,

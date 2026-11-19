@@ -96,6 +96,23 @@ type PhotonProps = {
   countrycode?: string;
 };
 
+export function siteAddressFromBilling(input: {
+  street?: string | null;
+  houseNumber?: string | null;
+  postalCode?: string | null;
+  city?: string | null;
+  country?: string | null;
+}): AddressSuggestion & { query: string } {
+  const street = [input.street?.trim(), input.houseNumber?.trim()].filter(Boolean).join(" ");
+  const postalCode = input.postalCode?.trim() ?? "";
+  const city = input.city?.trim() ?? "";
+  const rawCountry = input.country?.trim() || "BE";
+  const country = rawCountry.length === 2 ? rawCountry.toUpperCase() : rawCountry;
+  const locality = [postalCode, city].filter(Boolean).join(" ");
+  const query = [street, locality].filter(Boolean).join(", ");
+  return { query, label: query, street, postalCode, city, country };
+}
+
 export function suggestionFromPhoton(props: PhotonProps): AddressSuggestion | null {
   const street = [props.street || props.name, props.housenumber].filter(Boolean).join(" ").trim();
   const city = (props.city || "").trim();

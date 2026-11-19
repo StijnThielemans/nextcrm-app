@@ -1,6 +1,7 @@
 import {
   customerProjectLabel,
   matchSellerUser,
+  siteAddressFromBilling,
   suggestionFromPhoton,
 } from "../aanvraag-fields";
 
@@ -17,6 +18,33 @@ describe("aanvraag fields", () => {
     ];
     expect(matchSellerUser(users, "Saerens Evi")?.id).toBe("1");
     expect(matchSellerUser(users, "De Meersman Stijn")).toBeNull();
+  });
+
+  it("copies a customer billing address into the site address", () => {
+    expect(
+      siteAddressFromBilling({
+        street: "Kerkstraat",
+        houseNumber: "12",
+        postalCode: "9000",
+        city: "Gent",
+        country: "be",
+      }),
+    ).toEqual({
+      query: "Kerkstraat 12, 9000 Gent",
+      label: "Kerkstraat 12, 9000 Gent",
+      street: "Kerkstraat 12",
+      postalCode: "9000",
+      city: "Gent",
+      country: "BE",
+    });
+    expect(
+      siteAddressFromBilling({
+        street: "Kerkstraat 12",
+        postalCode: "9000",
+        city: "Gent",
+        country: "BE",
+      }).street,
+    ).toBe("Kerkstraat 12");
   });
 
   it("turns a Photon result into a structured address", () => {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { Input } from "@/components/ui/input";
 import { suggestAddressesAction } from "@/actions/crm/sales/actions";
 import type { AddressSuggestion } from "@/lib/sales/aanvraag-fields";
@@ -20,18 +20,28 @@ export function AddressBox({
   value,
   onChange,
   required,
+  aside,
+  ignoreQuery,
 }: {
   label: string;
   value: AddressValue;
   onChange: (next: AddressValue) => void;
   required?: boolean;
+  aside?: ReactNode;
+  ignoreQuery?: string | null;
 }) {
+  const inputId = useId();
   const [suggestions, setSuggestions] = useState<AddressSuggestion[]>([]);
   const [open, setOpen] = useState(false);
   const skipQuery = useRef("");
 
   useEffect(() => {
     const query = value.query.trim();
+    if (ignoreQuery != null && query === ignoreQuery.trim()) {
+      setSuggestions([]);
+      setOpen(false);
+      return;
+    }
     if (query.length < 3 || query === skipQuery.current) return;
     const handle = setTimeout(() => {
       void (async () => {
@@ -41,7 +51,7 @@ export function AddressBox({
       })();
     }, 300);
     return () => clearTimeout(handle);
-  }, [value.query]);
+  }, [ignoreQuery, value.query]);
 
   function pick(suggestion: AddressSuggestion) {
     skipQuery.current = suggestion.label;
@@ -57,20 +67,22 @@ export function AddressBox({
 
   return (
     <div className="space-y-2">
-      <label className="space-y-1 block">
-        <span className="text-sm">{label}</span>
-        <Input
-          value={value.query}
-          autoComplete="street-address"
-          placeholder="Begin te typen voor adressuggesties"
-          required={required && !value.street}
-          onChange={(event) => {
-            onChange({ ...value, query: event.target.value });
-            setOpen(true);
-          }}
-          onFocus={() => suggestions.length > 0 && setOpen(true)}
-        />
-      </label>
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
+        <label htmlFor={inputId} className="text-sm">{label}</label>
+        {aside}
+      </div>
+      <Input
+        id={inputId}
+        value={value.query}
+        autoComplete="street-address"
+        placeholder="Begin te typen voor adressuggesties"
+        required={required && !value.street}
+        onChange={(event) => {
+          onChange({ ...value, query: event.target.value });
+          setOpen(true);
+        }}
+        onFocus={() => suggestions.length > 0 && setOpen(true)}
+      />
       {open && suggestions.length > 0 && (
         <ul className="rounded-md border bg-background">
           {suggestions.map((suggestion) => (
