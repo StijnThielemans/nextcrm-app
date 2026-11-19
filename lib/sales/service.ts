@@ -858,6 +858,78 @@ export async function registerExternalQuote(
   return quoteId;
 }
 
+/** PDF from the external program, stored on the dossier and listed under Offertes. */
+export async function attachOffertePdf(user: AuthzUser, dossierId: string, file: QuoteFile) {
+  const dossier = await loadWritableDossier(user, dossierId);
+  assertOpen(dossier.dossier_status);
+  const pdfId = await storePdf(user, dossierId, file, "CUSTOMER_QUOTE");
+  await prismadb.documents.update({
+    where: { id: pdfId },
+    data: { filing_category: "OFFERTE", description: "Offerte" },
+  });
+  const quoteNumber = (file.fileName.replace(/\.pdf$/i, "").trim() || "Offerte").slice(0, 80);
+  const quoteDate = day(new Date().toISOString().slice(0, 10));
+  const margin = quoteMargin("0", "0", "21");
+
+  let quoteId = "";
+  try {
+    quoteId = await prismadb.$transaction(async (tx) => {
+      const family = await tx.crm_ExternalQuoteFamilies.create({
+        data: {
+          dossier_id: dossierId,
+          supplier: "Extern",
+          configurator_name: "PDF",
+          supplier_reference: pdfId,
+          createdBy: user.id,
+        },
+        select: { id: true },
+      });
+      const quote = await tx.crm_ExternalQuotes.create({
+        data: {
+          family_id: family.id,
+          version: 1,
+          quote_number: quoteNumber,
+          quote_date: quoteDate,
+          pdf_document_id: pdfId,
+          cost_excl_vat: margin.cost,
+          sell_excl_vat: margin.sell,
+          vat_rate: margin.vatRate,
+          margin_euro: margin.marginEuro,
+          margin_percent: margin.marginPercent,
+          currency: "EUR",
+          status: "ACTIVE",
+          createdBy: user.id,
+        },
+        select: { id: true },
+      });
+      if (dossier.dossier_status === "NIEUW") {
+        await tx.crm_Opportunities.update({
+          where: { id: dossierId },
+          data: { dossier_status: "IN_OPMAAK", updatedBy: user.id },
+        });
+      }
+      return quote.id;
+    });
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      throw new SalesError("duplicateFamily");
+    }
+    throw error;
+  }
+
+  await writeAuditLog({
+    entityType: "external_quote",
+    entityId: quoteId,
+    action: "imported",
+    changes: [
+      { field: "quote_number", old: null, new: quoteNumber },
+      { field: "pdf_document_id", old: null, new: pdfId },
+    ],
+    userId: user.id,
+  });
+  return quoteId;
+}
+
 export async function attachDossierDocument(
   user: AuthzUser,
   dossierId: string,

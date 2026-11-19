@@ -20,6 +20,7 @@ import {
   searchArchitects,
   updateDossierFields,
   attachDossierDocument,
+  attachOffertePdf,
   uploadCustomerQuote,
   type AanvraagInput,
   type QuoteFile,
@@ -176,6 +177,18 @@ export async function attachDossierDocumentAction(
   if ("error" in auth) return { error: auth.error };
   try {
     const id = await attachDossierDocument(auth.user, dossierId, file);
+    refresh();
+    return { id };
+  } catch (error) {
+    return fail(error);
+  }
+}
+
+export async function attachOffertePdfAction(dossierId: string, file: QuoteFile) {
+  const auth = await userOrError();
+  if ("error" in auth) return { error: auth.error };
+  try {
+    const id = await attachOffertePdf(auth.user, dossierId, file);
     refresh();
     return { id };
   } catch (error) {
