@@ -8,7 +8,7 @@ import { MINIO_BUCKET, minioClient } from "@/lib/minio";
 import { SalesError } from "./errors";
 import { isSellerName, matchSellerUser } from "./aanvraag-fields";
 import { currentDossierStep, type DashboardStep } from "./dossier-step";
-import { isSameBrusselsWeek, OFFERTE_MAILBOX, staysUntilQuoteSent } from "./offertebox-weeks";
+import { OFFERTE_MAILBOX, staysUntilQuoteSent } from "./offertebox-weeks";
 import { offerteboxStorageKey, parseOfferteboxMail, readableMailBody } from "./offertebox-mail";
 
 export type OfferteboxAttachment = {
@@ -36,7 +36,6 @@ export type OfferteboxRow = {
 
 export type OfferteboxView = {
   mailboxLinked: boolean;
-  sentThisWeek: number;
   rows: OfferteboxRow[];
 };
 
@@ -158,12 +157,10 @@ export async function listOffertebox(user: AuthzUser, now = new Date()): Promise
     },
   });
 
-  let sentThisWeek = 0;
   const rows: OfferteboxRow[] = [];
   for (const item of items) {
     const dossier = item.dossier && !item.dossier.deletedAt ? item.dossier : null;
     const sends = dossier?.quote_sends ?? [];
-    if (sends.some((send) => isSameBrusselsWeek(send.sent_at, now))) sentThisWeek += 1;
     if (!staysUntilQuoteSent(sends.length)) continue;
     rows.push({
       id: item.id,
@@ -193,7 +190,7 @@ export async function listOffertebox(user: AuthzUser, now = new Date()): Promise
         : null,
     });
   }
-  return { mailboxLinked, sentThisWeek, rows };
+  return { mailboxLinked, rows };
 }
 
 /** A dropped .eml becomes a new row with no seller, so it lands on Verdelen. */

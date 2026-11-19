@@ -6,7 +6,6 @@ import { Link, useRouter } from "@/i18n/navigation";
 import { SELLERS } from "@/lib/sales/aanvraag-fields";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { addDays, weekStartKey } from "@/lib/sales/offertebox-weeks";
 import type { OfferteboxRow, OfferteboxView } from "@/lib/sales/offertebox";
 import { addOfferteboxRequestAction, assignOfferteboxSellerAction } from "@/actions/crm/sales/actions";
 
@@ -27,34 +26,14 @@ export function OfferteboxBoard({ view }: { view: OfferteboxView }) {
   const [subject, setSubject] = useState("");
   const dragDepth = useRef(0);
   const uploadingRef = useRef(false);
-  const now = new Date();
-  const todayStart = weekStartKey(now);
   const when = new Intl.DateTimeFormat(locale, {
     timeZone: "Europe/Brussels",
     weekday: "short",
     day: "numeric",
     month: "short",
   });
-
-  const groups = new Map<string, OfferteboxRow[]>();
-  for (const row of view.rows) {
-    const start = weekStartKey(new Date(row.receivedAt));
-    const list = groups.get(start) ?? [];
-    list.push(row);
-    groups.set(start, list);
-  }
-  const weeks = [...groups.entries()].sort((left, right) => (left[0] < right[0] ? 1 : -1));
-  function labelFor(start: string) {
-    if (start === todayStart) return t("offertebox.thisWeek");
-    if (start === addDays(todayStart, -7)) return t("offertebox.lastWeek");
-    const [year, month, day] = start.split("-").map(Number);
-    const date = new Intl.DateTimeFormat(locale, { day: "numeric", month: "long", timeZone: "UTC" }).format(
-      new Date(Date.UTC(year, month - 1, day)),
-    );
-    return t("offertebox.weekOf", { date });
-  }
-  const unassigned = view.rows.filter((row) => !row.sellerName).length;
-  const waiting = view.rows.filter((row) => row.dossierId).length;
+  const unassigned = view.rows.filter((row) => !row.sellerName);
+  const waiting = view.rows.filter((row) => row.sellerName);
 
   function errorText(code: string) {
     const key = `errors.${code}`;
@@ -204,119 +183,136 @@ export function OfferteboxBoard({ view }: { view: OfferteboxView }) {
           </div>
         </form>
       )}
-      <div className="grid gap-3 sm:grid-cols-3">
-        <div className="rounded-md border p-4">
-          <p className="text-sm text-muted-foreground">{t("offertebox.toAssign")}</p>
-          <p className="text-2xl font-semibold">{unassigned}</p>
-        </div>
-        <div className="rounded-md border p-4">
-          <p className="text-sm text-muted-foreground">{t("offertebox.waitingQuote")}</p>
-          <p className="text-2xl font-semibold">{waiting}</p>
-        </div>
-        <div className="rounded-md border p-4">
-          <p className="text-sm text-muted-foreground">{t("offertebox.sentThisWeek")}</p>
-          <p className="text-2xl font-semibold">{view.sentThisWeek}</p>
-        </div>
-      </div>
       {error && <p className="text-sm text-destructive">{error}</p>}
-      {weeks.length === 0 ? (
-        <p className="text-sm text-muted-foreground">{t("offertebox.empty")}</p>
-      ) : (
-        weeks.map(([start, rows]) => (
-          <section key={start}>
-            <div className="mb-2 flex items-baseline justify-between">
-              <h2 className="text-lg font-semibold">{labelFor(start)}</h2>
-              <span className="text-sm text-muted-foreground">{rows.length}</span>
-            </div>
-            <div className="overflow-x-auto rounded-md border">
-              <table className="w-full min-w-[760px] text-sm" data-testid="offertebox-table">
-                <thead className="bg-muted/40 text-left text-muted-foreground">
-                  <tr>
-                    <th className="px-3 py-2 font-medium">{t("offertebox.received")}</th>
-                    <th className="px-3 py-2 font-medium">{t("offertebox.from")}</th>
-                    <th className="px-3 py-2 font-medium">{t("offertebox.subject")}</th>
-                    <th className="px-3 py-2 font-medium">{t("offertebox.seller")}</th>
-                    <th className="px-3 py-2 font-medium">{t("dossier")}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map((row) => (
-                    <tr key={row.id} className={row.sellerName ? "border-t" : "border-t border-l-2 border-l-primary"} data-testid="offertebox-row">
-                      <td className="whitespace-nowrap px-3 py-3 align-top">{when.format(new Date(row.receivedAt))}</td>
-                      <td className="px-3 py-3 align-top">
-                        <span className="block font-medium">{row.fromName || row.fromEmail || "—"}</span>
-                        {row.fromEmail && row.fromName && <span className="text-muted-foreground">{row.fromEmail}</span>}
-                      </td>
-                      <td className="min-w-[280px] px-3 py-3 align-top">
-                        <span className="block font-medium">{row.subject}</span>
-                        {row.body && (
-                          <div data-testid="offertebox-body">
-                            <p className="mt-2 text-xs font-medium text-muted-foreground">{t("offertebox.body")}</p>
-                            <MailText text={row.body} showAll={t("offertebox.showAll")} showLess={t("offertebox.showLess")} />
-                          </div>
-                        )}
-                        {row.attachments.length > 0 && (
-                          <div className="mt-3">
-                            <p className="text-xs font-medium text-muted-foreground">{t("offertebox.attachments")}</p>
-                            <ul className="mt-1 space-y-2">
-                              {row.attachments.map((attachment) => (
-                                <li key={attachment.id} className="flex items-center gap-2">
-                                  {attachment.isImage && attachment.size <= IMAGE_PREVIEW_BYTES && (
-                                    <img
-                                      src={`/api/crm/offertebox/attachments/${attachment.id}`}
-                                      alt={attachment.fileName}
-                                      className="h-14 w-14 rounded border object-cover"
-                                    />
-                                  )}
-                                  <a
-                                    className="underline"
-                                    href={`/api/crm/offertebox/attachments/${attachment.id}?download=1`}
-                                    data-testid="offertebox-attachment"
-                                  >
-                                    {attachment.fileName}
-                                  </a>
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        )}
-                      </td>
-                      <td className="px-3 py-3 align-top">
-                        <select
-                          className="h-8 w-44 rounded-md border bg-transparent px-2 text-sm"
-                          value={row.sellerName ?? ""}
-                          disabled={pendingId === row.id}
-                          aria-label={t("offertebox.seller")}
-                          data-testid="offertebox-seller"
-                          onChange={(event) => void onSeller(row.id, event.target.value)}
-                        >
-                          <option value="">{t("offertebox.divide")}</option>
-                          {SELLERS.map((name) => (
-                            <option key={name} value={name}>{name}</option>
-                          ))}
-                        </select>
-                      </td>
-                      <td className="px-3 py-3 align-top">
-                        {row.dossierId ? (
-                          <Link className="underline" href={`/crm/dossiers/${row.dossierId}`}>
-                            {row.dossierNumber}
-                            {row.step ? ` · ${t(`steps.${row.step}`)}` : ""}
-                          </Link>
-                        ) : (
-                          <Link className="underline" href={`/crm/aanvraag?offertebox=${row.id}`}>
-                            {t("newRequest")}
-                          </Link>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </section>
-        ))
-      )}
+      <div className="grid items-start gap-6 lg:grid-cols-2">
+        <MailColumn
+          title={t("offertebox.toAssign")}
+          empty={t("offertebox.emptyAssign")}
+          testId="offertebox-unassigned"
+          rows={unassigned}
+          showDossier={false}
+          pendingId={pendingId}
+          when={when}
+          onSeller={onSeller}
+        />
+        <MailColumn
+          title={t("offertebox.waitingQuote")}
+          empty={t("offertebox.emptyWaiting")}
+          testId="offertebox-waiting"
+          rows={waiting}
+          showDossier
+          pendingId={pendingId}
+          when={when}
+          onSeller={onSeller}
+        />
+      </div>
     </div>
+  );
+}
+
+function MailColumn({
+  title,
+  empty,
+  testId,
+  rows,
+  showDossier,
+  pendingId,
+  when,
+  onSeller,
+}: {
+  title: string;
+  empty: string;
+  testId: string;
+  rows: OfferteboxRow[];
+  showDossier: boolean;
+  pendingId: string | null;
+  when: Intl.DateTimeFormat;
+  onSeller: (id: string, sellerName: string) => Promise<void>;
+}) {
+  const t = useTranslations("Sales");
+  return (
+    <section data-testid={testId} className="space-y-3">
+      <div className="flex items-baseline justify-between">
+        <h2 className="text-lg font-semibold">{title}</h2>
+        <span className="text-sm text-muted-foreground">{rows.length}</span>
+      </div>
+      {rows.length === 0 ? (
+        <p className="rounded-md border border-dashed px-4 py-6 text-sm text-muted-foreground">{empty}</p>
+      ) : (
+        <div className="space-y-3">
+          {rows.map((row) => (
+            <article key={row.id} data-testid="offertebox-row" className="rounded-md border p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="font-medium">{row.fromName || row.fromEmail || "—"}</p>
+                  {row.fromEmail && row.fromName && <p className="text-sm text-muted-foreground">{row.fromEmail}</p>}
+                </div>
+                <time className="shrink-0 text-sm text-muted-foreground">{when.format(new Date(row.receivedAt))}</time>
+              </div>
+              <h3 className="mt-3 font-medium">{row.subject}</h3>
+              {row.body && (
+                <div data-testid="offertebox-body">
+                  <p className="mt-2 text-xs font-medium text-muted-foreground">{t("offertebox.body")}</p>
+                  <MailText text={row.body} showAll={t("offertebox.showAll")} showLess={t("offertebox.showLess")} />
+                </div>
+              )}
+              {row.attachments.length > 0 && (
+                <div className="mt-3">
+                  <p className="text-xs font-medium text-muted-foreground">{t("offertebox.attachments")}</p>
+                  <ul className="mt-1 space-y-2">
+                    {row.attachments.map((attachment) => (
+                      <li key={attachment.id} className="flex items-center gap-2">
+                        {attachment.isImage && attachment.size <= IMAGE_PREVIEW_BYTES && (
+                          <img
+                            src={`/api/crm/offertebox/attachments/${attachment.id}`}
+                            alt={attachment.fileName}
+                            className="h-14 w-14 rounded border object-cover"
+                          />
+                        )}
+                        <a
+                          className="underline"
+                          href={`/api/crm/offertebox/attachments/${attachment.id}?download=1`}
+                          data-testid="offertebox-attachment"
+                        >
+                          {attachment.fileName}
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              <div className="mt-4 flex flex-wrap items-center gap-3">
+                <select
+                  className="h-8 w-44 rounded-md border bg-transparent px-2 text-sm"
+                  value={row.sellerName ?? ""}
+                  disabled={pendingId === row.id}
+                  aria-label={t("offertebox.seller")}
+                  data-testid="offertebox-seller"
+                  onChange={(event) => void onSeller(row.id, event.target.value)}
+                >
+                  <option value="">{t("offertebox.divide")}</option>
+                  {SELLERS.map((name) => (
+                    <option key={name} value={name}>{name}</option>
+                  ))}
+                </select>
+                {showDossier && (
+                  row.dossierId ? (
+                    <Link className="underline" href={`/crm/dossiers/${row.dossierId}`}>
+                      {row.dossierNumber}
+                      {row.step ? ` · ${t(`steps.${row.step}`)}` : ""}
+                    </Link>
+                  ) : (
+                    <Link className="underline" href={`/crm/aanvraag?offertebox=${row.id}`}>
+                      {t("newRequest")}
+                    </Link>
+                  )
+                )}
+              </div>
+            </article>
+          ))}
+        </div>
+      )}
+    </section>
   );
 }
 
