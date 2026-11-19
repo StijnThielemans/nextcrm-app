@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const bytes = Buffer.from(await file.arrayBuffer());
-    await importOfferteboxMail(user, file.name || "mail.eml", bytes);
+    await importOfferteboxMail(user, file.name || "mail.eml", bytes, file.type);
     revalidatePath("/[locale]/(routes)/crm/offertebox", "page");
     return NextResponse.json({ ok: true });
   } catch (error) {

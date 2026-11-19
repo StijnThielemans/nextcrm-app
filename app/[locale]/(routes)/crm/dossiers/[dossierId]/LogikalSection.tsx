@@ -42,6 +42,7 @@ export function LogikalSection({ dossier }: { dossier: DossierDetail }) {
   const input = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [guidance, setGuidance] = useState(false);
   const [preview, setPreview] = useState<Preview | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const logikal = dossier.logikal;
@@ -50,8 +51,13 @@ export function LogikalSection({ dossier }: { dossier: DossierDetail }) {
   async function createProject() {
     setBusy(true);
     setMessage(null);
+    setGuidance(false);
     const result = await createLogikalProjectAction(dossier.id);
     setBusy(false);
+    if ("unavailable" in result && result.unavailable) {
+      setGuidance(true);
+      return;
+    }
     if ("error" in result && result.error) {
       setMessage(result.error);
       return;
@@ -137,6 +143,14 @@ export function LogikalSection({ dossier }: { dossier: DossierDetail }) {
         </div>
       )}
       {busy && <p className="text-sm">{t("logikal.working")}</p>}
+      {guidance && (
+        <p className="text-sm text-muted-foreground" role="status">
+          {t("logikal.notConfigured", {
+            name: dossier.name?.trim() || dossier.number || "—",
+            number: dossier.number || "—",
+          })}
+        </p>
+      )}
       {message && <p className="text-sm text-destructive" role="status">{message}</p>}
       {logikal.positions.length === 0 ? (
         <p className="text-sm text-muted-foreground">{t("logikal.noPositions")}</p>

@@ -193,10 +193,10 @@ export async function listOffertebox(user: AuthzUser, now = new Date()): Promise
   return { mailboxLinked, rows };
 }
 
-/** A dropped .eml becomes a new row with no seller, so it lands on Verdelen. */
-export async function importOfferteboxMail(user: AuthzUser, fileName: string, bytes: Buffer) {
+/** A dropped .eml or Outlook .msg becomes a new row with no seller, so it lands on Verdelen. */
+export async function importOfferteboxMail(user: AuthzUser, fileName: string, bytes: Buffer, contentType?: string) {
   denyPartner(user);
-  const mail = await parseOfferteboxMail(fileName, bytes);
+  const mail = await parseOfferteboxMail(fileName, bytes, contentType);
   const bucket = MINIO_BUCKET;
   if (!bucket) throw new Error("MINIO_BUCKET is not defined");
 

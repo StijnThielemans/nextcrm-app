@@ -312,6 +312,9 @@ export async function createLogikalProjectAction(dossierId: string) {
     refresh();
     return { ok: true as const, ...link };
   } catch (error) {
+    if (error instanceof SalesError && error.code === "logikalNotConfigured") {
+      return { unavailable: true as const };
+    }
     return await fail(error);
   }
 }

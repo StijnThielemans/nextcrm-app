@@ -1,3 +1,4 @@
+import MsgReader, { type FieldsData } from "@kenjiuno/msgreader";
 import { simpleParser, type Attachment, type ParsedMail } from "mailparser";
 import { isDocumentKey } from "@/lib/documents/file-key";
 import { SalesError } from "./errors";
@@ -75,10 +76,26 @@ export function readableMailBody(text: string | null | undefined, html: string |
   return body.slice(0, MAX_BODY_CHARS);
 }
 
-export async function parseOfferteboxMail(fileName: string, bytes: Buffer): Promise<ParsedOfferteboxMail> {
+export async function parseOfferteboxMail(
+  fileName: string,
+  bytes: Buffer,
+  contentType?: string,
+): Promise<ParsedOfferteboxMail> {
   if (bytes.length === 0) throw new SalesError("mailInvalid");
   if (bytes.length > MAX_MAIL_BYTES) throw new SalesError("mailTooLarge");
-  if (!acceptedMailFile(fileName, bytes)) throw new SalesError("mailInvalid");
+  if (isOutlookMessage(fileName, bytes, contentType)) {
+    try {
+      return parseOutlookMessage(bytes);
+    } catch (error) {
+      const compound = bytes.length >= 4 && bytes[0] === 0xd0 && bytes[1] === 0xcf && bytes[2] === 0x11 && bytes[3] === 0xe0;
+      if (compound || !(error instanceof SalesError)) throw error;
+    }
+  }
+  if (!acceptedMailFile(fileName, bytes)) {
+    const dropped = outlookTextDrop(fileName, bytes);
+    if (dropped) return dropped;
+    throw new SalesError("mailInvalid");
+  }
 
   let mail: ParsedMail;
   try {
@@ -106,6 +123,119 @@ export async function parseOfferteboxMail(fileName: string, bytes: Buffer): Prom
     receivedAt: receivedAt(mail.date),
     attachments,
   };
+}
+
+/** Outlook drag-and-drop is a .msg compound file, often without a useful MIME type. */
+function isOutlookMessage(fileName: string, bytes: Buffer, contentType?: string): boolean {
+  if (bytes.length >= 4 && bytes[0] === 0xd0 && bytes[1] === 0xcf && bytes[2] === 0x11 && bytes[3] === 0xe0) return true;
+  const name = safeFileName(fileName).toLowerCase();
+  if (name.endsWith(".msg")) return true;
+  const mime = (contentType ?? "").split(";")[0]?.trim().toLowerCase() ?? "";
+  return mime === "application/vnd.ms-outlook";
+}
+
+function parseOutlookMessage(bytes: Buffer): ParsedOfferteboxMail {
+  let info: FieldsData;
+  let reader: MsgReader;
+  try {
+    reader = new MsgReader(bytes);
+    info = reader.getFileData();
+  } catch {
+    throw new SalesError("mailInvalid");
+  }
+  if (info.error || info.dataType === null) throw new SalesError("mailInvalid");
+
+  const fromName = cleanHeader(info.senderName ?? "", 200);
+  const fromEmail = outlookEmail(info);
+  const subject = cleanHeader(info.subject ?? "", 500).replace(/\s+/g, " ").trim();
+  const plain = (info.body ?? "").replace(/\u0000/g, "").replace(/\r\n/g, "\n");
+  const body = readableMailBody(plain, outlookHtml(info));
+  const attachments = collectMsgAttachments(reader, info.attachments ?? []);
+  if (!fromName && !fromEmail && !subject && !body && attachments.length === 0) {
+    throw new SalesError("mailInvalid");
+  }
+
+  return {
+    fromName,
+    fromEmail,
+    subject: subject || "(geen onderwerp)",
+    body,
+    receivedAt: outlookDate(info.messageDeliveryTime || info.clientSubmitTime),
+    attachments,
+  };
+}
+
+function outlookEmail(info: FieldsData): string {
+  const candidates = [info.senderSmtpAddress, info.sentRepresentingSmtpAddress, info.senderEmail];
+  for (const candidate of candidates) {
+    const cleaned = cleanHeader(candidate ?? "", 320);
+    if (cleaned.includes("@")) return cleaned;
+  }
+  return cleanHeader(info.senderEmail ?? "", 320);
+}
+
+function outlookHtml(info: FieldsData): string {
+  if (typeof info.bodyHtml === "string") return info.bodyHtml;
+  const binary = info.html;
+  if (binary instanceof Uint8Array) return Buffer.from(binary).toString("utf8");
+  return "";
+}
+
+/** Outlook sometimes drops the message as HTML or plain text under a .msg name. */
+function outlookTextDrop(fileName: string, bytes: Buffer): ParsedOfferteboxMail | null {
+  const name = safeFileName(fileName).toLowerCase();
+  if (!name.endsWith(".msg") && !name.endsWith(".html") && !name.endsWith(".htm")) return null;
+  if (bytes.includes(0)) return null;
+  const text = bytes.toString("utf8").replace(/^\uFEFF/, "").trim();
+  if (!/<\s*(html|body|div|p|table)\b/i.test(text.slice(0, 4000))) return null;
+  const body = readableMailBody("", text);
+  if (!body) return null;
+  const subject = cleanHeader(safeFileName(fileName).replace(/\.(msg|html?)$/i, ""), 500);
+  return {
+    fromName: "",
+    fromEmail: "",
+    subject: subject || "(geen onderwerp)",
+    body,
+    receivedAt: new Date(),
+    attachments: [],
+  };
+}
+
+function outlookDate(value: string | undefined): Date {
+  if (!value) return new Date();
+  const date = new Date(value);
+  return receivedAt(Number.isNaN(date.getTime()) ? undefined : date);
+}
+
+function collectMsgAttachments(reader: MsgReader, list: FieldsData[]): ParsedOfferteboxAttachment[] {
+  const chosen = list.filter((item) => item.attachmentHidden !== true && typeof item.dataId === "number");
+  if (chosen.length > MAX_ATTACHMENTS) throw new SalesError("mailTooLarge");
+  let total = 0;
+  const attachments: ParsedOfferteboxAttachment[] = [];
+  chosen.forEach((item, index) => {
+    let content: Uint8Array;
+    try {
+      content = reader.getAttachment(item).content;
+    } catch {
+      return;
+    }
+    const raw = Buffer.from(content);
+    const size = typeof item.contentLength === "number" ? Math.min(Math.max(item.contentLength, 0), raw.length) : raw.length;
+    const bytes = raw.subarray(0, size);
+    if (bytes.length === 0) return;
+    if (bytes.length > MAX_ATTACHMENT_BYTES) throw new SalesError("mailTooLarge");
+    total += bytes.length;
+    if (total > MAX_MAIL_BYTES) throw new SalesError("mailTooLarge");
+    const image = imageContentType(bytes);
+    const name = item.fileName || item.fileNameShort || `bijlage-${index + 1}`;
+    attachments.push({
+      fileName: safeFileName(name),
+      contentType: image ?? sanitizeContentType(item.attachMimeTag),
+      isImage: image !== null,
+      bytes,
+    });
+  });
+  return attachments;
 }
 
 function acceptedMailFile(fileName: string, bytes: Buffer): boolean {
