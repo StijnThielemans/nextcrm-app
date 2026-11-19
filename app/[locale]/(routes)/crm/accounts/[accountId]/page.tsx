@@ -89,23 +89,39 @@ const AccountDetailPage = async (props: AccountDetailPageProps) => {
             ))}
             <ActivitiesSection accountId={account.id} />
             <FindSimilarButton entityType="account" recordId={accountId} />
-            <section className="space-y-2">
-              <div className="flex items-center justify-between">
-                <h2 className="text-lg font-semibold">{sales("dossiers")}</h2>
+            <section className="overflow-hidden rounded-md border">
+              <div className="flex items-center justify-between border-b px-3 py-2">
+                <h2 className="text-sm font-bold">{sales("dossiers")}</h2>
                 <Link href="/crm/aanvraag" className="text-sm underline">{sales("newRequestPlus")}</Link>
               </div>
-              <ul className="text-sm space-y-1">
-                {dossiers.map((row) => {
-                  const stepKey = stepMessageKey(row.stepLabel);
-                  return (
-                  <li key={row.id}>
-                    <Link className="underline" href={`/crm/dossiers/${row.id}`}>{row.number}</Link>
-                    {" · "}{row.name}{" · "}{stepKey ? sales(stepKey) : row.stepLabel}
-                  </li>
-                  );
-                })}
-                {dossiers.length === 0 && <li className="text-muted-foreground">{sales("noDossiers")}</li>}
-              </ul>
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b bg-muted/40 text-left text-xs font-medium text-muted-foreground">
+                    <th className="px-3 py-2 font-medium">{sales("number")}</th>
+                    <th className="px-3 py-2 font-medium">{sales("name")}</th>
+                    <th className="px-3 py-2 font-medium">{sales("status")}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {dossiers.map((row) => {
+                    const stepKey = stepMessageKey(row.stepLabel);
+                    return (
+                      <tr key={row.id} className="border-b last:border-0 hover:bg-muted/40">
+                        <td className="px-3 py-2.5">
+                          <Link className="font-medium underline" href={`/crm/dossiers/${row.id}`}>{row.number}</Link>
+                        </td>
+                        <td className="px-3 py-2.5">{row.name}</td>
+                        <td className="px-3 py-2.5">{stepKey ? sales(stepKey) : row.stepLabel}</td>
+                      </tr>
+                    );
+                  })}
+                  {dossiers.length === 0 && (
+                    <tr>
+                      <td colSpan={3} className="px-3 py-3 text-muted-foreground">{sales("noDossiers")}</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
             </section>
             <AccountsTasksView data={tasks} account={account} />
             <ContactsView data={contacts} crmData={crmData} accountId={accountId} />

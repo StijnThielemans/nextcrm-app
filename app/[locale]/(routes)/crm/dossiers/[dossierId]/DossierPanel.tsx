@@ -474,42 +474,60 @@ export function DossierPanel({
             />
           </div>
           {quoteRows.length === 0 && <p className="text-muted-foreground">{t("noQuotes")}</p>}
-          <ul className="space-y-3">
-            {quoteRows.map((quote) => (
-              <li key={quote.id} className="rounded-md border p-2 space-y-2">
-                <div className="flex items-start justify-between gap-3">
-                  <OpenStoredFile kind="document" id={quote.pdfId} name={quote.pdfName} mimeType="application/pdf" className="font-medium underline break-all">{quote.pdfName}</OpenStoredFile>
-                  <span
-                    className={cn("shrink-0 tabular-nums", quote.gross == null && "text-muted-foreground")}
-                    data-quote-gross={quote.id}
-                    data-total-bruto=""
-                  >
-                    {shownPrice(quote.gross, t("noPrice"))}
-                  </span>
-                </div>
-                <p><span className="text-muted-foreground">{t("date")} </span>{quote.date}</p>
-                <div className="flex flex-wrap items-center gap-2">
-                  {quote.sentAt ? (
-                    <p>{t("sentOn", { date: quote.sentAt })}</p>
-                  ) : !dossier.terminal ? (
-                    <Button type="button" size="sm" disabled={busy} onClick={() => sendQuote(quote.id, quote.pdfId)}>{t("send")}</Button>
-                  ) : null}
-                  {!dossier.terminal && (
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      disabled={busy}
-                      data-delete-quote={quote.id}
-                      onClick={() => setQuoteToDelete({ id: quote.id, name: quote.pdfName })}
-                    >
-                      {t("deleteQuote")}
-                    </Button>
-                  )}
-                </div>
-              </li>
-            ))}
-          </ul>
+          {quoteRows.length > 0 && (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b text-left text-xs font-medium text-muted-foreground">
+                    <th className="pb-2 pr-3 font-medium">{t("quote")}</th>
+                    <th className="pb-2 pr-3 font-medium">{t("date")}</th>
+                    <th className="pb-2 pr-3 font-medium">{t("grossTotal")}</th>
+                    <th className="pb-2 font-medium">{t("sent")}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {quoteRows.map((quote) => (
+                    <tr key={quote.id} className="border-b last:border-0">
+                      <td className="py-2.5 pr-3">
+                        <OpenStoredFile kind="document" id={quote.pdfId} name={quote.pdfName} mimeType="application/pdf" className="font-medium underline break-all">{quote.pdfName}</OpenStoredFile>
+                      </td>
+                      <td className="whitespace-nowrap py-2.5 pr-3">{quote.date}</td>
+                      <td className="whitespace-nowrap py-2.5 pr-3">
+                        <span
+                          className={cn("tabular-nums", quote.gross == null && "text-muted-foreground")}
+                          data-quote-gross={quote.id}
+                          data-total-bruto=""
+                        >
+                          {shownPrice(quote.gross, t("noPrice"))}
+                        </span>
+                      </td>
+                      <td className="py-2.5">
+                        <div className="flex flex-wrap items-center justify-end gap-2">
+                          {quote.sentAt ? (
+                            <p>{t("sentOn", { date: quote.sentAt })}</p>
+                          ) : !dossier.terminal ? (
+                            <Button type="button" size="sm" disabled={busy} onClick={() => sendQuote(quote.id, quote.pdfId)}>{t("send")}</Button>
+                          ) : null}
+                          {!dossier.terminal && (
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              disabled={busy}
+                              data-delete-quote={quote.id}
+                              onClick={() => setQuoteToDelete({ id: quote.id, name: quote.pdfName })}
+                            >
+                              {t("deleteQuote")}
+                            </Button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
           <Dialog open={quoteToDelete != null} onOpenChange={(open) => { if (!open) setQuoteToDelete(null); }}>
             <DialogContent>
               <DialogHeader>
@@ -605,7 +623,7 @@ export function DossierPanel({
           </div>
           {!dossier.terminal && (
             <label
-              className={`flex min-h-28 cursor-pointer items-center justify-center rounded-md border border-dashed px-3 text-center ${dragging ? "bg-muted" : ""}`}
+              className={`flex min-h-14 cursor-pointer items-center justify-center rounded-md border border-dashed px-3 py-3 text-center text-sm ${dragging ? "bg-muted" : ""}`}
               onDragOver={(event) => {
                 event.preventDefault();
                 setDragging(true);

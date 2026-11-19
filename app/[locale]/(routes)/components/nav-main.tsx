@@ -95,7 +95,7 @@ export function NavMain({ items, dict }: NavMainProps) {
               <Collapsible
                 key={item.title}
                 asChild
-                defaultOpen={hasActive}
+                defaultOpen={hasActive || item.items.some((subItem) => subItem.url.startsWith("/crm"))}
                 className="group/collapsible"
               >
                 <SidebarMenuItem>

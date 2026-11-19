@@ -9,7 +9,7 @@ interface HeadingProps {
 const Heading = ({ title, description, visibility }: HeadingProps) => {
   return (
     <div>
-      <h2 className="flex gap-2 text-3xl font-bold tracking-tight">
+      <h2 className="flex gap-2 text-2xl font-bold">
         {title}
         {visibility === "private" ? <Lock /> : ""}
       </h2>

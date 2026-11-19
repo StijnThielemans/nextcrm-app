@@ -1,10 +1,4 @@
 import { getTranslations } from "next-intl/server";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { AccountDetailActions } from "./AccountDetailActions";
 import { ACCOUNT_ROLES, type AccountRole } from "@/lib/sales/aanvraag-fields";
 
@@ -27,22 +21,23 @@ export async function BasicView({ data }: { data: any }) {
   const tax = data.vat_choice && t.has(`vatChoice.${data.vat_choice}`) ? t(`vatChoice.${data.vat_choice}`) : "";
 
   return (
-    <Card>
-      <CardHeader className="pb-3">
-        <div className="flex w-full justify-between gap-3">
-          <CardTitle>{data.name}</CardTitle>
-          <AccountDetailActions account={data} />
+    <section className="rounded-md border p-4 text-sm">
+      <div className="mb-3 flex justify-end">
+        <AccountDetailActions account={data} />
+      </div>
+      <div className="grid gap-x-10 gap-y-1.5 sm:grid-cols-2">
+        <div className="space-y-1.5">
+          {line(t("contactType"), role)}
+          {line(t("phoneNumber"), data.office_phone)}
+          {line(t("mobileNumber"), data.mobile_phone)}
+          {line(t("emailAddress"), data.email)}
         </div>
-      </CardHeader>
-      <CardContent className="space-y-1 text-sm">
-        {line(t("contactType"), role)}
-        {line(t("address"), address)}
-        {line(t("phoneNumber"), data.office_phone)}
-        {line(t("mobileNumber"), data.mobile_phone)}
-        {line(t("emailAddress"), data.email)}
-        {line(t("vat"), tax)}
-        {line(t("vatNumber"), data.vat)}
-      </CardContent>
-    </Card>
+        <div className="space-y-1.5">
+          {line(t("address"), address)}
+          {line(t("vat"), tax)}
+          {line(t("vatNumber"), data.vat)}
+        </div>
+      </div>
+    </section>
   );
 }

@@ -152,7 +152,7 @@ export function CrmListTable<TData>({
           <div className="rounded-md border overflow-x-auto">
             <DndContext id={`${tableId}-columns`} sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
               <Table data-testid={tableTestId}>
-                <TableHeader>
+                <TableHeader className="bg-muted/60">
                   {table.getHeaderGroups().map((headerGroup) => (
                     <TableRow key={headerGroup.id}>
                       <SortableContext items={headerGroup.headers.map((header) => header.column.id)} strategy={horizontalListSortingStrategy}>
@@ -176,7 +176,7 @@ export function CrmListTable<TData>({
                         data-offerte-name={tableId === "quotes" ? String((row.original as { name?: string }).name ?? "") : undefined}
                       >
                         {row.getVisibleCells().map((cell) => (
-                          <TableCell key={cell.id} className="whitespace-nowrap">
+                          <TableCell key={cell.id} className="whitespace-nowrap px-3 py-2.5">
                             {flexRender(cell.column.columnDef.cell, cell.getContext())}
                           </TableCell>
                         ))}

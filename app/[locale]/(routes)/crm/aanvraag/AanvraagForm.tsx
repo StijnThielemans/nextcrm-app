@@ -181,10 +181,10 @@ export function AanvraagForm({
   }
 
   return (
-    <form onSubmit={onCreate} className="space-y-8 max-w-3xl">
+    <form onSubmit={onCreate} className="space-y-6">
       {fromBox && <p className="text-sm text-muted-foreground">{t("offertebox.fromBox")}</p>}
-      <section className="space-y-3">
-        <h2 className="text-lg font-semibold">{t("dossierSection")}</h2>
+      <section className="grid gap-4 lg:grid-cols-2">
+        <h2 className="text-base font-bold lg:col-span-2">{t("dossierSection")}</h2>
         <label className="space-y-1 block">
           <span className="text-sm">{t("projectNumber")}</span>
           <Input value={projectNumber} readOnly disabled />
@@ -242,11 +242,11 @@ export function AanvraagForm({
             )}
           </CustomerDialog>
         </div>
-        <label className="space-y-1 block">
+        <label className="space-y-1 block lg:col-span-2">
           <span className="text-sm">{t("projectDescription")}</span>
           <Input value={description} onChange={(event) => setDescription(event.target.value)} required />
         </label>
-        <div className="space-y-1">
+        <div className="space-y-1 lg:col-span-2">
           <span className="text-sm">{t("architect")}</span>
           <Input
             value={architectQuery}
@@ -279,7 +279,7 @@ export function AanvraagForm({
           )}
           <p className="text-sm text-muted-foreground">{t("architectOptional")}</p>
         </div>
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-3 sm:grid-cols-2 lg:col-span-2">
           <label className="space-y-1">
             <span className="text-sm">{t("seller")}</span>
             <select
@@ -325,6 +325,7 @@ export function AanvraagForm({
             </select>
           </label>
         </div>
+        <div className="lg:col-span-2">
         <AddressBox
           label={t("siteAddress")}
           value={site}
@@ -346,6 +347,7 @@ export function AanvraagForm({
             </span>
           }
         />
+        </div>
       </section>
 
       {error && <p className="text-sm text-destructive">{error}</p>}

@@ -35,20 +35,22 @@ const AccountsView = ({ data, crmData }: AccountsViewProps) => {
   const addButton = (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
-        <Button size="sm" className="h-8" aria-label={t("accounts.addNew")} data-testid="add-account-btn">+</Button>
+        <Button size="sm" className="h-8" aria-label={t("accounts.addNew")} data-testid="add-account-btn">+ {sales("newCustomer")}</Button>
       </SheetTrigger>
       <SheetContent
         data-testid="new-customer-screen"
-        className="!inset-0 !h-dvh !w-screen !max-w-none overflow-y-auto border-0 p-8 sm:!max-w-none"
+        className="!inset-0 !h-dvh !w-screen !max-w-none overflow-y-auto border-0 p-6 sm:!max-w-none sm:p-8"
       >
+        <div className="mx-auto w-full max-w-5xl">
         <SheetHeader>
           <SheetTitle>{sales("newCustomer")}</SheetTitle>
           <SheetDescription>
             {sales("customerFieldsDescription")}
           </SheetDescription>
         </SheetHeader>
-        <div className="mt-8">
+        <div className="mt-6">
           <NewAccountForm onFinish={() => setOpen(false)} />
+        </div>
         </div>
       </SheetContent>
     </Sheet>

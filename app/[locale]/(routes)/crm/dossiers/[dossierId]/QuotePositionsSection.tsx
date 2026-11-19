@@ -54,31 +54,36 @@ export function QuotePositionsSection({ dossierId, quotes }: { dossierId: string
 
   return (
     <section className="space-y-3 rounded-md border p-4" aria-label={t("positions.title")} data-quote-positions="">
-      <h2 className="text-lg font-semibold">{t("positions.title")}</h2>
-      <p className="text-sm text-muted-foreground">{t("positions.lead")}</p>
-      {pdfs.length === 0 ? (
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div className="min-w-0">
+          <h2 className="text-base font-bold">{t("positions.title")}</h2>
+          <p className="text-sm text-muted-foreground">{t("positions.lead")}</p>
+        </div>
+        {pdfs.length > 0 && (
+          <label className="w-full max-w-sm space-y-1 text-sm">
+            <span>{t("positions.choose")}</span>
+            <select
+              className="flex h-9 w-full rounded-md border bg-transparent px-2"
+              value={pdfId}
+              data-quote-pdf=""
+              onChange={(event) => setPdfId(event.target.value)}
+            >
+              <option value="">{t("positions.placeholder")}</option>
+              {pdfs.map((quote) => (
+                <option key={quote.pdfId} value={quote.pdfId}>{quote.pdfName}</option>
+              ))}
+            </select>
+          </label>
+        )}
+      </div>
+      {pdfs.length === 0 && (
         <p className="text-sm" data-quote-positions-empty="">{t("positions.noQuotePdf")}</p>
-      ) : (
-        <label className="block max-w-md space-y-1 text-sm">
-          <span>{t("positions.choose")}</span>
-          <select
-            className="flex h-9 w-full rounded-md border bg-transparent px-2"
-            value={pdfId}
-            data-quote-pdf=""
-            onChange={(event) => setPdfId(event.target.value)}
-          >
-            <option value="">{t("positions.placeholder")}</option>
-            {pdfs.map((quote) => (
-              <option key={quote.pdfId} value={quote.pdfId}>{quote.pdfName}</option>
-            ))}
-          </select>
-        </label>
       )}
       {status === "loading" && <p className="text-sm">{t("positions.loading")}</p>}
       {status === "empty" && <p className="text-sm" data-quote-positions-none="">{t("positions.noPositions")}</p>}
       {status === "error" && <p className="text-sm text-destructive" role="status">{t("positions.loadFailed")}</p>}
       {status === "ready" && (
-        <ul className="space-y-4">
+        <ul className="grid items-start gap-4 xl:grid-cols-2">
           {positions.map((position) => {
             const title = position.title !== position.number ? position.title : "";
             return (

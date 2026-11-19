@@ -1,7 +1,5 @@
 import "./globals.css";
 
-import { Inter } from "next/font/google";
-
 import { ReactNode } from "react";
 
 import { NextIntlClientProvider } from "next-intl";
@@ -10,8 +8,6 @@ import { getTranslations, getMessages } from "next-intl/server";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as SonnerToaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/app/providers/ThemeProvider";
-
-const inter = Inter({ subsets: ["latin"] });
 
 type Props = {
   children: ReactNode;
@@ -60,9 +56,9 @@ export default async function RootLayout(props: Props) {
 
   return (
     <html lang={locale} suppressHydrationWarning>
-      <body className={inter.className + " min-h-screen"}>
+      <body className="min-h-screen">
         <NextIntlClientProvider locale={locale} messages={messages}>
-          <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+          <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
             {children}
           </ThemeProvider>
         </NextIntlClientProvider>

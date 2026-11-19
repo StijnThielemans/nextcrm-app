@@ -7,6 +7,25 @@ import { listRecentOpens } from "@/lib/sales/recent-opens";
 import { getSalesDashboard, listSalesTasks, type SalesTaskLists } from "@/lib/sales/service";
 import { NewCustomerButton } from "./NewCustomerButton";
 
+export async function SalesHeaderActions() {
+  const t = await getTranslations("Sales");
+  return (
+    <div className="flex flex-wrap gap-2">
+      <Link href="/crm/aanvraag" className="inline-flex h-9 items-center rounded-md bg-primary px-4 text-sm text-primary-foreground">
+        {t("newRequestPlus")}
+      </Link>
+      <NewCustomerButton
+        label={`+ ${t("newCustomer")}`}
+        title={t("newCustomer")}
+        description={t("customerFieldsDescription")}
+      />
+      <Link href="/crm/dossiers" className="inline-flex h-9 items-center rounded-md border px-4 text-sm">
+        {t("dossiers")}
+      </Link>
+    </div>
+  );
+}
+
 export async function SalesDashboard() {
   const user = await requireAuthenticated();
   const t = await getTranslations("Sales");
@@ -30,32 +49,27 @@ export async function SalesDashboard() {
     [t("tiles.lostSell"), euro(tiles.lostSell)],
   ];
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap gap-2">
-        <Link href="/crm/aanvraag" className="inline-flex h-9 items-center rounded-md bg-primary px-4 text-sm text-primary-foreground">
-          {t("newRequestPlus")}
-        </Link>
-        <NewCustomerButton
-          label={`+ ${t("newCustomer")}`}
-          title={t("newCustomer")}
-          description={t("customerFieldsDescription")}
-        />
-        <Link href="/crm/dossiers" className="inline-flex h-9 items-center rounded-md border px-4 text-sm">
-          {t("dossiers")}
-        </Link>
-      </div>
-      <div className="grid gap-3 lg:grid-cols-3" data-testid="sales-tasks">
+    <div className="space-y-4">
+      <dl className="grid grid-cols-[repeat(auto-fit,minmax(11rem,1fr))] gap-px overflow-hidden rounded-md border bg-border">
+        {cards.map(([label, value]) => (
+          <div key={label} className="bg-background px-3 py-2.5">
+            <dt className="text-xs text-muted-foreground">{label}</dt>
+            <dd className="mt-1 text-lg font-semibold tabular-nums leading-none">{value}</dd>
+          </div>
+        ))}
+      </dl>
+      <div className="grid gap-px overflow-hidden rounded-md border bg-border lg:grid-cols-3" data-testid="sales-tasks">
         {taskColumns.map((column) => (
-          <section key={column.kind} className="rounded-md border p-4" data-testid={`sales-task-${column.kind}`}>
-            <h2 className="mb-2 text-lg font-semibold">{column.title}</h2>
+          <section key={column.kind} className="bg-background p-3" data-testid={`sales-task-${column.kind}`}>
+            <h2 className="mb-2 text-sm font-bold">{column.title}</h2>
             {tasks[column.kind].length === 0 ? (
               <p className="text-sm text-muted-foreground">{t("tasksEmpty")}</p>
             ) : (
-              <ul className="max-h-64 space-y-1 overflow-y-auto text-sm">
+              <ul className="max-h-64 space-y-0.5 overflow-y-auto text-sm">
                 {tasks[column.kind].map((task) => (
                   <li key={task.id}>
                     <Link
-                      className="underline"
+                      className="flex min-h-10 items-center rounded-sm px-1 hover:bg-muted/70"
                       href={task.href}
                       data-testid={task.request ? "sales-task-request" : "sales-task-row"}
                     >
@@ -70,55 +84,47 @@ export async function SalesDashboard() {
           </section>
         ))}
       </div>
-      <div className="grid gap-3 lg:grid-cols-2">
-        <section className="rounded-md border p-4">
-          <h2 className="mb-2 text-lg font-semibold">{t("recentCustomers")}</h2>
+      <div className="grid gap-4 lg:grid-cols-2">
+        <section className="overflow-hidden rounded-md border">
+          <h2 className="border-b bg-muted/50 px-3 py-2 text-sm font-bold">{t("recentCustomers")}</h2>
           {recent.customers.length === 0 ? (
-            <p className="text-sm text-muted-foreground">{t("nothingOpened")}</p>
+            <p className="px-3 py-3 text-sm text-muted-foreground">{t("nothingOpened")}</p>
           ) : (
-            <ul className="space-y-1 text-sm">
+            <ul className="text-sm">
               {recent.customers.map((customer) => (
-                <li key={customer.id}>
-                  <Link className="underline" href={`/crm/accounts/${customer.id}`}>{customer.name}</Link>
+                <li key={customer.id} className="border-b last:border-0">
+                  <Link className="flex h-11 items-center px-3 hover:bg-muted/50" href={`/crm/accounts/${customer.id}`}>{customer.name}</Link>
                 </li>
               ))}
             </ul>
           )}
         </section>
-        <section className="rounded-md border p-4">
-          <h2 className="mb-2 text-lg font-semibold">{t("recentDossiers")}</h2>
+        <section className="overflow-hidden rounded-md border">
+          <h2 className="border-b bg-muted/50 px-3 py-2 text-sm font-bold">{t("recentDossiers")}</h2>
           {recent.dossiers.length === 0 ? (
-            <p className="text-sm text-muted-foreground">{t("nothingOpened")}</p>
+            <p className="px-3 py-3 text-sm text-muted-foreground">{t("nothingOpened")}</p>
           ) : (
-            <ul className="space-y-1 text-sm">
+            <ul className="text-sm">
               {recent.dossiers.map((dossier) => (
-                <li key={dossier.id}>
-                  <Link className="underline" href={`/crm/dossiers/${dossier.id}`}>{dossier.label}</Link>
+                <li key={dossier.id} className="border-b last:border-0">
+                  <Link className="flex h-11 items-center px-3 hover:bg-muted/50" href={`/crm/dossiers/${dossier.id}`}>{dossier.label}</Link>
                 </li>
               ))}
             </ul>
           )}
         </section>
       </div>
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {cards.map(([label, value]) => (
-          <div key={label} className="rounded-md border p-4">
-            <p className="text-sm text-muted-foreground">{label}</p>
-            <p className="text-2xl font-semibold">{value}</p>
-          </div>
-        ))}
-      </div>
-      <div>
-        <h2 className="mb-2 text-lg font-semibold">{t("byStatus")}</h2>
-        <ul className="grid gap-2 sm:grid-cols-2 text-sm">
+      <section>
+        <h2 className="mb-2 text-sm font-bold">{t("byStatus")}</h2>
+        <ul className="grid grid-cols-2 gap-px overflow-hidden rounded-md border bg-border sm:grid-cols-3 xl:grid-cols-4">
           {DASHBOARD_STEPS.map((status) => (
-            <li key={status} className="flex justify-between rounded-md border px-3 py-2" data-testid={`dashboard-status-${status}`}>
+            <li key={status} className="flex items-center justify-between gap-3 bg-background px-3 py-2 text-sm" data-testid={`dashboard-status-${status}`}>
               <span>{t(`steps.${status}`)}</span>
-              <span>{tiles.byStatus[status] ?? 0}</span>
+              <span className="tabular-nums font-semibold">{tiles.byStatus[status] ?? 0}</span>
             </li>
           ))}
         </ul>
-      </div>
+      </section>
     </div>
   );
 }

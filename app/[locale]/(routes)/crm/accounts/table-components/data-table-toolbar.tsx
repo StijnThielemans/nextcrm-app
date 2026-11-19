@@ -35,7 +35,7 @@ export function DataTableToolbar<TData>({
           placeholder={t("search")}
           value={globalFilter}
           onChange={(event) => table.setGlobalFilter(event.target.value)}
-          className="h-8 w-[150px] lg:w-[250px]"
+          className="h-8 w-full max-w-md"
           data-testid={searchTestId}
         />
         {/*         <Input

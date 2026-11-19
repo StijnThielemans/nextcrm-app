@@ -124,25 +124,17 @@ export function AppSidebar({
             isExpanded ? "gap-3 px-1" : "justify-center",
           )}
         >
-          <div
-            className={cn(
-              "overflow-hidden rounded-md bg-white ring-1 ring-black/10",
-              isExpanded ? "flex h-12 w-fit max-w-full items-center px-2" : "relative size-9 shrink-0",
-            )}
-          >
-            <Image
-              src="/images/tilo-logo.png"
-              alt={appName}
-              width={1024}
-              height={341}
-              priority
-              className={cn(
-                "max-w-none",
-                isExpanded
-                  ? "h-8 w-auto"
-                  : "absolute h-[48px] w-[144px] -left-[4px] -top-[6px]",
-              )}
-            />
+          <Image
+            src="/brand/thielemans-mark.png"
+            alt=""
+            width={80}
+            height={80}
+            priority
+            className="size-9 shrink-0"
+          />
+          <div className={cn("min-w-0 leading-none", !isExpanded && "sr-only")}>
+            <p className="truncate text-xl font-bold tracking-tight text-black">{appName}</p>
+            <p className="mt-1 truncate text-[11px] font-medium text-black/70">Thielemans</p>
           </div>
         </div>
       </SidebarHeader>
