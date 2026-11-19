@@ -3,13 +3,18 @@ import { Link } from "@/i18n/navigation";
 import { requireAuthenticated } from "@/lib/authz";
 import { DOSSIER_STATUSES, euro, percentLabel } from "@/lib/sales/labels";
 import { listRecentOpens } from "@/lib/sales/recent-opens";
-import { getSalesDashboard } from "@/lib/sales/service";
+import { getSalesDashboard, listSalesTasks, type SalesTaskLists } from "@/lib/sales/service";
 import { NewCustomerButton } from "./NewCustomerButton";
 
 export async function SalesDashboard() {
   const user = await requireAuthenticated();
   const t = await getTranslations("Sales");
-  const [tiles, recent] = await Promise.all([getSalesDashboard(user), listRecentOpens(user)]);
+  const [tiles, recent, tasks] = await Promise.all([getSalesDashboard(user), listRecentOpens(user), listSalesTasks(user)]);
+  const taskColumns: { kind: keyof SalesTaskLists; title: string }[] = [
+    { kind: "toMake", title: t("tasksToMake") },
+    { kind: "inProgress", title: t("tasksInProgress") },
+    { kind: "followUp", title: t("tasksFollowUp") },
+  ];
   const cards = [
     [t("tiles.openDossiers"), String(tiles.openCount)],
     [t("tiles.toFollowUp"), String(tiles.followUpCount)],
@@ -37,6 +42,26 @@ export async function SalesDashboard() {
         <Link href="/crm/dossiers" className="inline-flex h-9 items-center rounded-md border px-4 text-sm">
           {t("dossiers")}
         </Link>
+      </div>
+      <div className="grid gap-3 lg:grid-cols-3" data-testid="sales-tasks">
+        {taskColumns.map((column) => (
+          <section key={column.kind} className="rounded-md border p-4" data-testid={`sales-task-${column.kind}`}>
+            <h2 className="mb-2 text-lg font-semibold">{column.title}</h2>
+            {tasks[column.kind].length === 0 ? (
+              <p className="text-sm text-muted-foreground">{t("tasksEmpty")}</p>
+            ) : (
+              <ul className="max-h-64 space-y-1 overflow-y-auto text-sm">
+                {tasks[column.kind].map((task) => (
+                  <li key={task.id}>
+                    <Link className="underline" href={`/crm/dossiers/${task.id}`} data-testid="sales-task-row">
+                      {task.label}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        ))}
       </div>
       <div className="grid gap-3 lg:grid-cols-2">
         <section className="rounded-md border p-4">

@@ -19,6 +19,8 @@ import { buildDossierStepper } from "./dossier-step";
 import { parseGrossTotalInput } from "./gross-total";
 import { quoteMargin } from "./margin";
 import { salesTiles, type DashRow, type SalesTiles } from "./dashboard-math";
+import { dossierOpenLabel } from "./recent-opens";
+import { dossierTaskKind, type DossierTaskKind } from "./task-lists";
 import { DOSSIER_STATUSES, DOSSIER_DOCUMENT_CATEGORIES, systemTypeForFiling, type DossierDocumentCategory, type DossierStatus, type RequestChannel, CHANNELS } from "./labels";
 import { uploadExtension } from "@/lib/upload-content-types";
 import { previewNumber } from "@/lib/orders/numbering";
@@ -1321,4 +1323,49 @@ export async function getSalesDashboard(user: AuthzUser): Promise<SalesTiles> {
     };
   });
   return salesTiles(dashRows, monthStart, monthEnd, today);
+}
+
+export type SalesTask = { id: string; label: string };
+
+export type SalesTaskLists = Record<DossierTaskKind, SalesTask[]>;
+
+export async function listSalesTasks(user: AuthzUser): Promise<SalesTaskLists> {
+  denyPartner(user);
+  const now = new Date();
+  const today = now.toISOString().slice(0, 10);
+  const rows = await prismadb.crm_Opportunities.findMany({
+    where: { is_dossier: true, ...opportunityReadScopeWhere(user) },
+    select: {
+      id: true,
+      dossier_number: true,
+      name: true,
+      dossier_status: true,
+      follow_up_date: true,
+      assigned_account: { select: { name: true } },
+      quote_sends: { select: { sent_at: true }, orderBy: { sent_at: "asc" }, take: 1 },
+      documents: {
+        where: { document: { deletedAt: null } },
+        select: { document_id: true },
+        take: 1,
+      },
+    },
+    orderBy: [{ request_date: "asc" }, { createdAt: "asc" }],
+  });
+  const lists: SalesTaskLists = { toMake: [], inProgress: [], followUp: [] };
+  for (const row of rows) {
+    const kind = dossierTaskKind({
+      status: row.dossier_status,
+      hasDocuments: row.documents.length > 0,
+      sentAt: row.quote_sends[0]?.sent_at.toISOString() ?? null,
+      followUpDate: dayString(row.follow_up_date),
+      now,
+      today,
+    });
+    if (!kind) continue;
+    lists[kind].push({
+      id: row.id,
+      label: dossierOpenLabel(row.dossier_number, row.assigned_account?.name ?? row.name),
+    });
+  }
+  return lists;
 }
