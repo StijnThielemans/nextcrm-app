@@ -1,5 +1,6 @@
 import { Link } from "@/i18n/navigation";
 import { requireAuthenticated } from "@/lib/authz";
+import { NewCustomerButton } from "./NewCustomerButton";
 import { DOSSIER_STATUSES, DOSSIER_STATUS_LABELS, euro, percentLabel } from "@/lib/sales/labels";
 import { listRecentOpens } from "@/lib/sales/recent-opens";
 import { getSalesDashboard } from "@/lib/sales/service";
@@ -26,6 +27,11 @@ export async function SalesDashboard() {
         <Link href="/crm/aanvraag" className="inline-flex h-9 items-center rounded-md bg-primary px-4 text-sm text-primary-foreground">
           + Nieuwe aanvraag
         </Link>
+        <NewCustomerButton
+          label="+ Nieuwe klant"
+          title="Nieuwe klant"
+          description="Naam, contacttype, adres, telefoon, gsm, e-mail, btw en btw-nummer."
+        />
         <Link href="/crm/dossiers" className="inline-flex h-9 items-center rounded-md border px-4 text-sm">
           Offertedossiers
         </Link>
