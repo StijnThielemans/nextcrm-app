@@ -1,11 +1,23 @@
+import { randomUUID } from "crypto";
+import { DeleteObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
 import { prismadb } from "@/lib/prisma";
 import type { AuthzUser } from "@/lib/authz/session";
 import { AuthorizationError } from "@/lib/authz/errors";
 import { assertCanWriteOpportunity } from "@/lib/authz/scopes/crm";
+import { MINIO_BUCKET, minioClient } from "@/lib/minio";
 import { SalesError } from "./errors";
 import { isSellerName, matchSellerUser } from "./aanvraag-fields";
 import { currentDossierStep, type DashboardStep } from "./dossier-step";
 import { isSameBrusselsWeek, OFFERTE_MAILBOX, staysUntilQuoteSent } from "./offertebox-weeks";
+import { offerteboxStorageKey, parseOfferteboxMail, readableMailBody } from "./offertebox-mail";
+
+export type OfferteboxAttachment = {
+  id: string;
+  fileName: string;
+  contentType: string;
+  size: number;
+  isImage: boolean;
+};
 
 export type OfferteboxRow = {
   id: string;
@@ -14,6 +26,8 @@ export type OfferteboxRow = {
   fromEmail: string;
   subject: string;
   preview: string;
+  body: string;
+  attachments: OfferteboxAttachment[];
   sellerName: string | null;
   dossierId: string | null;
   dossierNumber: string | null;
@@ -60,17 +74,20 @@ async function syncMailbox(): Promise<boolean> {
       fromEmail: true,
       subject: true,
       bodyText: true,
+      bodyHtml: true,
       sentAt: true,
       createdAt: true,
     },
   });
   for (const email of emails) {
     const receivedAt = email.sentAt ?? email.createdAt;
+    const body = readableMailBody(email.bodyText, email.bodyHtml);
     const data = {
       from_name: email.fromName,
       from_email: email.fromEmail,
       subject: email.subject?.trim() || "(geen onderwerp)",
-      preview: previewText(email.bodyText),
+      preview: previewText(body),
+      body_text: body || null,
       received_at: receivedAt,
     };
     await prismadb.crm_OfferteboxItems.upsert({
@@ -119,6 +136,10 @@ export async function listOffertebox(user: AuthzUser, now = new Date()): Promise
   const items = await prismadb.crm_OfferteboxItems.findMany({
     orderBy: { received_at: "desc" },
     include: {
+      attachments: {
+        orderBy: { createdAt: "asc" },
+        select: { id: true, file_name: true, content_type: true, size: true, is_image: true },
+      },
       dossier: {
         select: {
           id: true,
@@ -151,6 +172,14 @@ export async function listOffertebox(user: AuthzUser, now = new Date()): Promise
       fromEmail: item.from_email?.trim() || "",
       subject: item.subject,
       preview: item.preview?.trim() || "",
+      body: item.body_text?.trim() || item.preview?.trim() || "",
+      attachments: item.attachments.map((attachment) => ({
+        id: attachment.id,
+        fileName: attachment.file_name,
+        contentType: attachment.content_type,
+        size: attachment.size,
+        isImage: attachment.is_image,
+      })),
       sellerName: dossier?.seller_name ?? item.seller_name,
       dossierId: dossier?.id ?? null,
       dossierNumber: dossier?.dossier_number ?? null,
@@ -165,6 +194,61 @@ export async function listOffertebox(user: AuthzUser, now = new Date()): Promise
     });
   }
   return { mailboxLinked, sentThisWeek, rows };
+}
+
+/** A dropped .eml becomes a new row with no seller, so it lands on Verdelen. */
+export async function importOfferteboxMail(user: AuthzUser, fileName: string, bytes: Buffer) {
+  denyPartner(user);
+  const mail = await parseOfferteboxMail(fileName, bytes);
+  const bucket = MINIO_BUCKET;
+  if (!bucket) throw new Error("MINIO_BUCKET is not defined");
+
+  const stored: string[] = [];
+  try {
+    const attachments = [];
+    for (const attachment of mail.attachments) {
+      const key = offerteboxStorageKey(randomUUID());
+      await minioClient.send(
+        new PutObjectCommand({
+          Bucket: bucket,
+          Key: key,
+          Body: attachment.bytes,
+          ContentType: "application/octet-stream",
+          ContentLength: attachment.bytes.length,
+        }),
+      );
+      stored.push(key);
+      attachments.push({
+        file_name: attachment.fileName,
+        content_type: attachment.contentType,
+        size: attachment.bytes.length,
+        storage_key: key,
+        is_image: attachment.isImage,
+      });
+    }
+    await prismadb.crm_OfferteboxItems.create({
+      data: {
+        message_key: `drop:${randomUUID()}`,
+        from_name: mail.fromName || null,
+        from_email: mail.fromEmail || null,
+        subject: mail.subject,
+        preview: previewText(mail.body),
+        body_text: mail.body || null,
+        received_at: mail.receivedAt,
+        seller_name: null,
+        attachments: { create: attachments },
+      },
+    });
+  } catch (error) {
+    await Promise.all(
+      stored.map((key) =>
+        minioClient
+          .send(new DeleteObjectCommand({ Bucket: bucket, Key: key }))
+          .catch(() => undefined),
+      ),
+    );
+    throw error;
+  }
 }
 
 export async function addOfferteboxRequest(

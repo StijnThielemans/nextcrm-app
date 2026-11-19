@@ -2528,15 +2528,34 @@ model crm_OfferteboxItems {
   subject     String
   received_at DateTime
   preview     String?
+  /// Volledige leesbare tekst van de mail. Leeg bij een handmatige prijsaanvraag.
+  body_text   String?
   seller_name String?
   dossier_id  String?  @db.Uuid
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  dossier crm_Opportunities? @relation(fields: [dossier_id], references: [id], onDelete: SetNull)
+  dossier     crm_Opportunities?        @relation(fields: [dossier_id], references: [id], onDelete: SetNull)
+  attachments crm_OfferteboxAttachments[]
 
   @@index([received_at])
   @@index([dossier_id])
+}
+
+/// Bijlage uit een gesleepte mail. Het bestand staat in MinIO; de sleutel komt nooit van de bestandsnaam.
+model crm_OfferteboxAttachments {
+  id           String   @id @default(uuid()) @db.Uuid
+  item_id      String   @db.Uuid
+  file_name    String
+  content_type String
+  size         Int
+  storage_key  String
+  is_image     Boolean  @default(false)
+  createdAt    DateTime @default(now())
+
+  item crm_OfferteboxItems @relation(fields: [item_id], references: [id], onDelete: Cascade)
+
+  @@index([item_id])
 }
 
 /// One row per user and record. Opening the page again updates opened_at.
