@@ -137,7 +137,7 @@ function imageInBand(image: PdfImageBox, headerY: number, boundaryY: number, pag
 }
 
 /**
- * One block per window, door or similar line in a Logikal-style offer.
+ * One block per window, door or similar line.
  * A line counts only when the left column has a short label, the description
  * starts with a quantity such as "1,00 stuk(s)", and the crop stays between
  * that line and the next position or the carry-over total. Nothing is invented.

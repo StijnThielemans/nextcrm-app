@@ -4,7 +4,7 @@ function run(text: string, x: number, y: number, width = text.length * 4.5, heig
   return { text, x, y, width, height };
 }
 
-/** Page 2 of a Logikal offer: two doors, a carry-over total, and the page footer. */
+/** Page 2 of a quote PDF: two doors, a carry-over total, and the page footer. */
 function doorPage(): QuotePage {
   return {
     pageNumber: 2,
