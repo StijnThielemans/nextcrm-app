@@ -6,6 +6,7 @@ import { prismadb } from "@/lib/prisma";
 import { ac, admin, manager, user, partner } from "@/lib/auth-permissions";
 import { newUserNotify } from "@/lib/new-user-notify";
 import resendHelper from "@/lib/resend";
+import { isDevPasswordSignIn, isDevTrustedOrigin } from "@/lib/dev-password-sign-in";
 
 const isDemo = process.env.NEXT_PUBLIC_APP_URL === "https://demo.nextcrm.io";
 
@@ -62,9 +63,25 @@ export const auth = betterAuth({
     },
   },
 
+  // Production keeps email OTP. A non-production server also accepts a password.
   emailAndPassword: {
-    enabled: false,
+    enabled: isDevPasswordSignIn(),
+    disableSignUp: true,
   },
+  ...(isDevPasswordSignIn()
+    ? {
+        trustedOrigins: (request?: Request) => {
+          const origins = [
+            "http://localhost:3000",
+            "http://127.0.0.1:3000",
+            "https://*.trycloudflare.com",
+          ];
+          const origin = request?.headers.get("origin");
+          if (origin && isDevTrustedOrigin(origin)) origins.push(origin);
+          return origins;
+        },
+      }
+    : {}),
 
   plugins: [
     emailOTP({

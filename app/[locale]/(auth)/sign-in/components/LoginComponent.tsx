@@ -24,10 +24,11 @@ import {
 
 type Step = "email" | "otp";
 
-export function LoginComponent() {
+export function LoginComponent({ passwordSignIn = false }: { passwordSignIn?: boolean }) {
   const [isLoading, setIsLoading] = useState(false);
   const [step, setStep] = useState<Step>("email");
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [otp, setOtp] = useState("");
 
   const loginWithGoogle = async () => {
@@ -39,6 +40,31 @@ export function LoginComponent() {
       });
     } catch (error) {
       toast.error("Aanmelden met Google is mislukt.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const signInWithPassword = async () => {
+    if (!email || !password) {
+      toast.error("Vul je e-mailadres en wachtwoord in.");
+      return;
+    }
+    setIsLoading(true);
+    try {
+      const { error } = await authClient.signIn.email({
+        email,
+        password,
+      });
+      if (error) {
+        toast.error("E-mail of wachtwoord klopt niet.");
+        return;
+      }
+      toast.success("Je bent aangemeld.");
+      const locale = window.location.pathname.split("/").filter(Boolean)[0];
+      window.location.href = locale ? `/${locale}` : "/";
+    } catch {
+      toast.error("Aanmelden is mislukt.");
     } finally {
       setIsLoading(false);
     }
@@ -96,7 +122,9 @@ export function LoginComponent() {
     <Card className="shadow-sm">
       <CardHeader className="space-y-1">
         <CardTitle className="text-2xl font-bold">Aanmelden</CardTitle>
-        <CardDescription>Kies hoe je wil aanmelden</CardDescription>
+        <CardDescription>
+          {passwordSignIn ? "Meld je aan met e-mail en wachtwoord" : "Kies hoe je wil aanmelden"}
+        </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-4">
         <Button
@@ -120,7 +148,44 @@ export function LoginComponent() {
           </div>
         </div>
 
-        {step === "email" && (
+        {passwordSignIn && (
+          <form
+            className="grid gap-3"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void signInWithPassword();
+            }}
+          >
+            <div className="grid gap-1.5">
+              <Label htmlFor="email">E-mail</Label>
+              <Input
+                id="email"
+                type="email"
+                autoComplete="username"
+                placeholder="name@domain.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                disabled={isLoading}
+              />
+            </div>
+            <div className="grid gap-1.5">
+              <Label htmlFor="password">Wachtwoord</Label>
+              <Input
+                id="password"
+                type="password"
+                autoComplete="current-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                disabled={isLoading}
+              />
+            </div>
+            <Button type="submit" disabled={isLoading || !email || !password}>
+              Aanmelden
+            </Button>
+          </form>
+        )}
+
+        {!passwordSignIn && step === "email" && (
           <div className="grid gap-3">
             <div className="grid gap-1.5">
               <Label htmlFor="email">E-mail</Label>
@@ -141,7 +206,7 @@ export function LoginComponent() {
           </div>
         )}
 
-        {step === "otp" && (
+        {!passwordSignIn && step === "otp" && (
           <div className="grid gap-3">
             <p className="text-sm text-muted-foreground">
               Vul de code van 6 cijfers in die we stuurden naar <strong>{email}</strong>
