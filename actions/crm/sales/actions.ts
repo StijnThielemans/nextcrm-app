@@ -17,6 +17,7 @@ import {
   markSent,
   registerExternalQuote,
   searchCustomers,
+  searchArchitects,
   updateDossierFields,
   attachDossierDocument,
   uploadCustomerQuote,
@@ -54,6 +55,17 @@ export async function searchCustomersAction(query: string) {
   } catch (error) {
     const failed = fail(error);
     return { ...failed, hits: [] };
+  }
+}
+
+export async function searchArchitectsAction(query: string) {
+  const auth = await userOrError();
+  if ("error" in auth) return { error: auth.error, hits: [] as Awaited<ReturnType<typeof searchArchitects>> };
+  try {
+    return { hits: await searchArchitects(auth.user, query) };
+  } catch (error) {
+    const failed = fail(error);
+    return { ...failed, hits: [] as Awaited<ReturnType<typeof searchArchitects>> };
   }
 }
 

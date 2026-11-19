@@ -108,6 +108,12 @@ export function DossierPanel({ dossier }: { dossier: DossierDetail }) {
           <p><span className="text-muted-foreground">Project-Nr </span>{dossier.number ?? "—"}</p>
           <p><span className="text-muted-foreground">Projectbeschrijving </span>{dossier.name ?? "—"}</p>
           <p><span className="text-muted-foreground">Verkoper </span>{dossier.seller ?? "—"}</p>
+          <p>
+            <span className="text-muted-foreground">Architect </span>
+            {dossier.architectName
+              ? `${dossier.architectName}${dossier.architectExternalId ? ` (${dossier.architectExternalId})` : ""}`
+              : "—"}
+          </p>
           <p><span className="text-muted-foreground">Projectgroep </span>{dossier.projectGroup && dossier.projectGroup in PROJECT_GROUP_LABELS ? PROJECT_GROUP_LABELS[dossier.projectGroup as ProjectGroup] : "—"}</p>
           <p><span className="text-muted-foreground">Datum prijsaanvraag </span>{dossier.priceRequestDate ?? dossier.requestDate ?? "—"}</p>
           <p><span className="text-muted-foreground">Werfadres </span>{dossier.projectAddress || "—"}</p>

@@ -16,7 +16,8 @@ import {
   type ProjectGroup,
   type SellerName,
 } from "@/lib/sales/aanvraag-fields";
-import { createAanvraagAction, searchCustomersAction } from "@/actions/crm/sales/actions";
+import { createAanvraagAction, searchArchitectsAction, searchCustomersAction } from "@/actions/crm/sales/actions";
+import type { ArchitectHit } from "@/lib/sales/architects";
 import type { CustomerHit } from "@/lib/sales/service";
 import { AddressBox, emptyAddress, type AddressValue } from "@/components/crm/AddressBox";
 
@@ -48,6 +49,9 @@ export function AanvraagForm({
   const [seller, setSeller] = useState<SellerName | "">("");
   const [projectGroup, setProjectGroup] = useState<ProjectGroup | "">("");
   const [site, setSite] = useState<AddressValue>(emptyAddress);
+  const [architectQuery, setArchitectQuery] = useState("");
+  const [architectHits, setArchitectHits] = useState<ArchitectHit[]>([]);
+  const [architect, setArchitect] = useState<ArchitectHit | null>(null);
   const [customerName, setCustomerName] = useState("");
   const [role, setRole] = useState<AccountRole | "">("");
   const [customerAddress, setCustomerAddress] = useState<AddressValue>(emptyAddress);
@@ -72,6 +76,19 @@ export function AanvraagForm({
     return () => clearTimeout(handle);
   }, [query]);
 
+  useEffect(() => {
+    const text = architectQuery.trim();
+    if (text.length < 2 || architect) return;
+    const handle = setTimeout(() => {
+      void (async () => {
+        const result = await searchArchitectsAction(text);
+        if (result.error) setError(result.error);
+        setArchitectHits(result.hits);
+      })();
+    }, 300);
+    return () => clearTimeout(handle);
+  }, [architectQuery, architect]);
+
   function chooseCustomer(hit: CustomerHit) {
     setAccountId(hit.id);
     setShowNew(false);
@@ -79,6 +96,12 @@ export function AanvraagForm({
     setDescription((current) => applyCustomerName(current, prefill, hit.projectLabel));
     setPrefill(hit.projectLabel);
     setHits([]);
+  }
+
+  function chooseArchitect(hit: ArchitectHit) {
+    setArchitect(hit);
+    setArchitectQuery(hit.name);
+    setArchitectHits([]);
   }
 
   function onCustomerName(value: string) {
@@ -125,6 +148,8 @@ export function AanvraagForm({
       projectPostalCode: site.postalCode,
       projectCity: site.city,
       projectCountry: site.country,
+      architectName: architect?.name,
+      architectExternalId: architect?.id,
     });
     setPending(false);
     if ("error" in result && result.error) {
@@ -240,6 +265,39 @@ export function AanvraagForm({
           <span className="text-sm">Projectbeschrijving</span>
           <Input value={description} onChange={(event) => setDescription(event.target.value)} required />
         </label>
+        <div className="space-y-1">
+          <span className="text-sm">Architect</span>
+          <Input
+            value={architectQuery}
+            onChange={(event) => {
+              setArchitectQuery(event.target.value);
+              setArchitect(null);
+            }}
+            placeholder="Zoek een architect op naam of stamnummer"
+            aria-label="Architect"
+            role="combobox"
+            aria-expanded={architectHits.length > 0}
+            autoComplete="off"
+          />
+          {architectHits.length > 0 && !architect && (
+            <ul className="rounded-md border" role="listbox">
+              {architectHits.map((hit) => (
+                <li key={hit.id}>
+                  <button type="button" className="w-full px-3 py-2 text-left text-sm hover:bg-muted" onClick={() => chooseArchitect(hit)}>
+                    <span className="font-medium">{hit.name}</span>
+                    <span className="block text-muted-foreground">
+                      {[hit.postalCode, hit.city, hit.id].filter(Boolean).join(" · ")}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          {architect && (
+            <p className="text-sm">Gekozen architect: {architect.name} ({architect.id}).</p>
+          )}
+          <p className="text-sm text-muted-foreground">Optioneel. Kies een architect uit het register van de Orde.</p>
+        </div>
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="space-y-1">
             <span className="text-sm">Verkoper</span>

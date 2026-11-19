@@ -28,6 +28,13 @@ import {
   type AccountRole,
   type ProjectGroup,
 } from "./aanvraag-fields";
+import {
+  ArchitectDirectoryError,
+  ArchitectSelectionError,
+  queryArchitectDirectory,
+  resolveArchitect,
+  type ArchitectHit,
+} from "./architects";
 
 const TERMINAL = new Set(["GEWONNEN", "VERLOREN"]);
 
@@ -189,10 +196,22 @@ export type AanvraagInput = {
   projectPostalCode?: string;
   projectCity?: string;
   projectCountry?: string;
+  architectName?: string;
+  architectExternalId?: string;
   description?: string;
   notes?: string;
   nextStep?: string;
 };
+
+export async function searchArchitects(user: AuthzUser, rawQuery: string): Promise<ArchitectHit[]> {
+  denyPartner(user);
+  try {
+    return await queryArchitectDirectory(rawQuery);
+  } catch (error) {
+    if (error instanceof ArchitectDirectoryError) throw new SalesError("architectUnavailable");
+    throw error;
+  }
+}
 
 export async function previewDossierNumber(): Promise<string | null> {
   const row = await prismadb.numberSeries.findFirst({
@@ -223,6 +242,14 @@ export async function createAanvraag(user: AuthzUser, input: AanvraagInput): Pro
   const requestDate = day(input.requestDate);
   const priceRequestDate = day(input.priceRequestDate);
   const projectName = requireText(input.projectName, "projectRequired", 500);
+  let architect: { name: string; externalId: string } | null = null;
+  try {
+    architect = await resolveArchitect(input.architectName, input.architectExternalId);
+  } catch (error) {
+    if (error instanceof ArchitectSelectionError) throw new SalesError("architectInvalid");
+    if (error instanceof ArchitectDirectoryError) throw new SalesError("architectUnavailable");
+    throw error;
+  }
   const occurredAt = new Date(`${input.requestDate}T12:00:00.000Z`);
   const sellers = await prismadb.users.findMany({ select: { id: true, name: true } });
   const matchedSeller = matchSellerUser(sellers, input.sellerName);
@@ -280,6 +307,8 @@ export async function createAanvraag(user: AuthzUser, input: AanvraagInput): Pro
         price_request_date: priceRequestDate,
         project_group: input.projectGroup,
         seller_name: input.sellerName,
+        architect_name: architect?.name ?? null,
+        architect_external_id: architect?.externalId ?? null,
         source_channel: input.channel,
       },
       select: { id: true, dossier_number: true },
@@ -307,6 +336,12 @@ export async function createAanvraag(user: AuthzUser, input: AanvraagInput): Pro
       { field: "source_channel", old: null, new: input.channel },
       { field: "seller_name", old: null, new: input.sellerName },
       { field: "project_group", old: null, new: input.projectGroup },
+      ...(architect
+        ? [
+            { field: "architect_name", old: null, new: architect.name },
+            { field: "architect_external_id", old: null, new: architect.externalId },
+          ]
+        : []),
     ],
     userId: user.id,
   });
@@ -452,6 +487,8 @@ export type DossierDetail = {
   requestDate: string | null;
   priceRequestDate: string | null;
   projectGroup: string | null;
+  architectName: string | null;
+  architectExternalId: string | null;
   followUpDate: string | null;
   channel: string | null;
   lostReason: string | null;
@@ -561,6 +598,8 @@ export async function getDossier(user: AuthzUser, dossierId: string): Promise<Do
     requestDate: dayString(row.request_date),
     priceRequestDate: dayString(row.price_request_date),
     projectGroup: row.project_group,
+    architectName: row.architect_name,
+    architectExternalId: row.architect_external_id,
     followUpDate: dayString(row.follow_up_date),
     channel: row.source_channel,
     lostReason: row.lost_reason,

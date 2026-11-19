@@ -274,6 +274,10 @@ model crm_Opportunities {
   project_group        crm_Project_Group?
   /// Gekozen verkoper, ook als die naam geen gebruikersaccount heeft.
   seller_name          String?
+  /// Architect uit het openbare register op vind.architect.be. Leeg mag.
+  architect_name         String?
+  /// Stamnummer van die architect, het stabiele nummer uit het register.
+  architect_external_id  String?
   source_channel       crm_Request_Channel?
   follow_up_date       DateTime?               @db.Date
   internal_notes       String?

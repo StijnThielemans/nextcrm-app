@@ -195,6 +195,8 @@ export const SALES_ERROR_TEXT: Record<string, string> = {
   channelRequired: "Kies het kanaal van de aanvraag.",
   sellerRequired: "Kies een verkoper.",
   projectGroupRequired: "Kies een projectgroep.",
+  architectInvalid: "Kies een architect uit de lijst.",
+  architectUnavailable: "De architectenlijst is even niet bereikbaar. Probeer opnieuw.",
   roleRequired: "Kies een contacttype.",
   addressRequired: "Kies een adres uit de suggesties, of vul straat, postcode en plaats in.",
   phoneRequired: "Telefoonnummer is verplicht.",
