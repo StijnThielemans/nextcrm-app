@@ -14,6 +14,7 @@ import {
   opportunityReadScopeWhere,
 } from "@/lib/authz/scopes/crm";
 import { SalesError } from "./errors";
+import { dossierIsReadOnly } from "./dossier-lock";
 import { buildDossierStepper } from "./dossier-step";
 import { parseGrossTotalInput } from "./gross-total";
 import { quoteMargin } from "./margin";
@@ -39,9 +40,6 @@ import {
   resolveArchitect,
   type ArchitectHit,
 } from "./architects";
-
-// Verloren freezes the dossier. Gewonnen does not: extra quotes, documents, and follow-up stay editable.
-const READ_ONLY = new Set(["VERLOREN"]);
 
 function denyPartner(user: AuthzUser) {
   if (user.role === "partner") throw new SalesError("forbidden");
@@ -96,7 +94,7 @@ async function loadWritableDossier(user: AuthzUser, dossierId: string) {
 }
 
 function assertOpen(status: string | null) {
-  if (status && READ_ONLY.has(status)) throw new SalesError("terminal");
+  if (dossierIsReadOnly(status)) throw new SalesError("terminal");
 }
 
 export type CustomerHit = {
@@ -690,7 +688,7 @@ export async function getDossier(user: AuthzUser, dossierId: string): Promise<Do
     channel: row.source_channel,
     lostReason: row.lost_reason,
     projectAddress: [row.project_street, row.project_postal_code, row.project_city, row.project_country].filter(Boolean).join(", "),
-    terminal: !!row.dossier_status && READ_ONLY.has(row.dossier_status),
+    terminal: dossierIsReadOnly(row.dossier_status),
     customer: {
       id: row.assigned_account.id,
       name: row.assigned_account.name,
@@ -786,7 +784,7 @@ export async function updateDossierFields(
     if (dossier.dossier_status !== "VERLOREN") throw new SalesError("terminal");
     data.lost_reason = requireText(input.lostReason, "lostReason", 500);
   }
-  if (!dossier.dossier_status || !READ_ONLY.has(dossier.dossier_status) || input.lostReason !== undefined) {
+  if (!dossier.dossier_status || !dossierIsReadOnly(dossier.dossier_status) || input.lostReason !== undefined) {
     await prismadb.crm_Opportunities.update({ where: { id: dossierId }, data });
   }
   await writeAuditLog({
