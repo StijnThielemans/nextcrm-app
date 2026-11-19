@@ -8,6 +8,8 @@ import { AddressBox, emptyAddress, type AddressValue } from "@/components/crm/Ad
 import {
   ACCOUNT_ROLES,
   VAT_CHOICES,
+  isVatChoice,
+  visibleVatChoice,
   type AccountRole,
   type VatChoice,
 } from "@/lib/sales/aanvraag-fields";
@@ -40,7 +42,7 @@ export function CustomerFields({
   const [phone, setPhone] = useState(initial?.phone ?? "");
   const [mobile, setMobile] = useState(initial?.mobile ?? "");
   const [email, setEmail] = useState(initial?.email ?? "");
-  const [vatChoice, setVatChoice] = useState<VatChoice | "">(initial?.vatChoice ?? "");
+  const [vatChoice, setVatChoice] = useState<VatChoice | "">(visibleVatChoice(initial?.vatChoice));
   const [vat, setVat] = useState(initial?.vat ?? "");
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -53,7 +55,7 @@ export function CustomerFields({
       setError(t("errors.phoneOrMobileRequired"));
       return;
     }
-    if (!vatChoice) {
+    if (!isVatChoice(vatChoice)) {
       setError(t("errors.vatChoiceRequired"));
       return;
     }

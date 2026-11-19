@@ -5,6 +5,7 @@ import {
   isVatChoice,
   matchSellerUser,
   parseVatChoice,
+  visibleVatChoice,
   siteAddressFromBilling,
   suggestionFromPhoton,
 } from "../aanvraag-fields";
@@ -21,6 +22,15 @@ describe("aanvraag fields", () => {
     expect(parseVatChoice("")).toBeNull();
     expect(parseVatChoice(undefined)).toBeUndefined();
     expect(parseVatChoice("12")).toBeNull();
+  });
+
+  it("counts the VAT choice the dropdown already shows", () => {
+    expect(visibleVatChoice("")).toBe("EXCL_21");
+    expect(visibleVatChoice(undefined)).toBe("EXCL_21");
+    expect(visibleVatChoice(null)).toBe("EXCL_21");
+    expect(visibleVatChoice("EXCL_6")).toBe("EXCL_6");
+    expect(visibleVatChoice("MEDECONTRACTANT")).toBe("MEDECONTRACTANT");
+    expect(visibleVatChoice("12")).toBe("");
   });
 
   it("prefills a project description as last name then first name", () => {

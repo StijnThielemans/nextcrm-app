@@ -67,6 +67,17 @@ export function vatChoiceLabel(value: string | null | undefined): string {
   return "";
 }
 
+/**
+ * The VAT dropdown has no blank row, so an empty value is drawn as the first
+ * choice (Excl 21%). That visible choice is the form value. A stored choice
+ * stays itself. Anything outside the three choices stays empty and is rejected.
+ */
+export function visibleVatChoice(value: string | null | undefined): VatChoice | "" {
+  if (value && isVatChoice(value)) return value;
+  if (value == null || value === "") return VAT_CHOICES[0];
+  return "";
+}
+
 /** undefined = not submitted. null = submitted, but not one of the three choices. */
 export function parseVatChoice(value: string | null | undefined): VatChoice | null | undefined {
   if (value === undefined) return undefined;
