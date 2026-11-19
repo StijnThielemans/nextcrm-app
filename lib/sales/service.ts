@@ -16,7 +16,7 @@ import {
 import { SalesError } from "./errors";
 import { quoteMargin } from "./margin";
 import { salesTiles, type DashRow, type SalesTiles } from "./dashboard-math";
-import { DOSSIER_STATUSES, DOSSIER_DOCUMENT_CATEGORIES, type DossierDocumentCategory, type DossierStatus, type RequestChannel, CHANNELS } from "./labels";
+import { DOSSIER_STATUSES, DOSSIER_DOCUMENT_CATEGORIES, systemTypeForFiling, type DossierDocumentCategory, type DossierStatus, type RequestChannel, CHANNELS } from "./labels";
 import { uploadExtension } from "@/lib/upload-content-types";
 import { previewNumber } from "@/lib/orders/numbering";
 import {
@@ -518,7 +518,7 @@ export async function getDossier(user: AuthzUser, dossierId: string): Promise<Do
       quote_sends: { orderBy: { sent_at: "desc" } },
       documents: {
         include: {
-          document: { select: { id: true, document_name: true, document_system_type: true, deletedAt: true } },
+          document: { select: { id: true, document_name: true, document_system_type: true, filing_category: true, deletedAt: true } },
         },
       },
     },
@@ -581,7 +581,7 @@ export async function getDossier(user: AuthzUser, dossierId: string): Promise<Do
       .map((link) => ({
         id: link.document.id,
         name: link.document.document_name,
-        category: link.document.document_system_type,
+        category: link.document.filing_category ?? link.document.document_system_type,
       })),
     seller: row.seller_name ?? row.assigned_to_user?.name ?? null,
     channels: row.channel_events.map((event) => ({
@@ -830,7 +830,8 @@ export async function attachDossierDocument(
       ...stored,
       size: file.size,
       document_file_mimeType: file.mimeType,
-      document_system_type: file.category,
+      document_system_type: systemTypeForFiling(file.category),
+      filing_category: file.category,
       processing_status: "PENDING",
       createdBy: user.id,
       assigned_user: user.id,

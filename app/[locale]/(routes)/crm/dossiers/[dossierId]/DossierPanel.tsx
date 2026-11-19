@@ -6,6 +6,14 @@ import { Link } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   CHANNEL_LABELS,
   CHANNELS,
   DOSSIER_DOCUMENT_CATEGORIES,
@@ -43,7 +51,8 @@ export function DossierPanel({ dossier }: { dossier: DossierDetail }) {
   const [busy, setBusy] = useState(false);
   const [familyId, setFamilyId] = useState("");
   const [status, setStatus] = useState<DossierStatus>((dossier.status as DossierStatus) || "NIEUW");
-  const [category, setCategory] = useState<DossierDocumentCategory>("PLAN");
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [category, setCategory] = useState<DossierDocumentCategory | "">("");
   const [dragging, setDragging] = useState(false);
   const versions = dossier.families.flatMap((family) => family.quotes);
 
@@ -56,12 +65,21 @@ export function DossierPanel({ dossier }: { dossier: DossierDetail }) {
     else router.refresh();
   }
 
-  async function storeDropped(file: File | undefined) {
+  function queueFile(file: File | undefined) {
     if (!file) return;
+    setCategory("");
+    setPendingFile(file);
+  }
+
+  async function storeQueued() {
+    const file = pendingFile;
+    if (!file || !category) return;
+    const chosen = category;
+    setPendingFile(null);
     await run(async () => {
       const uploaded = await uploadDocumentFile(file);
       if ("error" in uploaded) return uploaded;
-      return attachDossierDocumentAction(dossier.id, { ...uploaded, category });
+      return attachDossierDocumentAction(dossier.id, { ...uploaded, category: chosen });
     });
   }
 
@@ -117,40 +135,56 @@ export function DossierPanel({ dossier }: { dossier: DossierDetail }) {
         <div className="rounded-md border p-4 space-y-3 text-sm">
           <h2 className="text-lg font-semibold">Documentbeheer</h2>
           {!dossier.terminal && (
-            <>
-              <label className="space-y-1 block">
+            <label
+              className={`flex min-h-28 cursor-pointer items-center justify-center rounded-md border border-dashed px-3 text-center ${dragging ? "bg-muted" : ""}`}
+              onDragOver={(event) => {
+                event.preventDefault();
+                setDragging(true);
+              }}
+              onDragLeave={() => setDragging(false)}
+              onDrop={(event) => {
+                event.preventDefault();
+                setDragging(false);
+                queueFile(event.dataTransfer.files[0]);
+              }}
+            >
+              Sleep een document hierheen of kies een bestand
+              <input
+                className="sr-only"
+                type="file"
+                accept="application/pdf,image/*,.doc,.docx,.txt"
+                onChange={(event) => {
+                  queueFile(event.target.files?.[0]);
+                  event.target.value = "";
+                }}
+              />
+            </label>
+          )}
+          <Dialog open={pendingFile != null} onOpenChange={(open) => { if (!open) setPendingFile(null); }}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Categorie kiezen</DialogTitle>
+                <DialogDescription>{pendingFile?.name}</DialogDescription>
+              </DialogHeader>
+              <label className="space-y-1 block text-sm">
                 <span>Categorie</span>
-                <select className="flex h-9 w-full rounded-md border bg-transparent px-2" value={category} onChange={(event) => setCategory(event.target.value as DossierDocumentCategory)}>
+                <select
+                  className="flex h-9 w-full rounded-md border bg-transparent px-2"
+                  value={category}
+                  onChange={(event) => setCategory(event.target.value as DossierDocumentCategory)}
+                >
+                  <option value="">Kies een categorie</option>
                   {DOSSIER_DOCUMENT_CATEGORIES.map((item) => (
                     <option key={item} value={item}>{DOSSIER_DOCUMENT_LABELS[item]}</option>
                   ))}
                 </select>
               </label>
-              <label
-                className={`flex min-h-28 cursor-pointer items-center justify-center rounded-md border border-dashed px-3 text-center ${dragging ? "bg-muted" : ""}`}
-                onDragOver={(event) => {
-                  event.preventDefault();
-                  setDragging(true);
-                }}
-                onDragLeave={() => setDragging(false)}
-                onDrop={(event) => {
-                  event.preventDefault();
-                  setDragging(false);
-                  void storeDropped(event.dataTransfer.files[0]);
-                }}
-              >
-                Sleep een document hierheen of kies een bestand
-                <input
-                  className="sr-only"
-                  type="file"
-                  onChange={(event) => {
-                    void storeDropped(event.target.files?.[0]);
-                    event.target.value = "";
-                  }}
-                />
-              </label>
-            </>
-          )}
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setPendingFile(null)}>Annuleren</Button>
+                <Button type="button" disabled={!category || busy} onClick={() => void storeQueued()}>Opslaan</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
           <ul className="space-y-1">
             {dossier.documents.map((doc) => (
               <li key={doc.id}>

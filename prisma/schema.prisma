@@ -899,6 +899,7 @@ model Documents {
   assigned_to_user     Users?                        @relation("assigned_to_user", fields: [assigned_user], references: [id])
   documents_type       Documents_Types?              @relation(fields: [document_type], references: [id])
   document_system_type DocumentSystemType?           @default(OTHER)
+  filing_category      String?
   opportunities        DocumentsToOpportunities[]
   contacts             DocumentsToContacts[]
   tasks                DocumentsToTasks[]

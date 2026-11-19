@@ -73,32 +73,107 @@ export function euro(value: number): string {
 }
 
 export const DOSSIER_DOCUMENT_CATEGORIES = [
-  "PLAN",
-  "PHOTO",
-  "CUSTOMER_QUOTE",
-  "INTERNAL_SUPPLIER_QUOTE",
-  "CONTRACT",
-  "OFFER",
-  "OTHER",
+  "BESTELLINGEN",
+  "CALCULATIE",
+  "DORPELPLANNEN",
+  "EPB",
+  "FACTURATIE",
+  "FOTOS",
+  "GARANTIES",
+  "GLASLIJSTEN",
+  "INTERVENTIE_AFWERKING",
+  "LEVERBONNEN",
+  "MAILS",
+  "OFFERTE",
+  "ONDERTEKENDE_OFFERTE",
+  "OPMETING",
+  "ORDERBEVESTIGING",
+  "PLAATSINGSFICHE",
+  "PLANNEN",
+  "PROJECTNOTITIES",
+  "UW_WAARDEN",
+  "VORDERINGSSTATEN",
+  "WERFVERSLAG",
+  "ZAAGLIJSTEN",
+  "LASTENBOEK",
+  "TEKENWERK",
+  "MEETSTAAT",
+  "PRIJSAANVRAAG",
+  "WERKOPDRACHTEN",
+  "POSITIEOVERZICHT",
+  "DETAILS",
+  "WERFAANGIFTE",
+  "LEVERANCIER_OFFERTES",
+  "PROJECTFICHE",
+  "TECHNISCHE_GEGEVENS",
 ] as const;
 
 export type DossierDocumentCategory = (typeof DOSSIER_DOCUMENT_CATEGORIES)[number];
 
 export const DOSSIER_DOCUMENT_LABELS: Record<DossierDocumentCategory, string> = {
-  PLAN: "Plan",
-  PHOTO: "Foto",
-  CUSTOMER_QUOTE: "Klantofferte",
-  INTERNAL_SUPPLIER_QUOTE: "Leveranciersofferte",
+  BESTELLINGEN: "Bestellingen",
+  CALCULATIE: "Calculatie",
+  DORPELPLANNEN: "Dorpelplannen",
+  EPB: "EPB",
+  FACTURATIE: "Facturatie",
+  FOTOS: "Fotos",
+  GARANTIES: "Garanties",
+  GLASLIJSTEN: "Glaslijsten",
+  INTERVENTIE_AFWERKING: "Interventie-afwerking",
+  LEVERBONNEN: "Leverbonnen",
+  MAILS: "Mails",
+  OFFERTE: "Offerte",
+  ONDERTEKENDE_OFFERTE: "Ondertekende offerte",
+  OPMETING: "Opmeting",
+  ORDERBEVESTIGING: "Orderbevestiging",
+  PLAATSINGSFICHE: "Plaatsingsfiche",
+  PLANNEN: "Plannen",
+  PROJECTNOTITIES: "Projectnotities",
+  UW_WAARDEN: "Uw-waarden",
+  VORDERINGSSTATEN: "Vorderingsstaten",
+  WERFVERSLAG: "Werfverslag",
+  ZAAGLIJSTEN: "Zaaglijsten",
+  LASTENBOEK: "Lastenboek",
+  TEKENWERK: "Tekenwerk",
+  MEETSTAAT: "Meetstaat",
+  PRIJSAANVRAAG: "Prijsaanvraag",
+  WERKOPDRACHTEN: "Werkopdrachten",
+  POSITIEOVERZICHT: "Positieoverzicht",
+  DETAILS: "Details",
+  WERFAANGIFTE: "Werfaangifte-Check-in at work",
+  LEVERANCIER_OFFERTES: "Leverancier offertes",
+  PROJECTFICHE: "Projectfiche",
+  TECHNISCHE_GEGEVENS: "Technische gegevens",
+};
+
+const STORED_DOCUMENT_LABELS: Record<string, string> = {
+  PLAN: "Plannen",
+  PHOTO: "Fotos",
+  CUSTOMER_QUOTE: "Ondertekende offerte",
+  INTERNAL_SUPPLIER_QUOTE: "Leverancier offertes",
   CONTRACT: "Contract",
   OFFER: "Offerte",
   OTHER: "Overig",
+  INVOICE: "Facturatie",
+  RECEIPT: "Facturatie",
 };
 
 export function documentCategoryLabel(category: string | null | undefined): string {
   if (category && category in DOSSIER_DOCUMENT_LABELS) {
     return DOSSIER_DOCUMENT_LABELS[category as DossierDocumentCategory];
   }
+  if (category && category in STORED_DOCUMENT_LABELS) return STORED_DOCUMENT_LABELS[category];
   return "Overig";
+}
+
+/** Map a filing category onto the existing document type, without adding enum values. */
+export function systemTypeForFiling(category: DossierDocumentCategory) {
+  if (category === "FOTOS") return "PHOTO" as const;
+  if (category === "PLANNEN") return "PLAN" as const;
+  if (category === "OFFERTE") return "OFFER" as const;
+  if (category === "ONDERTEKENDE_OFFERTE") return "CUSTOMER_QUOTE" as const;
+  if (category === "LEVERANCIER_OFFERTES") return "INTERNAL_SUPPLIER_QUOTE" as const;
+  return "OTHER" as const;
 }
 
 export function percentLabel(value: number | null): string {
