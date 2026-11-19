@@ -1122,6 +1122,8 @@ model Users {
   username         String?
   userStatus       ActiveStatus @default(PENDING)
   userLanguage     Language     @default(en)
+  /// Column order and hidden columns per list, for this user only.
+  table_layouts    Json?
   banned           Boolean      @default(false)
   banReason        String?
   banExpires       DateTime?

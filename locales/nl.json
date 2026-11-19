@@ -1057,6 +1057,8 @@
     "tasksEmpty": "Niets open.",
     "byStatus": "Per status",
     "search": "Zoeken …",
+    "resetColumns": "Standaard",
+    "moveColumn": "Kolom verplaatsen",
     "automatic": "Automatisch",
     "dossierSection": "Offertedossier",
     "projectNumber": "Project-Nr",

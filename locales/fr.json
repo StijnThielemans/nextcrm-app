@@ -953,6 +953,8 @@
     "tasksEmpty": "Rien d'ouvert.",
     "byStatus": "Par statut",
     "search": "Rechercher …",
+    "resetColumns": "Par défaut",
+    "moveColumn": "Déplacer la colonne",
     "automatic": "Automatique",
     "dossierSection": "Dossier d'offre",
     "projectNumber": "N° de projet",

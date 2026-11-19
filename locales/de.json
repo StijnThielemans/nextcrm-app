@@ -953,6 +953,8 @@
     "tasksEmpty": "Nothing open.",
     "byStatus": "By status",
     "search": "Search …",
+    "resetColumns": "Default",
+    "moveColumn": "Move column",
     "automatic": "Automatic",
     "dossierSection": "Quote dossier",
     "projectNumber": "Project no.",

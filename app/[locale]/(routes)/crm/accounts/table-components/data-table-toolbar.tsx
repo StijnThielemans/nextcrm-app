@@ -10,10 +10,14 @@ import { DataTableViewOptions } from "./data-table-view-options";
 
 interface DataTableToolbarProps<TData> {
   table: Table<TData>;
+  searchTestId?: string;
+  onResetColumns?: () => void;
 }
 
 export function DataTableToolbar<TData>({
   table,
+  searchTestId = "accounts-search",
+  onResetColumns,
 }: DataTableToolbarProps<TData>) {
   const t = useTranslations("Sales");
   const globalFilter = (table.getState().globalFilter as string) ?? "";
@@ -27,7 +31,7 @@ export function DataTableToolbar<TData>({
           value={globalFilter}
           onChange={(event) => table.setGlobalFilter(event.target.value)}
           className="h-8 w-[150px] lg:w-[250px]"
-          data-testid="accounts-search"
+          data-testid={searchTestId}
         />
         {/*         <Input
           placeholder="Filter by assigned user ..."
@@ -63,7 +67,14 @@ export function DataTableToolbar<TData>({
           </Button>
         )}
       </div>
-      <DataTableViewOptions table={table} />
+      <div className="flex items-center gap-2">
+        {onResetColumns && (
+          <Button variant="outline" size="sm" className="h-8" data-testid="reset-columns" onClick={onResetColumns}>
+            {t("resetColumns")}
+          </Button>
+        )}
+        <DataTableViewOptions table={table} />
+      </div>
     </div>
   );
 }
