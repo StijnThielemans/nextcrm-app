@@ -61,7 +61,7 @@ export type QuotePositionBlock = {
 
 const PRICE = /^(?:\d{1,3}(?:\.\d{3})+|\d+),\d{2}$/;
 const QUANTITY = /^(\d+(?:[.,]\d+)?)\s+(stuk\(s\)|stuks|stuk|st\.)\s*/i;
-const STOP = /^(?:Overdracht|Offerte-Nr)/;
+const STOP = /^(?:Overdracht|Offerte-Nr|Alternatief aanbod-Nr|Totaal netto|Totaal bruto|\+\s*BTW|Betalingsvoorwaarden)/i;
 const COLUMN_HEADER = /^(?:Positie|Hoeveelheid|Omschrijving|EP|EUR|Totaalprijs)$/i;
 
 function priceToken(text: string): string | null {
@@ -136,11 +136,27 @@ function imageInBand(image: PdfImageBox, headerY: number, boundaryY: number, pag
   return top < headerY + 14 && top > boundaryY + 4 && image.y > boundaryY - 2;
 }
 
+export function newestQuotePdf<T extends { pdfId: string; date?: string | null; addedAt?: string | null }>(quotes: T[]): T | null {
+  const unique: T[] = [];
+  for (const quote of quotes) {
+    const index = unique.findIndex((item) => item.pdfId === quote.pdfId);
+    if (index === -1) unique.push(quote);
+    else if ((quote.addedAt || "") > (unique[index].addedAt || "")) unique[index] = quote;
+  }
+  unique.sort((left, right) => {
+    const byDate = (right.date || "").localeCompare(left.date || "");
+    if (byDate !== 0) return byDate;
+    return (right.addedAt || "").localeCompare(left.addedAt || "");
+  });
+  return unique[0] ?? null;
+}
+
 /**
- * One block per window, door or similar line.
- * A line counts only when the left column has a short label, the description
- * starts with a quantity such as "1,00 stuk(s)", and the crop stays between
- * that line and the next position or the carry-over total. Nothing is invented.
+ * One block per window, door or similar line. Every page is scanned.
+ * A line counts only when the left column has a short label and the
+ * description starts with a quantity such as "1,00 stuk(s)". The crop stays
+ * between that line and the next position, the carry-over, or the totals.
+ * Nothing is invented.
  */
 export function extractQuotePositions(pages: QuotePage[]): QuotePositionBlock[] {
   const blocks: QuotePositionBlock[] = [];

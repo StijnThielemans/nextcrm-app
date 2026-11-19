@@ -1,4 +1,4 @@
-import { extractQuotePositions, type QuotePage } from "../quote-positions";
+import { extractQuotePositions, newestQuotePdf, type QuotePage } from "../quote-positions";
 
 function run(text: string, x: number, y: number, width = text.length * 4.5, height = 9) {
   return { text, x, y, width, height };
@@ -107,6 +107,61 @@ describe("quote position blocks", () => {
       ],
     };
     expect(extractQuotePositions([page])).toEqual([]);
+  });
+
+  it("reads a later page and stops the block before the totals", () => {
+    const pages: QuotePage[] = [
+      {
+        pageNumber: 1,
+        width: 595,
+        height: 842,
+        images: [
+          { x: 0, y: 0, width: 595, height: 842 },
+          { x: 62, y: 300, width: 107, height: 90 },
+        ],
+        items: [
+          run("Positie", 62, 500, 33),
+          run("001 - Duo", 62, 470, 50),
+          run("1,00 stuk(s) Schuif-element 1860mm x 2160mm", 133, 470, 220),
+          run("2.299,25", 430, 470, 40),
+          run("2.299,25", 510, 470, 40),
+          run("Systeem:Reynaers ConceptPatio 130-LS", 175, 440, 180),
+          run("Beglazing:", 175, 400, 50),
+          run("Totaal netto", 62, 250, 60),
+          run("Betalingsvoorwaarden:", 59, 200, 100),
+        ],
+      },
+      {
+        pageNumber: 2,
+        width: 595,
+        height: 842,
+        images: [{ x: 62, y: 400, width: 80, height: 80 }],
+        items: [
+          run("002", 62, 600, 20),
+          run("1,00 stuk(s) Raamelement 900mm x 1200mm", 133, 600, 200),
+          run("1.100,00", 510, 600, 40),
+          run("Vast raam", 175, 560, 50),
+        ],
+      },
+    ];
+    const blocks = extractQuotePositions(pages);
+    expect(blocks.map((block) => [block.pageNumber, block.number])).toEqual([[1, "001 - Duo"], [2, "002"]]);
+    expect(blocks[0].title).toBe("Schuif-element 1860mm x 2160mm");
+    expect(blocks[0].price).toBe(2299.25);
+    expect(blocks[0].text).toContain("ConceptPatio");
+    expect(blocks[0].text).not.toContain("Totaal netto");
+    expect(blocks[0].crop.y).toBeGreaterThan(250);
+    expect(blocks[1].price).toBe(1100);
+  });
+
+  it("opens the newest quote date, then the quote added last", () => {
+    const chosen = newestQuotePdf([
+      { pdfId: "old", date: "2026-11-18", addedAt: "2026-11-19T10:00:00.000Z" },
+      { pdfId: "same-day-early", date: "2026-11-19", addedAt: "2026-11-19T09:49:00.000Z" },
+      { pdfId: "same-day-late", date: "2026-11-19", addedAt: "2026-11-19T09:55:00.000Z" },
+    ]);
+    expect(chosen?.pdfId).toBe("same-day-late");
+    expect(newestQuotePdf([])).toBeNull();
   });
 
   it("leaves the price empty when the position line has none", () => {

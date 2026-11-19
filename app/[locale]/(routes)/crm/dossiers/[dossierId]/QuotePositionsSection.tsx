@@ -2,24 +2,24 @@
 
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
-import { loadQuotePositionsAction } from "@/actions/crm/sales/actions";
 import { euro } from "@/lib/sales/labels";
-import type { QuotePositionView } from "@/lib/sales/quote-positions";
+import { newestQuotePdf, type QuotePositionView } from "@/lib/sales/quote-positions";
 
-type QuotePdf = { pdfId: string; pdfName: string };
+type QuotePdf = { pdfId: string; pdfName: string; date?: string | null; addedAt?: string | null };
 
 export function QuotePositionsSection({ dossierId, quotes }: { dossierId: string; quotes: QuotePdf[] }) {
   const t = useTranslations("Sales");
   const pdfs = quotes.filter((quote, index) => quotes.findIndex((item) => item.pdfId === quote.pdfId) === index);
-  const [pdfId, setPdfId] = useState(pdfs.length === 1 ? pdfs[0].pdfId : "");
+  const quoteKey = pdfs.map((quote) => `${quote.pdfId}\t${quote.date ?? ""}\t${quote.addedAt ?? ""}`).join("\n");
+  const [pdfId, setPdfId] = useState(() => newestQuotePdf(pdfs)?.pdfId ?? "");
   const [positions, setPositions] = useState<QuotePositionView[]>([]);
   const [status, setStatus] = useState<"idle" | "loading" | "ready" | "empty" | "error">("idle");
   const [broken, setBroken] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     if (pdfId && pdfs.some((quote) => quote.pdfId === pdfId)) return;
-    setPdfId(pdfs.length === 1 ? pdfs[0].pdfId : "");
-  }, [pdfs, pdfId]);
+    setPdfId(newestQuotePdf(pdfs)?.pdfId ?? "");
+  }, [quoteKey, pdfId]);
 
   useEffect(() => {
     if (!pdfId) {
@@ -30,16 +30,23 @@ export function QuotePositionsSection({ dossierId, quotes }: { dossierId: string
     let cancelled = false;
     setStatus("loading");
     setBroken({});
-    void loadQuotePositionsAction(dossierId, pdfId).then((result) => {
-      if (cancelled) return;
-      if (result.error || !result.positions) {
-        setPositions([]);
-        setStatus("error");
-        return;
-      }
-      setPositions(result.positions);
-      setStatus(result.positions.length === 0 ? "empty" : "ready");
-    });
+    void fetch(`/api/crm/dossiers/${dossierId}/quotes/${pdfId}/positions`)
+      .then(async (response) => {
+        if (!response.ok) throw new Error("positions");
+        return response.json() as Promise<{ positions?: QuotePositionView[] }>;
+      })
+      .then((result) => {
+        if (cancelled) return;
+        const next = result.positions ?? [];
+        setPositions(next);
+        setStatus(next.length === 0 ? "empty" : "ready");
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setPositions([]);
+          setStatus("error");
+        }
+      });
     return () => {
       cancelled = true;
     };

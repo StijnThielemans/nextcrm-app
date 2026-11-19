@@ -107,7 +107,9 @@ async function readPages(bytes: Uint8Array): Promise<QuotePage[]> {
   const doc = await loading.promise;
   try {
     const pages: QuotePage[] = [];
+    let lastError: unknown;
     for (let pageNumber = 1; pageNumber <= doc.numPages; pageNumber += 1) {
+      try {
       const page = await doc.getPage(pageNumber);
       const viewport = page.getViewport({ scale: 1 });
       const content = await page.getTextContent();
@@ -150,7 +152,11 @@ async function readPages(bytes: Uint8Array): Promise<QuotePage[]> {
         items,
         images,
       });
+      } catch (error) {
+        lastError = error;
+      }
     }
+    if (pages.length === 0 && lastError) throw lastError;
     return pages;
   } finally {
     await doc.destroy();

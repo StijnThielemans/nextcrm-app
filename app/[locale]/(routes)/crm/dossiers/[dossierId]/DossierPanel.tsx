@@ -287,6 +287,7 @@ export function DossierPanel({
     pdfId: quote.pdfId,
     pdfName: quote.pdfName,
     date: quote.date,
+    addedAt: quote.addedAt,
     sentAt: sentOn.get(quote.id) ?? null,
     gross: quote.gross,
   })));
@@ -674,7 +675,7 @@ export function DossierPanel({
 
       <QuotePositionsSection
         dossierId={dossier.id}
-        quotes={quoteRows.map((quote) => ({ pdfId: quote.pdfId, pdfName: quote.pdfName }))}
+        quotes={quoteRows.map((quote) => ({ pdfId: quote.pdfId, pdfName: quote.pdfName, date: quote.date, addedAt: quote.addedAt }))}
       />
 
       {error && <p className="text-sm text-destructive">{error}</p>}

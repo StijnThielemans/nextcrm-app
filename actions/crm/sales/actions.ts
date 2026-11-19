@@ -8,8 +8,6 @@ import { SalesError } from "@/lib/sales/errors";
 import { SALES_ERROR_TEXT, type DossierDocumentCategory, type DossierStatus, type RequestChannel } from "@/lib/sales/labels";
 import { addOfferteboxRequest, assignOfferteboxSeller, linkOfferteboxDossier } from "@/lib/sales/offertebox";
 import { fileOfferteboxAttachments, listPendingOfferteboxAttachments, type FilingAssignment } from "@/lib/sales/offertebox-filing";
-import { listQuotePositions } from "@/lib/sales/quote-position-service";
-import type { QuotePositionView } from "@/lib/sales/quote-positions";
 import {
   addChannelEvent,
   changeDossierStatus,
@@ -329,25 +327,6 @@ export async function loadOffertesAction(filter: { supplier?: string; status?: s
   } catch (error) {
     const failed = await fail(error);
     return { ...failed, rows: [] };
-  }
-}
-
-export async function loadQuotePositionsAction(
-  dossierId: string,
-  documentId: string,
-): Promise<{ positions: QuotePositionView[]; error?: string }> {
-  const auth = await userOrError();
-  if ("error" in auth) return { error: auth.error, positions: [] };
-  try {
-    return { positions: await listQuotePositions(auth.user, dossierId, documentId) };
-  } catch (error) {
-    if (error instanceof SalesError) {
-      const failed = await fail(error);
-      return { ...failed, positions: [] };
-    }
-    console.error("[sales] quote positions failed", error instanceof Error ? error.name + ": " + error.message.slice(0, 240) : "unknown");
-    const t = await getTranslations("Sales");
-    return { error: t("positions.loadFailed"), positions: [] };
   }
 }
 

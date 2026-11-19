@@ -552,6 +552,7 @@ export type QuoteVersionView = {
   notes: string | null;
   pdfId: string;
   pdfName: string;
+  addedAt: string;
 };
 
 export type DossierDetail = {
@@ -672,6 +673,7 @@ export async function getDossier(user: AuthzUser, dossierId: string): Promise<Do
         notes: quote.internal_notes,
         pdfId: quote.pdf.id,
         pdfName: quote.pdf.document_name,
+        addedAt: quote.createdAt.toISOString(),
       };
     }),
   }));
