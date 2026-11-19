@@ -1,11 +1,7 @@
 import Container from "@/app/[locale]/(routes)/components/ui/Container";
 import React from "react";
 import { BasicView } from "./components/BasicView";
-import CaseStudyCard from "./components/CaseStudyCard";
-import AccountPartnerCard from "./components/AccountPartnerCard";
-import { getPartnerUsers } from "@/actions/crm/accounts/get-partner-users";
-import { getSession } from "@/lib/auth-server";
-import { requireAuthenticated, isManagerOrAdmin } from "@/lib/authz";
+import { requireAuthenticated } from "@/lib/authz";
 import { getAccountTabs, getAccountPanels } from "@/lib/plugins/slots";
 import { PluginSlot } from "@/lib/plugins/ui/PluginSlot";
 import { FindSimilarButton } from "@/components/crm/find-similar-button";
@@ -48,8 +44,6 @@ interface AccountDetailPageProps {
 const AccountDetailPage = async (props: AccountDetailPageProps) => {
   const params = await props.params;
   const { accountId } = params;
-  const session = await getSession({ partner: true });
-  const sessionUserRole = (session?.user as { role?: string } | undefined)?.role ?? "user";
   const actorUser = await requireAuthenticated({ partner: true });
   const actor = { type: "user" as const, userId: actorUser.id, role: actorUser.role };
   const [pluginTabs, pluginPanels] = await Promise.all([getAccountTabs(actorUser.role), getAccountPanels(actorUser.role)]);
@@ -67,8 +61,6 @@ const AccountDetailPage = async (props: AccountDetailPageProps) => {
   );
   const dossiers = actorUser.role === "partner" ? [] : await listDossiersForAccount(actorUser, accountId);
   const crmData = await getAllCrmData();
-  const canSetPartner = isManagerOrAdmin(actorUser);
-  const partners = canSetPartner ? await getPartnerUsers() : [];
 
   if (!account) return <div>Klant niet gevonden</div>;
 
@@ -92,19 +84,6 @@ const AccountDetailPage = async (props: AccountDetailPageProps) => {
             {pluginPanels.map(({ plugin, panel }) => (
               <PluginSlot key={`${plugin.definition.id}:${panel.id}`} plugin={plugin} actor={actor} render={(ctx) => panel.component({ accountId: account.id, ctx })} />
             ))}
-            <CaseStudyCard
-              accountId={account.id}
-              candidate={account.case_study_candidate}
-              approved={account.case_study_approved}
-              canApprove={sessionUserRole === "manager" || sessionUserRole === "admin"}
-            />
-            {canSetPartner && (
-              <AccountPartnerCard
-                accountId={account.id}
-                partnerUserId={account.partnerUserId}
-                partners={partners}
-              />
-            )}
             <ActivitiesSection accountId={account.id} />
             <FindSimilarButton entityType="account" recordId={accountId} />
             <section className="space-y-2">
