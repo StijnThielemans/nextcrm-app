@@ -24,7 +24,7 @@ import {
   type RequestChannel,
 } from "@/lib/sales/labels";
 import { groupDocumentsIntoFolders, type DocumentFolder } from "@/lib/sales/document-folders";
-import { stepperForDossier } from "@/lib/sales/dossier-step";
+import { DOSSIER_FOLLOW_UP_AFTER_DAYS, stepperForDossier } from "@/lib/sales/dossier-step";
 import { MISSING_QUOTE_PRICE, quoteCanWin, quotePriceLabel } from "@/lib/sales/quote-choice";
 import type { DossierDetail } from "@/lib/sales/service";
 import {
@@ -238,7 +238,7 @@ export function DossierPanel({ dossier }: { dossier: DossierDetail }) {
     void run(() => markSentAction(dossier.id, {
       quoteId,
       documentId,
-      followUpDate: followUpInDays(7),
+      followUpDate: followUpInDays(DOSSIER_FOLLOW_UP_AFTER_DAYS),
     }));
   }
 

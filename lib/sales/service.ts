@@ -1342,7 +1342,7 @@ export async function listSalesTasks(user: AuthzUser): Promise<SalesTaskLists> {
       dossier_status: true,
       follow_up_date: true,
       assigned_account: { select: { name: true } },
-      quote_sends: { select: { sent_at: true }, orderBy: { sent_at: "asc" }, take: 1 },
+      quote_sends: { select: { sent_at: true }, orderBy: { sent_at: "desc" }, take: 1 },
       documents: {
         where: { document: { deletedAt: null } },
         select: { document_id: true },

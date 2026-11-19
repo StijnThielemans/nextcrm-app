@@ -27,6 +27,15 @@ describe("sales task lists", () => {
     expect(kind({ status: "OFFERTE_VERSTUURD", hasDocuments: true, sentAt: "2026-11-05T10:00:00.000Z" })).toBe("followUp");
   });
 
+  it("keeps a quote sent one week ago off the follow-up list, even when the old default date is today", () => {
+    expect(kind({
+      status: "OFFERTE_VERSTUURD",
+      hasDocuments: true,
+      sentAt: "2026-11-12T09:00:00.000Z",
+      followUpDate: "2026-11-19",
+    })).toBe("inProgress");
+  });
+
   it("asks for follow-up when the follow-up date is today or earlier", () => {
     expect(kind({ status: "NIEUW", hasDocuments: false, followUpDate: "2026-11-19" })).toBe("followUp");
     expect(kind({ status: "NIEUW", hasDocuments: false, followUpDate: "2026-12-01" })).toBe("toMake");
