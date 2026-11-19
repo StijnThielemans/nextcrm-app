@@ -19,7 +19,7 @@ import AlertModal from "@/components/modals/alert-modal";
 import { useState } from "react";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
-import { UpdateAccountForm } from "../components/UpdateAccountForm";
+import { UpdateAccountForm, type AccountFormValues } from "../components/UpdateAccountForm";
 import {
   Sheet,
   SheetContent,
@@ -116,7 +116,7 @@ export function DataTableRowActions<TData>({
             <SheetDescription>Naam, contacttype, adres, telefoon, gsm, e-mail, belastingstarief en btw.</SheetDescription>
           </SheetHeader>
           <div className="mt-6 space-y-4">
-            <UpdateAccountForm initialData={row.original} open={setUpdateOpen} />
+            <UpdateAccountForm initialData={row.original as AccountFormValues} open={setUpdateOpen} />
           </div>
         </SheetContent>
       </Sheet>

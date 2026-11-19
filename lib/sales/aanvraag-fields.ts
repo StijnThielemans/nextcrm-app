@@ -63,7 +63,7 @@ export function customerProjectLabel(input: {
 function nameKey(value: string): string {
   return value
     .normalize("NFD")
-    .replace(/\p{M}/gu, "")
+    .replace(/[\u0300-\u036f]/g, "")
     .toLocaleLowerCase("nl")
     .split(/\s+/)
     .filter(Boolean)

@@ -6,24 +6,26 @@ import { updateAccount } from "@/actions/crm/accounts/update-account";
 import { CustomerFields, type CustomerDraft } from "@/components/crm/CustomerFields";
 import type { AccountRole } from "@/lib/sales/aanvraag-fields";
 
+export type AccountFormValues = {
+  id: string;
+  name?: string | null;
+  account_role?: AccountRole | null;
+  office_phone?: string | null;
+  mobile_phone?: string | null;
+  email?: string | null;
+  vat?: string | null;
+  tax_rate_id?: string | null;
+  billing_street?: string | null;
+  billing_postal_code?: string | null;
+  billing_city?: string | null;
+  billing_country?: string | null;
+};
+
 export function UpdateAccountForm({
   initialData,
   open,
 }: {
-  initialData: {
-    id: string;
-    name?: string | null;
-    account_role?: AccountRole | null;
-    office_phone?: string | null;
-    mobile_phone?: string | null;
-    email?: string | null;
-    vat?: string | null;
-    tax_rate_id?: string | null;
-    billing_street?: string | null;
-    billing_postal_code?: string | null;
-    billing_city?: string | null;
-    billing_country?: string | null;
-  };
+  initialData: AccountFormValues;
   open: (value: boolean) => void;
 }) {
   const router = useRouter();
