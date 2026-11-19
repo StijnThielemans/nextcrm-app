@@ -85,7 +85,7 @@ export function OfferteboxBoard({ view }: { view: OfferteboxView }) {
     event.preventDefault();
     dragDepth.current = 0;
     setDragOver(false);
-    void uploadFiles([...event.dataTransfer.files]);
+    void filesFromDrop(event).then((files) => uploadFiles(files));
   }
 
   async function onSeller(id: string, sellerName: string) {
@@ -145,7 +145,7 @@ export function OfferteboxBoard({ view }: { view: OfferteboxView }) {
           {uploading ? t("offertebox.dropping") : t("offertebox.dropBrowse")}
           <input
             type="file"
-            accept=".eml,.emlx,message/rfc822"
+            accept=".eml,.emlx,.msg,message/rfc822,application/vnd.ms-outlook"
             multiple
             className="hidden"
             disabled={uploading}
@@ -153,7 +153,9 @@ export function OfferteboxBoard({ view }: { view: OfferteboxView }) {
             onChange={(event) => {
               const files = event.target.files ? [...event.target.files] : [];
               event.target.value = "";
-              void uploadFiles(files);
+              void Promise.all(files.map(materializeDroppedFile)).then((ready) =>
+                uploadFiles(ready.filter((file) => file.size > 0)),
+              );
             }}
           />
         </label>
@@ -318,6 +320,42 @@ function MailColumn({
 
 function hasFiles(event: DragEvent<HTMLDivElement>) {
   return [...event.dataTransfer.types].includes("Files");
+}
+
+/** Outlook gives the browser a virtual file. The first read is often empty, so copy the bytes before upload. */
+async function filesFromDrop(event: DragEvent<HTMLDivElement>): Promise<File[]> {
+  const listed = [...event.dataTransfer.files];
+  const incoming = listed.length > 0 ? listed : filesFromItems(event);
+  const ready = (await Promise.all(incoming.map(materializeDroppedFile))).filter((file) => file.size > 0);
+  if (ready.length > 0) return ready;
+  const text = event.dataTransfer.getData("text/plain").trim();
+  const html = event.dataTransfer.getData("text/html").trim();
+  const body = text || html;
+  if (!body) return [];
+  const subject = body.split("\n").map((line) => line.trim()).find(Boolean)?.slice(0, 180) || "Outlook";
+  const eml = `From: \r\nSubject: ${subject.replace(/[\r\n]/g, " ")}\r\nMIME-Version: 1.0\r\nContent-Type: text/plain; charset=utf-8\r\n\r\n${body}`;
+  return [new File([eml], "outlook.eml", { type: "message/rfc822" })];
+}
+
+function filesFromItems(event: DragEvent<HTMLDivElement>): File[] {
+  const files: File[] = [];
+  for (const item of event.dataTransfer.items) {
+    if (item.kind !== "file") continue;
+    const file = item.getAsFile();
+    if (file) files.push(file);
+  }
+  return files;
+}
+
+async function materializeDroppedFile(file: File): Promise<File> {
+  let bytes = await file.arrayBuffer();
+  if (bytes.byteLength === 0) {
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    bytes = await file.arrayBuffer();
+  }
+  const name = file.name.trim() || "bericht.msg";
+  const type = file.type || (name.toLowerCase().endsWith(".eml") ? "message/rfc822" : "application/vnd.ms-outlook");
+  return new File([bytes], name, { type });
 }
 
 function MailText({ text, showAll, showLess }: { text: string; showAll: string; showLess: string }) {
