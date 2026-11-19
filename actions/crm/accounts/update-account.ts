@@ -12,7 +12,7 @@ import {
   AuthenticationError,
   AuthorizationError,
 } from "@/lib/authz";
-import type { AccountRole } from "@/lib/sales/aanvraag-fields";
+import { parseVatChoice, type AccountRole, type VatChoice } from "@/lib/sales/aanvraag-fields";
 import { SALES_ERROR_TEXT } from "@/lib/sales/labels";
 
 function customerContactPatch(data: {
@@ -32,6 +32,13 @@ function customerContactPatch(data: {
   return patch;
 }
 
+function vatChoicePatch(value: string | null | undefined): { error: string } | { vat_choice?: VatChoice } {
+  const parsed = parseVatChoice(value);
+  if (parsed === null) return { error: SALES_ERROR_TEXT.vatChoiceRequired };
+  if (parsed === undefined) return {};
+  return { vat_choice: parsed };
+}
+
 function accountType(role: AccountRole | undefined) {
   if (role === "SUPPLIER") return "Supplier";
   if (role === "BOTH") return "Customer and supplier";
@@ -45,6 +52,7 @@ export const updateAccount = async (data: {
   account_role?: AccountRole;
   mobile_phone?: string | null;
   tax_rate_id?: string | null;
+  vat_choice?: string | null;
   office_phone?: string | null;
   website?: string | null;
   fax?: string | null;
@@ -69,7 +77,7 @@ export const updateAccount = async (data: {
   industry?: string;
   pricelist_id?: string | null;
 }) => {
-  const { id, ...rest } = data;
+  const { id, vat_choice: rawChoice, ...rest } = data;
   if (!id) return { error: "id is required" };
 
   let user;
@@ -108,6 +116,8 @@ export const updateAccount = async (data: {
   }
   const contact = customerContactPatch(rest);
   if ("error" in contact) return contact;
+  const choice = vatChoicePatch(rawChoice);
+  if ("error" in choice) return choice;
 
   try {
     const account = await prismadb.crm_Accounts.update({
@@ -117,6 +127,7 @@ export const updateAccount = async (data: {
         updatedBy: user.id,
         ...rest,
         ...contact,
+        ...choice,
         ...(rest.pricelist_id === "" ? { pricelist_id: null } : {}),
         // The partner is set only through setAccountPartner (admin/manager).
         partnerUserId: undefined,

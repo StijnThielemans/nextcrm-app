@@ -1,4 +1,4 @@
-import { ACCOUNT_ROLE_LABELS, type AccountRole } from "@/lib/sales/aanvraag-fields";
+import { ACCOUNT_ROLE_LABELS, vatChoiceLabel, type AccountRole } from "@/lib/sales/aanvraag-fields";
 
 /** Fields the customer list search box matches, including the Dutch contact type. */
 export type AccountSearchRow = {
@@ -8,6 +8,7 @@ export type AccountSearchRow = {
   mobile_phone?: string | null;
   email?: string | null;
   vat?: string | null;
+  vat_choice?: string | null;
   billing_street?: string | null;
   billing_postal_code?: string | null;
   billing_city?: string | null;
@@ -38,6 +39,7 @@ export function accountMatchesSearch(row: AccountSearchRow, query: string): bool
     row.office_phone,
     row.mobile_phone,
     row.email,
+    vatChoiceLabel(row.vat_choice),
     row.vat,
     row.billing_street,
     row.billing_postal_code,

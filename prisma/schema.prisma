@@ -49,6 +49,8 @@ model crm_Accounts {
   mobile_phone         String?
   tax_rate_id          String?                 @db.Uuid
   tax_rate             Invoice_TaxRates?       @relation(fields: [tax_rate_id], references: [id], onDelete: SetNull)
+  /// Excl. 21%, excl. 6%, of medecontractant (verlegging, geen percentage).
+  vat_choice           crm_Vat_Choice?
   vat                  String?
   website              String?
   /// Id of this account's record in another system (set by integrations, e.g. over MCP).
@@ -367,6 +369,13 @@ enum crm_Account_Role {
   CUSTOMER
   SUPPLIER
   BOTH
+}
+
+/// Klant-btw. MEDECONTRACTANT is verlegging van heffing, geen tarief.
+enum crm_Vat_Choice {
+  EXCL_21
+  EXCL_6
+  MEDECONTRACTANT
 }
 
 enum crm_Project_Group {

@@ -12,10 +12,13 @@ import {
   PROJECT_GROUP_LABELS,
   PROJECT_GROUPS,
   SELLERS,
+  VAT_CHOICE_LABELS,
+  VAT_CHOICES,
   siteAddressFromBilling,
   type AccountRole,
   type ProjectGroup,
   type SellerName,
+  type VatChoice,
 } from "@/lib/sales/aanvraag-fields";
 import { createAanvraagAction, searchArchitectsAction, searchCustomersAction } from "@/actions/crm/sales/actions";
 import type { ArchitectHit } from "@/lib/sales/architects";
@@ -42,10 +45,8 @@ function sameAddress(left: AddressValue, right: AddressValue) {
 
 export function AanvraagForm({
   projectNumber,
-  taxRates,
 }: {
   projectNumber: string;
-  taxRates: { id: string; name: string; rate: number }[];
 }) {
   const router = useRouter();
   const [channel, setChannel] = useState<RequestChannel>("PHONE");
@@ -71,7 +72,7 @@ export function AanvraagForm({
   const [phone, setPhone] = useState("");
   const [mobile, setMobile] = useState("");
   const [email, setEmail] = useState("");
-  const [taxRateId, setTaxRateId] = useState("");
+  const [vatChoice, setVatChoice] = useState<VatChoice | "">("");
   const [vat, setVat] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -152,6 +153,10 @@ export function AanvraagForm({
       setError(SALES_ERROR_TEXT.phoneOrMobileRequired);
       return;
     }
+    if (!accountId && showNew && !vatChoice) {
+      setError(SALES_ERROR_TEXT.vatChoiceRequired);
+      return;
+    }
     if (!seller || !projectGroup) return;
     setPending(true);
     const result = await createAanvraagAction({
@@ -171,7 +176,7 @@ export function AanvraagForm({
             phone,
             mobile,
             email,
-            taxRateId,
+            vatChoice: vatChoice as VatChoice,
             vat,
           },
       projectName: description,
@@ -275,16 +280,15 @@ export function AanvraagForm({
               <Input type="email" value={email} onChange={(event) => setEmail(event.target.value)} required />
             </label>
             <label className="space-y-1">
-              <span className="text-sm">Belastingstarief</span>
+              <span className="text-sm">BTW</span>
               <select
                 className="flex h-9 w-full rounded-md border bg-transparent px-3 text-sm"
-                value={taxRateId}
+                value={vatChoice}
                 required
-                onChange={(event) => setTaxRateId(event.target.value)}
+                onChange={(event) => setVatChoice(event.target.value as VatChoice)}
               >
-                <option value="">Kies</option>
-                {taxRates.map((rate) => (
-                  <option key={rate.id} value={rate.id}>{rate.name} ({rate.rate}%)</option>
+                {VAT_CHOICES.map((item) => (
+                  <option key={item} value={item}>{VAT_CHOICE_LABELS[item]}</option>
                 ))}
               </select>
             </label>

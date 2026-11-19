@@ -23,10 +23,12 @@ import {
   isAccountRole,
   isProjectGroup,
   isSellerName,
+  isVatChoice,
   matchSellerUser,
   customerProjectLabel,
   type AccountRole,
   type ProjectGroup,
+  type VatChoice,
 } from "./aanvraag-fields";
 import {
   ArchitectDirectoryError,
@@ -198,7 +200,7 @@ export type NewCustomerInput = {
   phone: string;
   mobile: string;
   email: string;
-  taxRateId: string;
+  vatChoice: VatChoice;
   vat: string;
 };
 
@@ -242,15 +244,6 @@ export async function previewDossierNumber(): Promise<string | null> {
   const year = new Date().getUTCFullYear();
   const base = row.resetPolicy === "YEARLY" && row.currentYear !== year ? 0 : row.counter;
   return previewNumber(row.template, base);
-}
-
-export async function listActiveTaxRates(): Promise<{ id: string; name: string; rate: number }[]> {
-  const rows = await prismadb.invoice_TaxRates.findMany({
-    where: { active: true },
-    orderBy: [{ isDefault: "desc" }, { rate: "desc" }],
-    select: { id: true, name: true, rate: true },
-  });
-  return rows.map((row) => ({ id: row.id, name: row.name, rate: Number(row.rate) }));
 }
 
 export async function createAanvraag(user: AuthzUser, input: AanvraagInput): Promise<{ id: string; number: string }> {
@@ -382,11 +375,7 @@ async function createCustomer(tx: Tx, user: AuthzUser, input: NewCustomerInput):
   const postalCode = input.postalCode?.trim() || "";
   const city = input.city?.trim() || "";
   if (!street || !postalCode || !city) throw new SalesError("addressRequired");
-  const taxRate = await tx.invoice_TaxRates.findFirst({
-    where: { id: input.taxRateId, active: true },
-    select: { id: true },
-  });
-  if (!taxRate) throw new SalesError("taxRateRequired");
+  if (!isVatChoice(input.vatChoice)) throw new SalesError("vatChoiceRequired");
   const account = await tx.crm_Accounts.create({
     data: {
       v: 0,
@@ -400,7 +389,7 @@ async function createCustomer(tx: Tx, user: AuthzUser, input: NewCustomerInput):
       billing_city: city,
       billing_country: input.country?.trim() || "BE",
       account_role: input.role,
-      tax_rate_id: taxRate.id,
+      vat_choice: input.vatChoice,
       type: input.role === "SUPPLIER" ? "Supplier" : input.role === "BOTH" ? "Customer and supplier" : "Customer",
       status: "Active",
       assigned_to: user.id,

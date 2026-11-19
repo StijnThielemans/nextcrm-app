@@ -31,7 +31,7 @@ export function AccountDetailActions({ account }: AccountDetailActionsProps) {
         <SheetContent className="w-full md:max-w-[771px] overflow-y-auto">
           <SheetHeader>
             <SheetTitle>Klant bewerken — {account?.name}</SheetTitle>
-            <SheetDescription>Naam, contacttype, adres, telefoon, gsm, e-mail, belastingstarief en btw.</SheetDescription>
+            <SheetDescription>Naam, contacttype, adres, telefoon, gsm, e-mail, btw en btw-nummer.</SheetDescription>
           </SheetHeader>
           <div className="mt-6 space-y-4">
             <UpdateAccountForm initialData={account} open={setUpdateOpen} />

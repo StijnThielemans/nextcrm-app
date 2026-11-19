@@ -204,7 +204,7 @@ export const SALES_ERROR_TEXT: Record<string, string> = {
   phoneOrMobileRequired: "Vul een telefoonnummer of een gsm-nummer in.",
   emailRequired: "E-mailadres is verplicht.",
   vatRequired: "BTW-nummer is verplicht.",
-  taxRateRequired: "Kies een belastingstarief.",
+  vatChoiceRequired: "Kies BTW: Excl 21%, Excl 6% of Medecontractant.",
   categoryRequired: "Kies een documentcategorie.",
   fileType: "Dit bestandstype is niet toegestaan.",
   lostReason: "Een verliesreden is verplicht (maximaal 500 tekens).",

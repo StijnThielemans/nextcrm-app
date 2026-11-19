@@ -12,7 +12,7 @@ const AccountsPage = async () => {
   return (
     <Container
       title="Klanten"
-      description="Naam, contacttype, adres, telefoon, e-mail, belastingstarief en btw."
+      description="Naam, contacttype, adres, telefoon, e-mail, btw en btw-nummer."
     >
       <Suspense fallback={<CrmAccountsSkeleton />}>
         <AccountsView crmData={crmData} data={accounts} />

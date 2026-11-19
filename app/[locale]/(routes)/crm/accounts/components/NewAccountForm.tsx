@@ -14,7 +14,7 @@ export function NewAccountForm({ onFinish }: { onFinish: () => void }) {
       mobile_phone: draft.mobile,
       email: draft.email,
       vat: draft.vat,
-      tax_rate_id: draft.taxRateId,
+      vat_choice: draft.vatChoice,
       billing_street: draft.address.street,
       billing_postal_code: draft.address.postalCode,
       billing_city: draft.address.city,

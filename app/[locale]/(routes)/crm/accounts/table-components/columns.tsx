@@ -5,7 +5,7 @@ import { Link } from "@/i18n/navigation";
 import { Account } from "../table-data/schema";
 import { DataTableColumnHeader } from "./data-table-column-header";
 import { DataTableRowActions } from "./data-table-row-actions";
-import { ACCOUNT_ROLE_LABELS, type AccountRole } from "@/lib/sales/aanvraag-fields";
+import { ACCOUNT_ROLE_LABELS, vatChoiceLabel, type AccountRole } from "@/lib/sales/aanvraag-fields";
 
 type CustomerRow = Account & {
   account_role?: string | null;
@@ -13,6 +13,7 @@ type CustomerRow = Account & {
   mobile_phone?: string | null;
   email?: string | null;
   vat?: string | null;
+  vat_choice?: string | null;
   billing_street?: string | null;
   billing_postal_code?: string | null;
   billing_city?: string | null;
@@ -60,8 +61,13 @@ export const columns: ColumnDef<CustomerRow>[] = [
     cell: ({ row }) => text(row.original.email),
   },
   {
-    accessorKey: "vat",
+    accessorKey: "vat_choice",
     header: ({ column }) => <DataTableColumnHeader column={column} title="BTW" />,
+    cell: ({ row }) => text(vatChoiceLabel(row.original.vat_choice)),
+  },
+  {
+    accessorKey: "vat",
+    header: ({ column }) => <DataTableColumnHeader column={column} title="BTW-nummer" />,
     cell: ({ row }) => text(row.original.vat),
   },
   {

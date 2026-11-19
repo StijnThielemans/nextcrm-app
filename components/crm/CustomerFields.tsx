@@ -1,14 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { AddressBox, emptyAddress, type AddressValue } from "@/components/crm/AddressBox";
-import { listCustomerTaxRates } from "@/actions/crm/accounts/tax-rates";
 import {
   ACCOUNT_ROLE_LABELS,
   ACCOUNT_ROLES,
+  VAT_CHOICE_LABELS,
+  VAT_CHOICES,
   type AccountRole,
+  type VatChoice,
 } from "@/lib/sales/aanvraag-fields";
 import { SALES_ERROR_TEXT } from "@/lib/sales/labels";
 
@@ -19,7 +21,7 @@ export type CustomerDraft = {
   phone: string;
   mobile: string;
   email: string;
-  taxRateId: string;
+  vatChoice: VatChoice | "";
   vat: string;
 };
 
@@ -38,17 +40,10 @@ export function CustomerFields({
   const [phone, setPhone] = useState(initial?.phone ?? "");
   const [mobile, setMobile] = useState(initial?.mobile ?? "");
   const [email, setEmail] = useState(initial?.email ?? "");
-  const [taxRateId, setTaxRateId] = useState(initial?.taxRateId ?? "");
+  const [vatChoice, setVatChoice] = useState<VatChoice | "">(initial?.vatChoice ?? "");
   const [vat, setVat] = useState(initial?.vat ?? "");
-  const [taxRates, setTaxRates] = useState<{ id: string; name: string; rate: number }[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
-
-  useEffect(() => {
-    let alive = true;
-    listCustomerTaxRates().then((rates) => { if (alive) setTaxRates(rates); }).catch(() => {});
-    return () => { alive = false; };
-  }, []);
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -57,8 +52,12 @@ export function CustomerFields({
       setError(SALES_ERROR_TEXT.phoneOrMobileRequired);
       return;
     }
+    if (!vatChoice) {
+      setError(SALES_ERROR_TEXT.vatChoiceRequired);
+      return;
+    }
     setPending(true);
-    const message = await onSubmit({ name, role, address, phone, mobile, email, taxRateId, vat });
+    const message = await onSubmit({ name, role, address, phone, mobile, email, vatChoice, vat });
     setPending(false);
     if (message) setError(message);
   }
@@ -97,16 +96,15 @@ export function CustomerFields({
         <Input type="email" value={email} onChange={(event) => setEmail(event.target.value)} required />
       </label>
       <label className="space-y-1 block">
-        <span className="text-sm">Belastingstarief</span>
+        <span className="text-sm">BTW</span>
         <select
           className="flex h-9 w-full rounded-md border bg-transparent px-3 text-sm"
-          value={taxRateId}
+          value={vatChoice}
           required
-          onChange={(event) => setTaxRateId(event.target.value)}
+          onChange={(event) => setVatChoice(event.target.value as VatChoice)}
         >
-          <option value="">Kies</option>
-          {taxRates.map((rate) => (
-            <option key={rate.id} value={rate.id}>{rate.name} ({rate.rate}%)</option>
+          {VAT_CHOICES.map((item) => (
+            <option key={item} value={item}>{VAT_CHOICE_LABELS[item]}</option>
           ))}
         </select>
       </label>

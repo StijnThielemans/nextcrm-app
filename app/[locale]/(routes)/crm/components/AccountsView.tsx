@@ -60,7 +60,7 @@ const AccountsView = ({ data, crmData }: AccountsViewProps) => {
                 <SheetHeader>
                   <SheetTitle>Nieuwe klant</SheetTitle>
                   <SheetDescription>
-                    Naam, contacttype, adres, telefoon, gsm, e-mail, belastingstarief en btw.
+                    Naam, contacttype, adres, telefoon, gsm, e-mail, btw en btw-nummer.
                   </SheetDescription>
                 </SheetHeader>
                 <div className="mt-6 space-y-4">

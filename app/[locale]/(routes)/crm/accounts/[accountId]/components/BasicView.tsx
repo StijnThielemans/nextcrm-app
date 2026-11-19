@@ -5,7 +5,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { AccountDetailActions } from "./AccountDetailActions";
-import { ACCOUNT_ROLE_LABELS, type AccountRole } from "@/lib/sales/aanvraag-fields";
+import { ACCOUNT_ROLE_LABELS, vatChoiceLabel, type AccountRole } from "@/lib/sales/aanvraag-fields";
 
 function line(label: string, value: string | null | undefined) {
   return (
@@ -22,7 +22,7 @@ export async function BasicView({ data }: { data: any }) {
     ? ACCOUNT_ROLE_LABELS[data.account_role as AccountRole]
     : null;
   const address = [data.billing_street, data.billing_postal_code, data.billing_city, data.billing_country].filter(Boolean).join(", ");
-  const tax = data.tax_rate ? `${data.tax_rate.name} (${Number(data.tax_rate.rate)}%)` : null;
+  const tax = vatChoiceLabel(data.vat_choice);
 
   return (
     <Card>
@@ -38,7 +38,7 @@ export async function BasicView({ data }: { data: any }) {
         {line("Telefoonnummer", data.office_phone)}
         {line("Gsm-nummer", data.mobile_phone)}
         {line("E-mailadres", data.email)}
-        {line("Belastingstarief", tax)}
+        {line("BTW", tax)}
         {line("BTW-nummer", data.vat)}
       </CardContent>
     </Card>

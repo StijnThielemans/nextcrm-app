@@ -26,6 +26,9 @@ describe("account list search", () => {
     expect(accountMatchesSearch(jan, "0470 123 456")).toBe(true);
     expect(accountMatchesSearch(jan, "BE 0123.456.789")).toBe(true);
     expect(accountMatchesSearch(jan, "Kerkstraat 12, 9000")).toBe(true);
+    expect(accountMatchesSearch({ ...jan, vat_choice: "MEDECONTRACTANT" }, "Medecontractant")).toBe(true);
+    expect(accountMatchesSearch({ ...jan, vat_choice: "EXCL_6" }, "Excl 6%")).toBe(true);
+    expect(accountMatchesSearch({ ...jan, vat_choice: "EXCL_21" }, "Standard 21%")).toBe(false);
   });
 
   it("matches the Dutch label for every contact type", () => {

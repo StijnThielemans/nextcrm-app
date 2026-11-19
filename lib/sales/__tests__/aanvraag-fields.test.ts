@@ -1,11 +1,28 @@
 import {
+  VAT_CHOICE_LABELS,
+  VAT_CHOICES,
   customerProjectLabel,
+  isVatChoice,
   matchSellerUser,
+  parseVatChoice,
   siteAddressFromBilling,
   suggestionFromPhoton,
 } from "../aanvraag-fields";
 
 describe("aanvraag fields", () => {
+  it("offers exactly the three customer VAT choices", () => {
+    expect(VAT_CHOICES.map((choice) => VAT_CHOICE_LABELS[choice])).toEqual([
+      "Excl 21%",
+      "Excl 6%",
+      "Medecontractant",
+    ]);
+    expect(isVatChoice("MEDECONTRACTANT")).toBe(true);
+    expect(parseVatChoice("EXCL_6")).toBe("EXCL_6");
+    expect(parseVatChoice("")).toBeNull();
+    expect(parseVatChoice(undefined)).toBeUndefined();
+    expect(parseVatChoice("12")).toBeNull();
+  });
+
   it("prefills a project description as last name then first name", () => {
     expect(customerProjectLabel({ name: "Jan Peeters", firstName: "Jan", lastName: "Peeters" })).toBe("Peeters Jan");
     expect(customerProjectLabel({ name: "Thielemans NV" })).toBe("Thielemans NV");

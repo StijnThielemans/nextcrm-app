@@ -36,6 +36,16 @@ export const ACCOUNT_ROLE_LABELS: Record<AccountRole, string> = {
   BOTH: "Klant en leverancier",
 };
 
+export const VAT_CHOICES = ["EXCL_21", "EXCL_6", "MEDECONTRACTANT"] as const;
+
+export type VatChoice = (typeof VAT_CHOICES)[number];
+
+export const VAT_CHOICE_LABELS: Record<VatChoice, string> = {
+  EXCL_21: "Excl 21%",
+  EXCL_6: "Excl 6%",
+  MEDECONTRACTANT: "Medecontractant",
+};
+
 export function isSellerName(value: string): value is SellerName {
   return (SELLERS as readonly string[]).includes(value);
 }
@@ -46,6 +56,22 @@ export function isProjectGroup(value: string): value is ProjectGroup {
 
 export function isAccountRole(value: string): value is AccountRole {
   return (ACCOUNT_ROLES as readonly string[]).includes(value);
+}
+
+export function isVatChoice(value: string): value is VatChoice {
+  return (VAT_CHOICES as readonly string[]).includes(value);
+}
+
+export function vatChoiceLabel(value: string | null | undefined): string {
+  if (value && isVatChoice(value)) return VAT_CHOICE_LABELS[value];
+  return "";
+}
+
+/** undefined = not submitted. null = submitted, but not one of the three choices. */
+export function parseVatChoice(value: string | null | undefined): VatChoice | null | undefined {
+  if (value === undefined) return undefined;
+  if (value && isVatChoice(value)) return value;
+  return null;
 }
 
 /** "Jan Peeters" with a contact Jan / Peeters becomes "Peeters Jan". */
