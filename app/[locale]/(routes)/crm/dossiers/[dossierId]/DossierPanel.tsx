@@ -19,13 +19,10 @@ import {
 import {
   DOSSIER_DOCUMENT_CATEGORIES,
   DOSSIER_DOCUMENT_LABELS,
-  DOSSIER_STATUS_LABELS,
   FOLLOW_UP_CHANNEL_LABELS,
   FOLLOW_UP_CHANNELS,
-  OPEN_STATUSES,
   followUpChannelLabel,
   type DossierDocumentCategory,
-  type DossierStatus,
   type RequestChannel,
 } from "@/lib/sales/labels";
 import { ACCOUNT_ROLE_LABELS, PROJECT_GROUP_LABELS, type AccountRole, type ProjectGroup } from "@/lib/sales/aanvraag-fields";
@@ -39,7 +36,6 @@ import {
   attachOffertePdfAction,
   changeStatusAction,
   markSentAction,
-  updateDossierAction,
 } from "@/actions/crm/sales/actions";
 import { uploadDocumentFile, uploadPdf } from "../../sales/upload-pdf";
 
@@ -167,8 +163,6 @@ export function DossierPanel({ dossier }: { dossier: DossierDetail }) {
   const [quoteDragging, setQuoteDragging] = useState(false);
   const [priceFile, setPriceFile] = useState<{ key: string; size: number; mimeType: string; fileName: string } | null>(null);
   const [price, setPrice] = useState("");
-  const [status, setStatus] = useState<DossierStatus>((dossier.status as DossierStatus) || "NIEUW");
-  const [followOpen, setFollowOpen] = useState(false);
   const [closeMode, setCloseMode] = useState<"won" | "lost" | null>(null);
   const versions = dossier.families.flatMap((family) => family.quotes);
   const canChooseWinner = versions.some((quote) => quoteCanWin(quote.gross));
@@ -254,7 +248,6 @@ export function DossierPanel({ dossier }: { dossier: DossierDetail }) {
     sentAt: sentOn.get(quote.id) ?? null,
     gross: quote.gross,
   })));
-  const hasFollowUp = Boolean(dossier.followUpDate || dossier.nextStep || dossier.notes);
   const stepper = stepperForDossier(dossier);
 
   return (
@@ -542,120 +535,10 @@ export function DossierPanel({ dossier }: { dossier: DossierDetail }) {
           <DocumentFolders documents={dossier.documents} />
         </div>
 
-        <div className="rounded-md border p-4 space-y-3 text-sm">
-          <div className="flex items-center justify-between gap-2">
-            <h2 className="text-lg font-semibold">Opvolging</h2>
-            {!dossier.terminal && (
-              <Button
-                type="button"
-                size="icon"
-                variant="outline"
-                className="h-8 w-8"
-                aria-label="Opvolging toevoegen"
-                disabled={busy}
-                onClick={() => {
-                  setStatus((dossier.status as DossierStatus) || "NIEUW");
-                  setFollowOpen(true);
-                }}
-              >
-                <Plus />
-              </Button>
-            )}
-          </div>
-          {hasFollowUp ? (
-            <ul className="space-y-1">
-              {dossier.followUpDate && <li><span className="text-muted-foreground">Datum </span>{dossier.followUpDate}</li>}
-              {dossier.nextStep && <li><span className="text-muted-foreground">Volgende actie </span>{dossier.nextStep}</li>}
-              {dossier.notes && <li><span className="text-muted-foreground">Notitie </span>{dossier.notes}</li>}
-            </ul>
-          ) : (
-            <p className="text-muted-foreground">Nog geen opvolging.</p>
-          )}
-          {dossier.terminal && <p>Het verkooppad is gesloten. Er wordt geen order of factuur gemaakt.</p>}
-          {dossier.terminal && dossier.status === "VERLOREN" && (
-            <form
-              className="flex gap-2"
-              onSubmit={(event) => {
-                event.preventDefault();
-                const reason = String(new FormData(event.currentTarget).get("lostReason") ?? "");
-                void run(() => updateDossierAction(dossier.id, { lostReason: reason }));
-              }}
-            >
-              <Input name="lostReason" defaultValue={dossier.lostReason ?? ""} />
-              <Button type="submit" variant="secondary" disabled={busy}>Reden verbeteren</Button>
-            </form>
-          )}
-          <Dialog open={followOpen} onOpenChange={setFollowOpen}>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Opvolging toevoegen</DialogTitle>
-                <DialogDescription>Datum en notitie voor de volgende opvolging.</DialogDescription>
-              </DialogHeader>
-              <form
-                key={`${dossier.followUpDate ?? ""}-${dossier.nextStep ?? ""}-${dossier.notes ?? ""}-${dossier.status ?? ""}`}
-                className="grid gap-3"
-                onSubmit={(event) => {
-                  event.preventDefault();
-                  const data = new FormData(event.currentTarget);
-                  void run(async () => {
-                    const saved = await updateDossierAction(dossier.id, {
-                      nextStep: String(data.get("nextStep") ?? ""),
-                      followUpDate: String(data.get("followUp") ?? ""),
-                      notes: String(data.get("notes") ?? ""),
-                    });
-                    if (saved.error) return saved;
-                    setFollowOpen(false);
-                    if (status === dossier.status) return { ok: true };
-                    return changeStatusAction(dossier.id, {
-                      status,
-                      lostReason: String(data.get("lostReason") ?? ""),
-                      acceptedQuoteId: String(data.get("accepted") ?? ""),
-                    });
-                  });
-                }}
-              >
-                <label className="space-y-1">
-                  <span className="text-sm">Datum</span>
-                  <Input name="followUp" type="date" defaultValue={dossier.followUpDate ?? today} required />
-                </label>
-                <label className="space-y-1">
-                  <span className="text-sm">Volgende actie</span>
-                  <Input name="nextStep" defaultValue={dossier.nextStep ?? ""} />
-                </label>
-                <label className="space-y-1">
-                  <span className="text-sm">Status</span>
-                  <select className="flex h-9 w-full rounded-md border bg-transparent px-3 text-sm" value={status} onChange={(event) => setStatus(event.target.value as DossierStatus)}>
-                    {OPEN_STATUSES.filter((item) => item !== "OFFERTE_VERSTUURD").map((item) => (
-                      <option key={item} value={item}>{DOSSIER_STATUS_LABELS[item]}</option>
-                    ))}
-                    {dossier.status === "OFFERTE_VERSTUURD" && <option value="OFFERTE_VERSTUURD">Offerte verstuurd</option>}
-                    <option value="GEWONNEN">Gewonnen</option>
-                    <option value="VERLOREN">Verloren</option>
-                  </select>
-                </label>
-                <label className="space-y-1">
-                  <span className="text-sm">Interne notitie</span>
-                  <Input name="notes" defaultValue={dossier.notes ?? ""} />
-                </label>
-                {status === "VERLOREN" && (
-                  <label className="space-y-1">
-                    <span className="text-sm">Reden verloren</span>
-                    <Input name="lostReason" required />
-                  </label>
-                )}
-                {status === "GEWONNEN" && <WinningQuoteChoices quotes={versions} />}
-                <DialogFooter>
-                  <Button type="button" variant="outline" onClick={() => setFollowOpen(false)}>Annuleren</Button>
-                  <Button type="submit" disabled={busy || (status === "GEWONNEN" && !canChooseWinner)}>Opslaan</Button>
-                </DialogFooter>
-              </form>
-            </DialogContent>
-          </Dialog>
-        </div>
       </section>
 
-      <section className="space-y-3">
-        <h2 className="text-lg font-semibold">Contacten</h2>
+      <section className="space-y-3" aria-label="Opvolging">
+        <h2 className="text-lg font-semibold">Opvolging</h2>
         <ul className="text-sm space-y-1">
           {dossier.channels.map((event) => (
             <li key={event.id}>
@@ -683,12 +566,12 @@ export function DossierPanel({ dossier }: { dossier: DossierDetail }) {
               });
             }}
           >
-            <select name="channel" aria-label="Kanaal" className="h-9 rounded-md border bg-transparent px-2 text-sm" defaultValue="PHONE">
+            <select name="channel" aria-label="Opvolging" className="h-9 rounded-md border bg-transparent px-2 text-sm" defaultValue="PHONE">
               {FOLLOW_UP_CHANNELS.map((item) => <option key={item} value={item}>{FOLLOW_UP_CHANNEL_LABELS[item]}</option>)}
             </select>
             <Input name="date" type="date" defaultValue={today} required className="w-40" />
             <Input name="note" placeholder="Notitie" className="w-56" />
-            <Button type="submit" variant="secondary" disabled={busy}>Contact toevoegen</Button>
+            <Button type="submit" variant="secondary" disabled={busy}>Opvolging toevoegen</Button>
           </form>
         )}
       </section>
