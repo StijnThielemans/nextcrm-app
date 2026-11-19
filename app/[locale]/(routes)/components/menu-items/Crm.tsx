@@ -37,7 +37,6 @@ export const getCrmMenuItem = ({ localizations }: Props): NavItem => {
       { title: "Klanten", url: "/crm/accounts" },
       { title: "Offertedossiers", url: "/crm/dossiers" },
       { title: "Offertes", url: "/crm/offertes" },
-      { title: "+ Nieuwe aanvraag", url: "/crm/aanvraag" },
     ],
   };
 };
