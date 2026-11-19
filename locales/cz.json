@@ -960,6 +960,10 @@
       "showLess": "Méně textu",
       "emptyAssign": "Nic k rozdělení.",
       "emptyWaiting": "Žádná poptávka nečeká na nabídku.",
+      "originalMail": "Původní e-mail",
+      "downloadFile": "Stáhnout",
+      "closePreview": "Zavřít",
+      "noBody": "Tento e-mail nemá žádný text.",
       "fileAttachments": "Zařadit přílohy",
       "fileAttachmentsLead": "Zařaďte každou přílohu do správné kategorie. E-mail si soubor ponechá. Složka dostane vlastní kopii ve správě dokumentů."
     },

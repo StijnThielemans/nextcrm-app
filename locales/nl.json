@@ -1061,6 +1061,10 @@
       "showLess": "Minder tekst",
       "emptyAssign": "Niets te verdelen.",
       "emptyWaiting": "Geen aanvragen die op een offerte wachten.",
+      "originalMail": "Oorspronkelijke mail",
+      "downloadFile": "Downloaden",
+      "closePreview": "Sluiten",
+      "noBody": "Geen tekst in deze mail.",
       "fileAttachments": "Bijlagen indelen",
       "fileAttachmentsLead": "Zet elke bijlage in de juiste categorie. De mail houdt het bestand. Het dossier krijgt een eigen kopie in Documentbeheer."
     },

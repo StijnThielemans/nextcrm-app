@@ -42,12 +42,32 @@ export type OfferteboxView = {
   rows: OfferteboxRow[];
 };
 
+export type OfferteboxMailAttachment = {
+  id: string;
+  fileName: string;
+  contentType: string;
+  size: number;
+  isImage: boolean;
+};
+
+/** The mail as stored, shown beside Nieuwe aanvraag. HTML is already sanitized. */
+export type OfferteboxMailAside = {
+  receivedAt: string;
+  fromName: string;
+  fromEmail: string;
+  subject: string;
+  body: string;
+  html: string;
+  attachments: OfferteboxMailAttachment[];
+};
+
 export type OfferteboxPrefill = {
   id: string;
   sellerName: string;
   subject: string;
   fromName: string;
   fromEmail: string;
+  mail: OfferteboxMailAside;
 };
 
 function denyPartner(user: AuthzUser) {
@@ -355,15 +375,63 @@ export async function offerteboxPrefill(user: AuthzUser, id: string): Promise<Of
   denyPartner(user);
   const item = await prismadb.crm_OfferteboxItems.findUnique({
     where: { id },
-    select: { id: true, seller_name: true, subject: true, from_name: true, from_email: true, dossier_id: true },
+    select: {
+      id: true,
+      seller_name: true,
+      subject: true,
+      from_name: true,
+      from_email: true,
+      dossier_id: true,
+      received_at: true,
+      preview: true,
+      body_text: true,
+      body_html: true,
+      attachments: {
+        orderBy: { createdAt: "asc" },
+        select: {
+          id: true,
+          file_name: true,
+          content_type: true,
+          size: true,
+          is_image: true,
+          content_id: true,
+          inline: true,
+        },
+      },
+    },
   });
   if (!item || item.dossier_id) return null;
   const email = item.from_email?.trim() ?? "";
+  const fromName = item.from_name?.trim() ?? "";
   return {
     id: item.id,
     sellerName: item.seller_name ?? "",
     subject: item.subject,
-    fromName: item.from_name?.trim() ?? "",
+    fromName,
     fromEmail: email.toLowerCase() === OFFERTE_MAILBOX ? "" : email,
+    mail: {
+      receivedAt: item.received_at.toISOString(),
+      fromName,
+      fromEmail: email,
+      subject: item.subject,
+      body: item.body_text?.trim() || item.preview?.trim() || "",
+      html: displayMailHtml(
+        item.body_html,
+        item.attachments.map((attachment) => ({
+          id: attachment.id,
+          contentId: attachment.content_id,
+          isImage: attachment.is_image,
+        })),
+      ),
+      attachments: item.attachments
+        .filter((attachment) => !attachment.inline)
+        .map((attachment) => ({
+          id: attachment.id,
+          fileName: attachment.file_name,
+          contentType: attachment.content_type,
+          size: attachment.size,
+          isImage: attachment.is_image,
+        })),
+    },
   };
 }

@@ -957,6 +957,10 @@
       "showLess": "Moins de texte",
       "emptyAssign": "Rien à répartir.",
       "emptyWaiting": "Aucune demande en attente d'offre.",
+      "originalMail": "Mail d'origine",
+      "downloadFile": "Télécharger",
+      "closePreview": "Fermer",
+      "noBody": "Ce mail n'a pas de texte.",
       "fileAttachments": "Classer les pièces jointes",
       "fileAttachmentsLead": "Placez chaque pièce jointe dans la bonne catégorie. Le mail conserve le fichier. Le dossier reçoit sa propre copie dans la gestion des documents."
     },

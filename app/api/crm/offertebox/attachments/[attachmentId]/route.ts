@@ -8,6 +8,7 @@ import {
 } from "@/lib/authz";
 import { prismadb } from "@/lib/prisma";
 import { MINIO_BUCKET, minioClient } from "@/lib/minio";
+import { inlineAttachmentType } from "@/lib/sales/aanvraag-mail";
 import { attachmentDisposition, imageContentType, isOfferteboxStorageKey } from "@/lib/sales/offertebox-mail";
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ attachmentId: string }> }) {
@@ -34,12 +35,13 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   if (!object.Body) return notFoundOrForbiddenResponse();
   const bytes = Buffer.from(await object.Body.transformToByteArray());
   const image = attachment.is_image ? imageContentType(bytes) : null;
+  const inlineType = inlineAttachmentType(image, bytes);
   const download = request.nextUrl.searchParams.get("download") === "1";
-  const inline = image !== null && !download;
+  const inline = inlineType !== null && !download;
 
   return new NextResponse(new Uint8Array(bytes), {
     headers: {
-      "Content-Type": image ?? "application/octet-stream",
+      "Content-Type": inlineType ?? "application/octet-stream",
       "Content-Disposition": attachmentDisposition(attachment.file_name, inline),
       "X-Content-Type-Options": "nosniff",
       "Cache-Control": "private, no-store",

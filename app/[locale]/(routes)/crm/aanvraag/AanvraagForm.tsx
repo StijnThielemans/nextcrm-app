@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
+import { X } from "lucide-react";
+import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
@@ -12,6 +14,7 @@ import {
   DialogDescription,
   DialogFooter,
   DialogHeader,
+  DialogPortal,
   DialogTitle,
 } from "@/components/ui/dialog";
 import { CHANNELS, type RequestChannel } from "@/lib/sales/labels";
@@ -223,28 +226,21 @@ export function AanvraagForm({
           <Button type="button" variant="outline" onClick={() => setNewCustomerOpen(true)}>
             {t("newCustomer")}
           </Button>
-          <Dialog open={newCustomerOpen} onOpenChange={setNewCustomerOpen}>
-            <DialogContent
-              className="max-h-[90vh] overflow-y-auto sm:max-w-3xl"
-              data-testid="new-customer-dialog"
-            >
-              <DialogHeader>
-                <DialogTitle>{t("newCustomer")}</DialogTitle>
-                <DialogDescription>{t("customerFieldsDescription")}</DialogDescription>
-              </DialogHeader>
-              {newCustomerOpen && (
-                <NewAccountForm
-                  initial={accountId ? undefined : { name: query, email: fromBox?.fromEmail ?? "" }}
-                  onFinish={onCustomerCreated}
-                />
-              )}
-              <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setNewCustomerOpen(false)}>
-                  {t("cancel")}
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+          <CustomerDialog
+            open={newCustomerOpen}
+            onOpenChange={setNewCustomerOpen}
+            besideMail={Boolean(fromBox)}
+            title={t("newCustomer")}
+            description={t("customerFieldsDescription")}
+            cancel={t("cancel")}
+          >
+            {newCustomerOpen && (
+              <NewAccountForm
+                initial={accountId ? undefined : { name: query, email: fromBox?.fromEmail ?? "" }}
+                onFinish={onCustomerCreated}
+              />
+            )}
+          </CustomerDialog>
         </div>
         <label className="space-y-1 block">
           <span className="text-sm">{t("projectDescription")}</span>
@@ -358,5 +354,68 @@ export function AanvraagForm({
       </Button>
       <Label className="sr-only">{t("newRequest")}</Label>
     </form>
+  );
+}
+
+function CustomerDialog({
+  open,
+  onOpenChange,
+  besideMail,
+  title,
+  description,
+  cancel,
+  children,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  besideMail: boolean;
+  title: string;
+  description: string;
+  cancel: string;
+  children: ReactNode;
+}) {
+  const body = (
+    <>
+      <DialogHeader>
+        <DialogTitle>{title}</DialogTitle>
+        <DialogDescription>{description}</DialogDescription>
+      </DialogHeader>
+      {children}
+      <DialogFooter>
+        <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+          {cancel}
+        </Button>
+      </DialogFooter>
+    </>
+  );
+
+  if (!besideMail) {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-3xl" data-testid="new-customer-dialog">
+          {body}
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange} modal={false}>
+      <DialogPortal>
+        <DialogPrimitive.Content
+          data-testid="new-customer-dialog"
+          className="fixed top-4 left-4 z-50 grid max-h-[min(90vh,48rem)] w-[min(42rem,calc(100vw-2rem))] gap-4 overflow-y-auto border bg-background p-6 shadow-lg sm:rounded-lg lg:left-64 lg:w-[min(40rem,calc(100vw-46rem))]"
+          onPointerDownOutside={(event) => event.preventDefault()}
+          onInteractOutside={(event) => event.preventDefault()}
+          onFocusOutside={(event) => event.preventDefault()}
+        >
+          {body}
+          <DialogPrimitive.Close className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2">
+            <X className="h-4 w-4" />
+            <span className="sr-only">{cancel}</span>
+          </DialogPrimitive.Close>
+        </DialogPrimitive.Content>
+      </DialogPortal>
+    </Dialog>
   );
 }

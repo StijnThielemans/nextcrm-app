@@ -957,6 +957,10 @@
       "showLess": "Weniger Text",
       "emptyAssign": "Nichts zu verteilen.",
       "emptyWaiting": "Keine Anfrage wartet auf ein Angebot.",
+      "originalMail": "Ursprüngliche E-Mail",
+      "downloadFile": "Herunterladen",
+      "closePreview": "Schließen",
+      "noBody": "Diese E-Mail hat keinen Text.",
       "fileAttachments": "Anhänge einordnen",
       "fileAttachmentsLead": "Ordnen Sie jeden Anhang der richtigen Kategorie zu. Die E-Mail behält die Datei. Das Dossier erhält eine eigene Kopie in der Dokumentenverwaltung."
     },
