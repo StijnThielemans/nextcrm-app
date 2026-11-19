@@ -6,6 +6,7 @@ import { requireAuthenticated, AuthenticationError } from "@/lib/authz";
 import { suggestAddresses } from "@/lib/sales/aanvraag-fields";
 import { SalesError } from "@/lib/sales/errors";
 import { SALES_ERROR_TEXT, type DossierDocumentCategory, type DossierStatus, type RequestChannel } from "@/lib/sales/labels";
+import { assignOfferteboxSeller, linkOfferteboxDossier } from "@/lib/sales/offertebox";
 import {
   addChannelEvent,
   changeDossierStatus,
@@ -56,6 +57,7 @@ function refresh() {
   revalidatePath("/[locale]/(routes)/crm/dossiers", "page");
   revalidatePath("/[locale]/(routes)/crm/offertes", "page");
   revalidatePath("/[locale]/(routes)/crm/dashboard", "page");
+  revalidatePath("/[locale]/(routes)/crm/offertebox", "page");
   revalidatePath("/[locale]/(routes)", "page");
 }
 
@@ -92,13 +94,26 @@ export async function suggestAddressesAction(query: string) {
   }
 }
 
-export async function createAanvraagAction(input: AanvraagInput) {
+export async function createAanvraagAction(input: AanvraagInput, offerteboxId?: string) {
   const auth = await userOrError();
   if ("error" in auth) return { error: auth.error };
   try {
     const created = await createAanvraag(auth.user, input);
+    if (offerteboxId) await linkOfferteboxDossier(auth.user, offerteboxId, created.id);
     refresh();
     return { id: created.id, number: created.number };
+  } catch (error) {
+    return await fail(error);
+  }
+}
+
+export async function assignOfferteboxSellerAction(id: string, sellerName: string) {
+  const auth = await userOrError();
+  if ("error" in auth) return { error: auth.error };
+  try {
+    await assignOfferteboxSeller(auth.user, id, sellerName);
+    refresh();
+    return { ok: true as const };
   } catch (error) {
     return await fail(error);
   }

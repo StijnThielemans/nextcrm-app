@@ -78,6 +78,7 @@ export default async function AppLayout({
       customers: dict("crm.customers"),
       dossiers: dict("crm.dossiers"),
       quotes: dict("crm.quotes"),
+      offertebox: dict("crm.offertebox"),
       accounts: dict("crm.accounts"),
       opportunities: dict("crm.opportunities"),
       contacts: dict("crm.contacts"),

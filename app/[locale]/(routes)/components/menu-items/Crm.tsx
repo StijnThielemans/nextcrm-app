@@ -18,6 +18,7 @@ type Props = {
     customers: string;
     dossiers: string;
     quotes: string;
+    offertebox: string;
   };
   /** Current user's role — the Approvals queue is manager/admin only. */
   role?: string;
@@ -32,6 +33,7 @@ export const getCrmMenuItem = ({ localizations }: Props): NavItem => {
       { title: localizations.customers, url: "/crm/accounts" },
       { title: localizations.dossiers, url: "/crm/dossiers" },
       { title: localizations.quotes, url: "/crm/offertes" },
+      { title: localizations.offertebox, url: "/crm/offertebox" },
     ],
   };
 };

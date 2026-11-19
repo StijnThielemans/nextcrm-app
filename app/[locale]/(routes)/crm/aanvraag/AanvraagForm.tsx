@@ -12,6 +12,7 @@ import {
   PROJECT_GROUPS,
   SELLERS,
   VAT_CHOICES,
+  isSellerName,
   siteAddressFromBilling,
   type AccountRole,
   type ProjectGroup,
@@ -20,6 +21,7 @@ import {
 } from "@/lib/sales/aanvraag-fields";
 import { createAanvraagAction, searchArchitectsAction, searchCustomersAction } from "@/actions/crm/sales/actions";
 import type { ArchitectHit } from "@/lib/sales/architects";
+import type { OfferteboxPrefill } from "@/lib/sales/offertebox";
 import type { CustomerHit } from "@/lib/sales/service";
 import { AddressBox, emptyAddress, type AddressValue } from "@/components/crm/AddressBox";
 
@@ -43,20 +45,22 @@ function sameAddress(left: AddressValue, right: AddressValue) {
 
 export function AanvraagForm({
   projectNumber,
+  fromBox,
 }: {
   projectNumber: string;
+  fromBox?: OfferteboxPrefill | null;
 }) {
   const router = useRouter();
   const t = useTranslations("Sales");
-  const [channel, setChannel] = useState<RequestChannel>("PHONE");
+  const [channel, setChannel] = useState<RequestChannel>(fromBox ? "EMAIL_OFFERTE" : "PHONE");
   const [priceRequestDate, setPriceRequestDate] = useState(today);
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(fromBox?.fromName ?? "");
   const [hits, setHits] = useState<CustomerHit[]>([]);
   const [accountId, setAccountId] = useState<string | null>(null);
   const [showNew, setShowNew] = useState(false);
-  const [description, setDescription] = useState("");
-  const [prefill, setPrefill] = useState("");
-  const [seller, setSeller] = useState<SellerName | "">("");
+  const [description, setDescription] = useState(fromBox?.subject ?? "");
+  const [prefill, setPrefill] = useState(fromBox?.fromName ?? "");
+  const [seller, setSeller] = useState<SellerName | "">(fromBox && isSellerName(fromBox.sellerName) ? fromBox.sellerName : "");
   const [projectGroup, setProjectGroup] = useState<ProjectGroup | "">("");
   const [site, setSite] = useState<AddressValue>(emptyAddress);
   const [copySiteFromCustomer, setCopySiteFromCustomer] = useState(false);
@@ -64,12 +68,12 @@ export function AanvraagForm({
   const [architectQuery, setArchitectQuery] = useState("");
   const [architectHits, setArchitectHits] = useState<ArchitectHit[]>([]);
   const [architect, setArchitect] = useState<ArchitectHit | null>(null);
-  const [customerName, setCustomerName] = useState("");
+  const [customerName, setCustomerName] = useState(fromBox?.fromName ?? "");
   const [role, setRole] = useState<AccountRole | "">("");
   const [customerAddress, setCustomerAddress] = useState<AddressValue>(emptyAddress);
   const [phone, setPhone] = useState("");
   const [mobile, setMobile] = useState("");
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(fromBox?.fromEmail ?? "");
   const [vatChoice, setVatChoice] = useState<VatChoice | "">("");
   const [vat, setVat] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -186,7 +190,7 @@ export function AanvraagForm({
       projectCountry: site.country,
       architectName: architect?.name,
       architectExternalId: architect?.id,
-    });
+    }, fromBox?.id);
     setPending(false);
     if ("error" in result && result.error) {
       setError(result.error);
@@ -197,6 +201,7 @@ export function AanvraagForm({
 
   return (
     <form onSubmit={onCreate} className="space-y-8 max-w-3xl">
+      {fromBox && <p className="text-sm text-muted-foreground">{t("offertebox.fromBox")}</p>}
       <section className="space-y-3">
         <h2 className="text-lg font-semibold">{t("dossierSection")}</h2>
         <label className="space-y-1 block">

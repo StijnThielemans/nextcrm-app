@@ -303,6 +303,7 @@ model crm_Opportunities {
   channel_events       crm_DossierChannelEvents[]
   quote_families       crm_ExternalQuoteFamilies[]
   quote_sends          crm_QuoteSends[]
+  offertebox_items     crm_OfferteboxItems[]
   accepted_quote       crm_ExternalQuotes?             @relation("AcceptedQuote", fields: [accepted_quote_id], references: [id], onDelete: Restrict)
   deletedAt            DateTime?
   deletedBy            String?   @db.Uuid
@@ -2516,6 +2517,26 @@ model crm_QuoteSends {
 enum crm_RecentOpen_Kind {
   ACCOUNT
   DOSSIER
+}
+
+/// Mail uit offerte@thielemans.be. Blijft in de Offertebox tot het gekoppelde dossier een offerte verstuurd heeft.
+model crm_OfferteboxItems {
+  id          String   @id @default(uuid()) @db.Uuid
+  message_key String   @unique
+  from_name   String?
+  from_email  String?
+  subject     String
+  received_at DateTime
+  preview     String?
+  seller_name String?
+  dossier_id  String?  @db.Uuid
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  dossier crm_Opportunities? @relation(fields: [dossier_id], references: [id], onDelete: SetNull)
+
+  @@index([received_at])
+  @@index([dossier_id])
 }
 
 /// One row per user and record. Opening the page again updates opened_at.

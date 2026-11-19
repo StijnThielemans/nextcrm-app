@@ -72,6 +72,7 @@ describe("partnerNavItems (navigation shows only the partner modules)", () => {
       customers: "Customers",
       dossiers: "Dossiers",
       quotes: "Quotes",
+      offertebox: "Offertebox",
     };
     const items = [
       getDashboardMenuItem({ title: "Dashboard" }),

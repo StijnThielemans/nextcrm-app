@@ -114,7 +114,7 @@ export function NavMain({ items, dict }: NavMainProps) {
                       {item.items.map((subItem) => {
                         const isActive = isRouteActive(subItem.url, subItem.exact)
                         return (
-                          <SidebarMenuSubItem key={subItem.title}>
+                          <SidebarMenuSubItem key={subItem.url}>
                             <SidebarMenuSubButton
                               asChild
                               isActive={isActive}
