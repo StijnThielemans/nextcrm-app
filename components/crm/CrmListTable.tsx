@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import {
   DndContext,
   PointerSensor,
@@ -65,6 +65,7 @@ export function CrmListTable<TData>({
   searchTestId,
   tableTestId,
   emptyMessage,
+  actions,
 }: {
   tableId: TableId;
   columns: ColumnDef<TData, unknown>[];
@@ -73,6 +74,7 @@ export function CrmListTable<TData>({
   searchTestId: string;
   tableTestId: string;
   emptyMessage: string;
+  actions?: ReactNode;
 }) {
   const layout = useTableLayout(tableId);
   const [rowSelection, setRowSelection] = useState({});
@@ -120,22 +122,33 @@ export function CrmListTable<TData>({
     layout.setColumnOrder(arrayMove(order, from, to));
   }
 
+  const panelToggle = (
+    <button
+      type="button"
+      className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-accent"
+      onClick={() => setHide((current) => !current)}
+      aria-label={hide ? "Show table" : "Hide table"}
+    >
+      {hide ? <PanelTopOpen className="h-4 w-4" /> : <PanelTopClose className="h-4 w-4" />}
+    </button>
+  );
+
   return (
-    <div className="space-y-4">
-      <div className="flex justify-end">
-        {hide ? (
-          <PanelTopOpen onClick={() => setHide(false)} className="text-muted-foreground" />
-        ) : (
-          <PanelTopClose onClick={() => setHide(true)} className="text-muted-foreground" />
-        )}
-      </div>
+    <div className="space-y-3">
       {hide ? (
-        <div className="flex gap-2">
-          This content is hidden now. Click on <PanelTopOpen /> to show content
+        <div className="flex items-center justify-end gap-2 text-sm text-muted-foreground">
+          <span>This content is hidden now.</span>
+          {panelToggle}
         </div>
       ) : (
         <>
-          <DataTableToolbar table={table} searchTestId={searchTestId} onResetColumns={layout.reset} />
+          <DataTableToolbar
+            table={table}
+            searchTestId={searchTestId}
+            onResetColumns={layout.reset}
+            actions={actions}
+            trailing={panelToggle}
+          />
           <div className="rounded-md border overflow-x-auto">
             <DndContext id={`${tableId}-columns`} sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
               <Table data-testid={tableTestId}>

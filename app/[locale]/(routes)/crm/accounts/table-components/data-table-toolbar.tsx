@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { Cross2Icon } from "@radix-ui/react-icons";
 import { Table } from "@tanstack/react-table";
 
@@ -12,12 +13,16 @@ interface DataTableToolbarProps<TData> {
   table: Table<TData>;
   searchTestId?: string;
   onResetColumns?: () => void;
+  actions?: ReactNode;
+  trailing?: ReactNode;
 }
 
 export function DataTableToolbar<TData>({
   table,
   searchTestId = "accounts-search",
   onResetColumns,
+  actions,
+  trailing,
 }: DataTableToolbarProps<TData>) {
   const t = useTranslations("Sales");
   const globalFilter = (table.getState().globalFilter as string) ?? "";
@@ -68,12 +73,14 @@ export function DataTableToolbar<TData>({
         )}
       </div>
       <div className="flex items-center gap-2">
+        {actions}
         {onResetColumns && (
           <Button variant="outline" size="sm" className="h-8" data-testid="reset-columns" onClick={onResetColumns}>
             {t("resetColumns")}
           </Button>
         )}
         <DataTableViewOptions table={table} />
+        {trailing}
       </div>
     </div>
   );
