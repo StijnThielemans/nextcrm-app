@@ -35,8 +35,10 @@ async function userOrError() {
   }
 }
 
-function fail(error: unknown): { error: string } {
-  if (error instanceof SalesError) return { error: SALES_ERROR_TEXT[error.code] ?? "Er ging iets mis." };
+function fail(error: unknown): { error: string; code?: string } {
+  if (error instanceof SalesError) {
+    return { error: SALES_ERROR_TEXT[error.code] ?? "Er ging iets mis.", code: error.code };
+  }
   console.error("[sales]", error);
   return { error: "Er ging iets mis." };
 }
@@ -184,7 +186,7 @@ export async function attachDossierDocumentAction(
   }
 }
 
-export async function attachOffertePdfAction(dossierId: string, file: QuoteFile) {
+export async function attachOffertePdfAction(dossierId: string, file: QuoteFile & { grossTotal?: string }) {
   const auth = await userOrError();
   if ("error" in auth) return { error: auth.error };
   try {

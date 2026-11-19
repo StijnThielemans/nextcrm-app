@@ -68,6 +68,29 @@ export function channelLabel(channel: string | null | undefined): string {
   return "—";
 }
 
+/** Methods for a dossier opvolging. email reuses EMAIL_SELLER so the aanvraag channels stay unchanged. */
+export const FOLLOW_UP_CHANNELS = [
+  "PHONE",
+  "EMAIL_SELLER",
+  "SHOWROOM",
+  "SITE_VISIT",
+] as const satisfies readonly RequestChannel[];
+
+export type FollowUpChannel = (typeof FOLLOW_UP_CHANNELS)[number];
+
+export const FOLLOW_UP_CHANNEL_LABELS: Record<FollowUpChannel, string> = {
+  PHONE: "Telefonisch",
+  EMAIL_SELLER: "email",
+  SHOWROOM: "showroom",
+  SITE_VISIT: "plaatsbezoek",
+};
+
+export function followUpChannelLabel(channel: string | null | undefined): string {
+  if (channel === "EMAIL_OFFERTE" || channel === "EMAIL_SELLER") return FOLLOW_UP_CHANNEL_LABELS.EMAIL_SELLER;
+  if (channel && channel in FOLLOW_UP_CHANNEL_LABELS) return FOLLOW_UP_CHANNEL_LABELS[channel as FollowUpChannel];
+  return channelLabel(channel);
+}
+
 export function euro(value: number): string {
   return new Intl.NumberFormat("nl-BE", { style: "currency", currency: "EUR" }).format(value);
 }
@@ -212,8 +235,10 @@ export const SALES_ERROR_TEXT: Record<string, string> = {
   noCustomerQuote: "Laad eerst de klantofferte op.",
   terminal: "Dit dossier is afgesloten.",
   quoteRequired: "Kies de aanvaarde offerteversie.",
+  winnerPrice: "Kies een offerte met een totaal bruto.",
   emailLater: "E-mail vanuit de app volgt later. Registreer de verzending handmatig.",
   pdfOnly: "Alleen een PDF is toegestaan.",
+  priceRequired: "Vul het totaal bruto in.",
   notFound: "Niet gevonden.",
   duplicateFamily: "Die leverancier en referentie bestaan al. Maak een nieuwe versie.",
   noSeries: "De nummerreeks voor offertedossiers ontbreekt.",

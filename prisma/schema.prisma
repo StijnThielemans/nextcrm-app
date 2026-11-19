@@ -2452,7 +2452,7 @@ model crm_ExternalQuoteFamilies {
   @@index([dossier_id])
 }
 
-/// Eén versie. Kost, verkoopprijs, btw, PDF en notities worden na insert niet meer gewijzigd.
+/// Eén versie. Kost, verkoopprijs, btw, totaal bruto, PDF en notities worden na insert niet meer gewijzigd.
 model crm_ExternalQuotes {
   id              String                   @id @default(uuid()) @db.Uuid
   family_id       String                   @db.Uuid
@@ -2463,6 +2463,8 @@ model crm_ExternalQuotes {
   cost_excl_vat   Decimal                  @db.Decimal(14, 2)
   sell_excl_vat   Decimal                  @db.Decimal(14, 2)
   vat_rate        Decimal                  @db.Decimal(5, 2)
+  /// Totaal bruto (incl. BTW). Gezet bij de PDF-upload, leeg bij oudere rijen.
+  total_bruto     Decimal?                 @db.Decimal(14, 2)
   margin_euro     Decimal                  @db.Decimal(14, 2)
   margin_percent  Decimal?                 @db.Decimal(7, 2)
   currency        String                   @default("EUR") @db.VarChar(3)

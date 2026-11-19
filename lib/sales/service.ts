@@ -15,6 +15,7 @@ import {
 } from "@/lib/authz/scopes/crm";
 import { SalesError } from "./errors";
 import { buildDossierStepper } from "./dossier-step";
+import { parseGrossTotalInput } from "./gross-total";
 import { quoteMargin } from "./margin";
 import { salesTiles, type DashRow, type SalesTiles } from "./dashboard-math";
 import { DOSSIER_STATUSES, DOSSIER_DOCUMENT_CATEGORIES, systemTypeForFiling, type DossierDocumentCategory, type DossierStatus, type RequestChannel, CHANNELS } from "./labels";
@@ -39,7 +40,8 @@ import {
   type ArchitectHit,
 } from "./architects";
 
-const TERMINAL = new Set(["GEWONNEN", "VERLOREN"]);
+// Verloren freezes the dossier. Gewonnen does not: extra quotes, documents, and follow-up stay editable.
+const READ_ONLY = new Set(["VERLOREN"]);
 
 function denyPartner(user: AuthzUser) {
   if (user.role === "partner") throw new SalesError("forbidden");
@@ -94,7 +96,7 @@ async function loadWritableDossier(user: AuthzUser, dossierId: string) {
 }
 
 function assertOpen(status: string | null) {
-  if (status && TERMINAL.has(status)) throw new SalesError("terminal");
+  if (status && READ_ONLY.has(status)) throw new SalesError("terminal");
 }
 
 export type CustomerHit = {
@@ -544,6 +546,7 @@ export type QuoteVersionView = {
   vat: number;
   marginEuro: number;
   marginPercent: number | null;
+  gross: number | null;
   status: string;
   notes: string | null;
   pdfId: string;
@@ -590,6 +593,7 @@ export type DossierDetail = {
   }[];
   customerQuotes: { id: string; name: string }[];
   sends: { id: string; sentAt: string; followUp: string; quoteId: string; label: string }[];
+  acceptedQuote: { id: string; name: string; gross: number | null } | null;
 };
 
 export async function getDossier(user: AuthzUser, dossierId: string): Promise<DossierDetail | null> {
@@ -627,6 +631,13 @@ export async function getDossier(user: AuthzUser, dossierId: string): Promise<Do
         },
       },
       quote_sends: { orderBy: { sent_at: "desc" } },
+      accepted_quote: {
+        select: {
+          id: true,
+          total_bruto: true,
+          pdf: { select: { document_name: true } },
+        },
+      },
       documents: {
         include: {
           document: { select: { id: true, document_name: true, document_system_type: true, filing_category: true, deletedAt: true } },
@@ -654,6 +665,7 @@ export async function getDossier(user: AuthzUser, dossierId: string): Promise<Do
         vat: money(quote.vat_rate) ?? 0,
         marginEuro: money(quote.margin_euro) ?? 0,
         marginPercent: money(quote.margin_percent),
+        gross: money(quote.total_bruto),
         status: quote.status,
         notes: quote.internal_notes,
         pdfId: quote.pdf.id,
@@ -678,7 +690,7 @@ export async function getDossier(user: AuthzUser, dossierId: string): Promise<Do
     channel: row.source_channel,
     lostReason: row.lost_reason,
     projectAddress: [row.project_street, row.project_postal_code, row.project_city, row.project_country].filter(Boolean).join(", "),
-    terminal: !!row.dossier_status && TERMINAL.has(row.dossier_status),
+    terminal: !!row.dossier_status && READ_ONLY.has(row.dossier_status),
     customer: {
       id: row.assigned_account.id,
       name: row.assigned_account.name,
@@ -716,6 +728,13 @@ export async function getDossier(user: AuthzUser, dossierId: string): Promise<Do
       quoteId: send.quote_id,
       label: quotesById.get(send.quote_id) ?? send.quote_id,
     })),
+    acceptedQuote: row.accepted_quote
+      ? {
+          id: row.accepted_quote.id,
+          name: row.accepted_quote.pdf.document_name,
+          gross: money(row.accepted_quote.total_bruto),
+        }
+      : null,
   };
 }
 
@@ -767,7 +786,7 @@ export async function updateDossierFields(
     if (dossier.dossier_status !== "VERLOREN") throw new SalesError("terminal");
     data.lost_reason = requireText(input.lostReason, "lostReason", 500);
   }
-  if (!dossier.dossier_status || !TERMINAL.has(dossier.dossier_status) || input.lostReason !== undefined) {
+  if (!dossier.dossier_status || !READ_ONLY.has(dossier.dossier_status) || input.lostReason !== undefined) {
     await prismadb.crm_Opportunities.update({ where: { id: dossierId }, data });
   }
   await writeAuditLog({
@@ -923,10 +942,24 @@ export async function registerExternalQuote(
   return quoteId;
 }
 
+async function resolveGrossTotal(file: QuoteFile & { grossTotal?: string }) {
+  let fromPdf: string | null = null;
+  try {
+    const { grossTotalFromStoredPdf } = await import("./pdf-text");
+    fromPdf = await grossTotalFromStoredPdf(file.key);
+  } catch (error) {
+    console.error("[sales] quote total extract failed", error);
+  }
+  const raw = fromPdf ?? file.grossTotal;
+  if (raw == null || raw.trim() === "") throw new SalesError("priceRequired");
+  return new Prisma.Decimal(parseGrossTotalInput(raw));
+}
+
 /** PDF from the external program, stored on the dossier and listed under Offertes. */
-export async function attachOffertePdf(user: AuthzUser, dossierId: string, file: QuoteFile) {
+export async function attachOffertePdf(user: AuthzUser, dossierId: string, file: QuoteFile & { grossTotal?: string }) {
   const dossier = await loadWritableDossier(user, dossierId);
   assertOpen(dossier.dossier_status);
+  const totalBruto = await resolveGrossTotal(file);
   const pdfId = await storePdf(user, dossierId, file, "CUSTOMER_QUOTE");
   await prismadb.documents.update({
     where: { id: pdfId },
@@ -959,6 +992,7 @@ export async function attachOffertePdf(user: AuthzUser, dossierId: string, file:
           cost_excl_vat: margin.cost,
           sell_excl_vat: margin.sell,
           vat_rate: margin.vatRate,
+          total_bruto: totalBruto,
           margin_euro: margin.marginEuro,
           margin_percent: margin.marginPercent,
           currency: "EUR",
@@ -989,6 +1023,7 @@ export async function attachOffertePdf(user: AuthzUser, dossierId: string, file:
     changes: [
       { field: "quote_number", old: null, new: quoteNumber },
       { field: "pdf_document_id", old: null, new: pdfId },
+      { field: "total_bruto", old: null, new: totalBruto.toString() },
     ],
     userId: user.id,
   });
@@ -1069,6 +1104,7 @@ export async function markOfferteKlaar(user: AuthzUser, dossierId: string) {
   const dossier = await loadWritableDossier(user, dossierId);
   assertOpen(dossier.dossier_status);
   if (!(await hasCustomerQuote(dossierId))) throw new SalesError("noCustomerQuote");
+  if (dossier.dossier_status === "GEWONNEN") return;
   await prismadb.crm_Opportunities.update({
     where: { id: dossierId },
     data: { dossier_status: "OFFERTE_KLAAR", updatedBy: user.id },
@@ -1122,7 +1158,7 @@ export async function markSent(
   await prismadb.crm_Opportunities.update({
     where: { id: dossierId },
     data: {
-      dossier_status: "OFFERTE_VERSTUURD",
+      ...(dossier.dossier_status === "GEWONNEN" ? {} : { dossier_status: "OFFERTE_VERSTUURD" as const }),
       follow_up_date: followUp,
       updatedBy: user.id,
     },
@@ -1163,9 +1199,10 @@ export async function changeDossierStatus(
     if (!quoteId) throw new SalesError("quoteRequired");
     const quote = await prismadb.crm_ExternalQuotes.findFirst({
       where: { id: quoteId, deletedAt: null, family: { dossier_id: dossierId } },
-      select: { id: true },
+      select: { id: true, total_bruto: true },
     });
     if (!quote) throw new SalesError("quoteRequired");
+    if (quote.total_bruto == null) throw new SalesError("winnerPrice");
     data.accepted_quote = { connect: { id: quote.id } };
     data.won_at = new Date();
   }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import { Check, ChevronRight, FileText, Folder, Plus } from "lucide-react";
 import { useRouter } from "@/i18n/navigation";
 import { Link } from "@/i18n/navigation";
@@ -16,14 +17,13 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  CHANNEL_LABELS,
-  CHANNELS,
   DOSSIER_DOCUMENT_CATEGORIES,
   DOSSIER_DOCUMENT_LABELS,
   DOSSIER_STATUS_LABELS,
+  FOLLOW_UP_CHANNEL_LABELS,
+  FOLLOW_UP_CHANNELS,
   OPEN_STATUSES,
-  channelLabel,
-  euro,
+  followUpChannelLabel,
   type DossierDocumentCategory,
   type DossierStatus,
   type RequestChannel,
@@ -31,6 +31,7 @@ import {
 import { ACCOUNT_ROLE_LABELS, PROJECT_GROUP_LABELS, type AccountRole, type ProjectGroup } from "@/lib/sales/aanvraag-fields";
 import { groupDocumentsIntoFolders, type DocumentFolder } from "@/lib/sales/document-folders";
 import { stepperForDossier } from "@/lib/sales/dossier-step";
+import { MISSING_QUOTE_PRICE, quoteCanWin, quotePriceLabel } from "@/lib/sales/quote-choice";
 import type { DossierDetail } from "@/lib/sales/service";
 import {
   addChannelAction,
@@ -43,6 +44,16 @@ import {
 import { uploadDocumentFile, uploadPdf } from "../../sales/upload-pdf";
 
 const today = new Date().toISOString().slice(0, 10);
+
+function shownPrice(gross: number | null, missing: string) {
+  const label = quotePriceLabel(gross);
+  return label === MISSING_QUOTE_PRICE ? missing : label;
+}
+
+function folderTitle(label: string, category: string | null | undefined, t: ReturnType<typeof useTranslations>) {
+  if (category && t.has(`folders.${category}`)) return t(`folders.${category}`);
+  return label;
+}
 
 function asPdf(file: File): File | null {
   const looksPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
@@ -58,6 +69,8 @@ function followUpInDays(days: number) {
 }
 
 function DocumentFolderRow({ folder }: { folder: DocumentFolder }) {
+  const t = useTranslations("Sales");
+  const title = folderTitle(folder.label, folder.files[0]?.category, t);
   const [open, setOpen] = useState(true);
 
   return (
@@ -77,7 +90,7 @@ function DocumentFolderRow({ folder }: { folder: DocumentFolder }) {
         >
           <ChevronRight className={`size-4 shrink-0 transition-transform ${open ? "rotate-90" : ""}`} aria-hidden />
           <Folder className="size-4 shrink-0 text-amber-700" aria-hidden />
-          <span>{folder.label}</span>
+          <span>{title}</span>
         </summary>
         <ul className="ml-6 space-y-1 border-l py-1 pl-3">
           {folder.files.map((doc) => (
@@ -92,10 +105,53 @@ function DocumentFolderRow({ folder }: { folder: DocumentFolder }) {
   );
 }
 
+function WinningQuoteChoices({ quotes }: { quotes: DossierDetail["families"][number]["quotes"] }) {
+  const t = useTranslations("Sales");
+  const priced = quotes.filter((quote) => quoteCanWin(quote.gross));
+  const defaultId = priced.length === 1 ? priced[0]?.id : "";
+
+  return (
+    <fieldset className="space-y-2">
+      <legend className="text-sm font-medium">{t("whichQuoteWon")}</legend>
+      {quotes.length === 0 && <p className="text-sm text-muted-foreground">{t("noQuotes")}</p>}
+      <ul className="space-y-2">
+        {quotes.map((quote) => {
+          const enabled = quoteCanWin(quote.gross);
+          return (
+            <li key={quote.id}>
+              <label
+                className={cn("flex items-start gap-2 rounded-md border p-2 text-sm", !enabled && "text-muted-foreground")}
+                data-winning-quote={quote.id}
+                data-can-win={enabled ? "yes" : "no"}
+              >
+                <input
+                  type="radio"
+                  name="accepted"
+                  value={quote.id}
+                  disabled={!enabled}
+                  required={enabled && quote.id === priced[0]?.id}
+                  defaultChecked={quote.id === defaultId}
+                  className="mt-1"
+                />
+                <span className="min-w-0 flex-1 break-all">{quote.pdfName}</span>
+                <span className="shrink-0 tabular-nums" data-winning-price={quote.id}>{shownPrice(quote.gross, t("noPrice"))}</span>
+              </label>
+            </li>
+          );
+        })}
+      </ul>
+      {quotes.length > 0 && priced.length === 0 && (
+        <p className="text-sm text-muted-foreground">{t("noPricedQuote")}</p>
+      )}
+    </fieldset>
+  );
+}
+
 function DocumentFolders({ documents }: { documents: DossierDetail["documents"] }) {
+  const t = useTranslations("Sales");
   const folders = groupDocumentsIntoFolders(documents);
   if (folders.length === 0) {
-    return <p className="text-muted-foreground">Nog geen documenten.</p>;
+    return <p className="text-muted-foreground">{t("noDocuments")}</p>;
   }
 
   return (
@@ -108,18 +164,22 @@ function DocumentFolders({ documents }: { documents: DossierDetail["documents"] 
 }
 
 export function DossierPanel({ dossier }: { dossier: DossierDetail }) {
+  const t = useTranslations("Sales");
   const router = useRouter();
   const quoteInput = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [status, setStatus] = useState<DossierStatus>((dossier.status as DossierStatus) || "NIEUW");
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [category, setCategory] = useState<DossierDocumentCategory | "">("");
   const [dragging, setDragging] = useState(false);
   const [quoteDragging, setQuoteDragging] = useState(false);
+  const [priceFile, setPriceFile] = useState<{ key: string; size: number; mimeType: string; fileName: string } | null>(null);
+  const [price, setPrice] = useState("");
+  const [status, setStatus] = useState<DossierStatus>((dossier.status as DossierStatus) || "NIEUW");
   const [followOpen, setFollowOpen] = useState(false);
   const [closeMode, setCloseMode] = useState<"won" | "lost" | null>(null);
   const versions = dossier.families.flatMap((family) => family.quotes);
+  const canChooseWinner = versions.some((quote) => quoteCanWin(quote.gross));
 
   async function run(work: () => Promise<{ error?: string; ok?: boolean; id?: string }>) {
     setBusy(true);
@@ -158,7 +218,27 @@ export function DossierPanel({ dossier }: { dossier: DossierDetail }) {
     await run(async () => {
       const uploaded = await uploadPdf(pdf);
       if ("error" in uploaded) return uploaded;
-      return attachOffertePdfAction(dossier.id, uploaded);
+      const saved = await attachOffertePdfAction(dossier.id, uploaded);
+      if ("code" in saved && saved.code === "priceRequired") {
+        setPrice("");
+        setPriceFile(uploaded);
+        return { ok: true };
+      }
+      return saved;
+    });
+  }
+
+  async function storeOffertePrice() {
+    const file = priceFile;
+    const grossTotal = price.trim();
+    if (!file || !grossTotal) return;
+    await run(async () => {
+      const saved = await attachOffertePdfAction(dossier.id, { ...file, grossTotal });
+      if (!saved.error) {
+        setPriceFile(null);
+        setPrice("");
+      }
+      return saved;
     });
   }
 
@@ -180,8 +260,7 @@ export function DossierPanel({ dossier }: { dossier: DossierDetail }) {
     pdfName: quote.pdfName,
     date: quote.date,
     sentAt: sentOn.get(quote.id) ?? null,
-    hasTotals: quote.cost !== 0 || quote.sell !== 0,
-    totals: `${euro(quote.cost)} kost · ${euro(quote.sell)} verkoop · ${euro(quote.marginEuro)} marge`,
+    gross: quote.gross,
   })));
   const hasFollowUp = Boolean(dossier.followUpDate || dossier.nextStep || dossier.notes);
   const stepper = stepperForDossier(dossier);
@@ -224,13 +303,19 @@ export function DossierPanel({ dossier }: { dossier: DossierDetail }) {
             <Button type="button" size="sm" variant="outline" disabled={busy} onClick={() => setCloseMode("lost")}>Verloren</Button>
           </div>
         )}
+        {dossier.status === "GEWONNEN" && dossier.acceptedQuote && (
+          <p data-accepted-quote={dossier.acceptedQuote.id}>
+            Gewonnen offerte {dossier.acceptedQuote.name}{" "}
+            <span data-accepted-price="">{quotePriceLabel(dossier.acceptedQuote.gross)}</span>
+          </p>
+        )}
       </section>
       <Dialog open={closeMode != null} onOpenChange={(open) => { if (!open) setCloseMode(null); }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{closeMode === "lost" ? "Verloren" : "Gewonnen"}</DialogTitle>
             <DialogDescription>
-              {closeMode === "lost" ? "Vul de reden van verlies in." : "Kies de aanvaarde offerte."}
+              {closeMode === "lost" ? "Vul de reden van verlies in." : "Kies welke offerte gewonnen is. De prijs staat naast de naam."}
             </DialogDescription>
           </DialogHeader>
           <form
@@ -255,17 +340,11 @@ export function DossierPanel({ dossier }: { dossier: DossierDetail }) {
                 <Input name="lostReason" required maxLength={500} />
               </label>
             ) : (
-              <label className="space-y-1 text-sm">
-                <span>Aanvaarde offerte</span>
-                <select name="accepted" className="flex h-9 w-full rounded-md border bg-transparent px-3 text-sm" required defaultValue={versions.length === 1 ? versions[0]?.id : ""}>
-                  <option value="">Kies een offerte</option>
-                  {versions.map((quote) => <option key={quote.id} value={quote.id}>{quote.number} v{quote.version}</option>)}
-                </select>
-              </label>
+              <WinningQuoteChoices quotes={versions} />
             )}
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setCloseMode(null)}>Annuleren</Button>
-              <Button type="submit" disabled={busy || (closeMode === "won" && versions.length === 0)}>Opslaan</Button>
+              <Button type="submit" disabled={busy || (closeMode === "won" && !canChooseWinner)}>Opslaan</Button>
             </DialogFooter>
           </form>
         </DialogContent>
@@ -342,9 +421,17 @@ export function DossierPanel({ dossier }: { dossier: DossierDetail }) {
           <ul className="space-y-3">
             {quoteRows.map((quote) => (
               <li key={quote.id} className="rounded-md border p-2 space-y-2">
-                <a className="font-medium underline break-all" href={`/api/documents/${quote.pdfId}/file`}>{quote.pdfName}</a>
+                <div className="flex items-start justify-between gap-3">
+                  <a className="font-medium underline break-all" href={`/api/documents/${quote.pdfId}/file`}>{quote.pdfName}</a>
+                  <span
+                    className={cn("shrink-0 tabular-nums", quote.gross == null && "text-muted-foreground")}
+                    data-quote-gross={quote.id}
+                    data-total-bruto=""
+                  >
+                    {quotePriceLabel(quote.gross)}
+                  </span>
+                </div>
                 <p><span className="text-muted-foreground">Datum </span>{quote.date}</p>
-                {quote.hasTotals && <p><span className="text-muted-foreground">Totalen </span>{quote.totals}</p>}
                 {quote.sentAt ? (
                   <p>Verstuurd {quote.sentAt}</p>
                 ) : !dossier.terminal ? (
@@ -353,6 +440,58 @@ export function DossierPanel({ dossier }: { dossier: DossierDetail }) {
               </li>
             ))}
           </ul>
+          <Dialog
+            open={priceFile != null}
+            onOpenChange={(open) => {
+              if (!open) {
+                setPriceFile(null);
+                setPrice("");
+              }
+            }}
+          >
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Totaal bruto</DialogTitle>
+                <DialogDescription>
+                  {priceFile
+                    ? `${priceFile.fileName} heeft geen leesbaar totaal. Vul het totaal bruto in.`
+                    : "Vul het totaal bruto in."}
+                </DialogDescription>
+              </DialogHeader>
+              <form
+                className="grid gap-3"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  void storeOffertePrice();
+                }}
+              >
+                <label className="space-y-1 text-sm">
+                  <span>Totaal bruto</span>
+                  <Input
+                    value={price}
+                    onChange={(event) => setPrice(event.target.value)}
+                    inputMode="decimal"
+                    placeholder="0,00"
+                    required
+                    autoFocus
+                  />
+                </label>
+                <DialogFooter>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setPriceFile(null);
+                      setPrice("");
+                    }}
+                  >
+                    Annuleren
+                  </Button>
+                  <Button type="submit" disabled={busy || price.trim() === ""}>Opslaan</Button>
+                </DialogFooter>
+              </form>
+            </DialogContent>
+          </Dialog>
         </div>
 
         <div className="rounded-md border p-4 space-y-3 text-sm">
@@ -410,133 +549,14 @@ export function DossierPanel({ dossier }: { dossier: DossierDetail }) {
           </Dialog>
           <DocumentFolders documents={dossier.documents} />
         </div>
-
-        <div className="rounded-md border p-4 space-y-3 text-sm">
-          <div className="flex items-center justify-between gap-2">
-            <h2 className="text-lg font-semibold">Opvolging</h2>
-            {!dossier.terminal && (
-              <Button
-                type="button"
-                size="icon"
-                variant="outline"
-                className="h-8 w-8"
-                aria-label="Opvolging toevoegen"
-                disabled={busy}
-                onClick={() => {
-                  setStatus((dossier.status as DossierStatus) || "NIEUW");
-                  setFollowOpen(true);
-                }}
-              >
-                <Plus />
-              </Button>
-            )}
-          </div>
-          {hasFollowUp ? (
-            <ul className="space-y-1">
-              {dossier.followUpDate && <li><span className="text-muted-foreground">Datum </span>{dossier.followUpDate}</li>}
-              {dossier.nextStep && <li><span className="text-muted-foreground">Volgende actie </span>{dossier.nextStep}</li>}
-              {dossier.notes && <li><span className="text-muted-foreground">Notitie </span>{dossier.notes}</li>}
-            </ul>
-          ) : (
-            <p className="text-muted-foreground">Nog geen opvolging.</p>
-          )}
-          {dossier.terminal && <p>Het verkooppad is gesloten. Er wordt geen order of factuur gemaakt.</p>}
-          {dossier.terminal && dossier.status === "VERLOREN" && (
-            <form
-              className="flex gap-2"
-              onSubmit={(event) => {
-                event.preventDefault();
-                const reason = String(new FormData(event.currentTarget).get("lostReason") ?? "");
-                void run(() => updateDossierAction(dossier.id, { lostReason: reason }));
-              }}
-            >
-              <Input name="lostReason" defaultValue={dossier.lostReason ?? ""} />
-              <Button type="submit" variant="secondary" disabled={busy}>Reden verbeteren</Button>
-            </form>
-          )}
-          <Dialog open={followOpen} onOpenChange={setFollowOpen}>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Opvolging toevoegen</DialogTitle>
-                <DialogDescription>Datum en notitie voor de volgende opvolging.</DialogDescription>
-              </DialogHeader>
-              <form
-                key={`${dossier.followUpDate ?? ""}-${dossier.nextStep ?? ""}-${dossier.notes ?? ""}-${dossier.status ?? ""}`}
-                className="grid gap-3"
-                onSubmit={(event) => {
-                  event.preventDefault();
-                  const data = new FormData(event.currentTarget);
-                  void run(async () => {
-                    const saved = await updateDossierAction(dossier.id, {
-                      nextStep: String(data.get("nextStep") ?? ""),
-                      followUpDate: String(data.get("followUp") ?? ""),
-                      notes: String(data.get("notes") ?? ""),
-                    });
-                    if (saved.error) return saved;
-                    setFollowOpen(false);
-                    if (status === dossier.status) return { ok: true };
-                    return changeStatusAction(dossier.id, {
-                      status,
-                      lostReason: String(data.get("lostReason") ?? ""),
-                      acceptedQuoteId: String(data.get("accepted") ?? ""),
-                    });
-                  });
-                }}
-              >
-                <label className="space-y-1">
-                  <span className="text-sm">Datum</span>
-                  <Input name="followUp" type="date" defaultValue={dossier.followUpDate ?? today} required />
-                </label>
-                <label className="space-y-1">
-                  <span className="text-sm">Volgende actie</span>
-                  <Input name="nextStep" defaultValue={dossier.nextStep ?? ""} />
-                </label>
-                <label className="space-y-1">
-                  <span className="text-sm">Status</span>
-                  <select className="flex h-9 w-full rounded-md border bg-transparent px-3 text-sm" value={status} onChange={(event) => setStatus(event.target.value as DossierStatus)}>
-                    {OPEN_STATUSES.filter((item) => item !== "OFFERTE_VERSTUURD").map((item) => (
-                      <option key={item} value={item}>{DOSSIER_STATUS_LABELS[item]}</option>
-                    ))}
-                    {dossier.status === "OFFERTE_VERSTUURD" && <option value="OFFERTE_VERSTUURD">Offerte verstuurd</option>}
-                    <option value="GEWONNEN">Gewonnen</option>
-                    <option value="VERLOREN">Verloren</option>
-                  </select>
-                </label>
-                <label className="space-y-1">
-                  <span className="text-sm">Interne notitie</span>
-                  <Input name="notes" defaultValue={dossier.notes ?? ""} />
-                </label>
-                {status === "VERLOREN" && (
-                  <label className="space-y-1">
-                    <span className="text-sm">Reden verloren</span>
-                    <Input name="lostReason" required />
-                  </label>
-                )}
-                {status === "GEWONNEN" && (
-                  <label className="space-y-1">
-                    <span className="text-sm">Aanvaarde versie</span>
-                    <select name="accepted" className="flex h-9 w-full rounded-md border bg-transparent px-3 text-sm" required>
-                      <option value="">Kies een versie</option>
-                      {versions.map((quote) => <option key={quote.id} value={quote.id}>{quote.number} v{quote.version}</option>)}
-                    </select>
-                  </label>
-                )}
-                <DialogFooter>
-                  <Button type="button" variant="outline" onClick={() => setFollowOpen(false)}>Annuleren</Button>
-                  <Button type="submit" disabled={busy}>Opslaan</Button>
-                </DialogFooter>
-              </form>
-            </DialogContent>
-          </Dialog>
-        </div>
       </section>
 
-      <section className="space-y-3">
-        <h2 className="text-lg font-semibold">Contacten</h2>
+      <section className="space-y-3" aria-label="Opvolging">
+        <h2 className="text-lg font-semibold">Opvolging</h2>
         <ul className="text-sm space-y-1">
           {dossier.channels.map((event) => (
             <li key={event.id}>
-              {event.at} · {channelLabel(event.channel)} · {event.seller}
+              {event.at} · {followUpChannelLabel(event.channel)} · {event.seller}
               {event.original ? " · oorspronkelijk" : ""}
               {event.note ? ` · ${event.note}` : ""}
             </li>
@@ -547,16 +567,21 @@ export function DossierPanel({ dossier }: { dossier: DossierDetail }) {
             className="flex flex-wrap gap-2 items-end"
             onSubmit={(event) => {
               event.preventDefault();
-              const form = new FormData(event.currentTarget);
-              void run(() => addChannelAction(dossier.id, {
-                channel: String(form.get("channel")) as RequestChannel,
-                date: String(form.get("date")),
-                note: String(form.get("note") ?? ""),
-              }));
+              const form = event.currentTarget;
+              const data = new FormData(form);
+              void run(async () => {
+                const saved = await addChannelAction(dossier.id, {
+                  channel: String(data.get("channel")) as RequestChannel,
+                  date: String(data.get("date")),
+                  note: String(data.get("note") ?? ""),
+                });
+                if (!saved.error) form.reset();
+                return saved;
+              });
             }}
           >
-            <select name="channel" className="h-9 rounded-md border bg-transparent px-2 text-sm" defaultValue="PHONE">
-              {CHANNELS.map((item) => <option key={item} value={item}>{CHANNEL_LABELS[item]}</option>)}
+            <select name="channel" aria-label="Opvolging" className="h-9 rounded-md border bg-transparent px-2 text-sm" defaultValue="PHONE">
+              {FOLLOW_UP_CHANNELS.map((item) => <option key={item} value={item}>{FOLLOW_UP_CHANNEL_LABELS[item]}</option>)}
             </select>
             <Input name="date" type="date" defaultValue={today} required className="w-40" />
             <Input name="note" placeholder="Notitie" className="w-56" />
