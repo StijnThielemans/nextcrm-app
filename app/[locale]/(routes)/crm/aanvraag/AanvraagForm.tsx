@@ -171,7 +171,10 @@ export function AanvraagForm({
       setError(result.error);
       return;
     }
-    if ("id" in result && result.id) router.push(`/crm/dossiers/${result.id}`);
+    if ("id" in result && result.id) {
+      const ask = "pendingAttachments" in result && result.pendingAttachments ? "?bijlagen=1" : "";
+      router.push(`/crm/dossiers/${result.id}${ask}`);
+    }
   }
 
   return (

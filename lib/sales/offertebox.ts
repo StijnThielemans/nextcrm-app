@@ -9,6 +9,7 @@ import { SalesError } from "./errors";
 import { isSellerName, matchSellerUser } from "./aanvraag-fields";
 import { currentDossierStep, type DashboardStep } from "./dossier-step";
 import { OFFERTE_MAILBOX, staysUntilQuoteSent } from "./offertebox-weeks";
+import { loadFiledAttachmentKeys, filedAttachmentKey } from "./offertebox-filing";
 import { displayMailHtml, offerteboxStorageKey, parseOfferteboxMail, readableMailBody, sanitizeMailHtml } from "./offertebox-mail";
 
 export type OfferteboxAttachment = {
@@ -17,6 +18,7 @@ export type OfferteboxAttachment = {
   contentType: string;
   size: number;
   isImage: boolean;
+  filed: boolean;
 };
 
 export type OfferteboxRow = {
@@ -167,6 +169,15 @@ export async function listOffertebox(user: AuthzUser, now = new Date()): Promise
     },
   });
 
+  const dossierIds: string[] = [];
+  const seenDossiers = new Set<string>();
+  for (const item of items) {
+    const id = item.dossier && !item.dossier.deletedAt ? item.dossier.id : null;
+    if (!id || seenDossiers.has(id)) continue;
+    seenDossiers.add(id);
+    dossierIds.push(id);
+  }
+  const filed = await loadFiledAttachmentKeys(dossierIds);
   const rows: OfferteboxRow[] = [];
   for (const item of items) {
     const dossier = item.dossier && !item.dossier.deletedAt ? item.dossier : null;
@@ -194,6 +205,7 @@ export async function listOffertebox(user: AuthzUser, now = new Date()): Promise
         contentType: attachment.content_type,
         size: attachment.size,
         isImage: attachment.is_image,
+        filed: dossier ? filed.has(filedAttachmentKey(dossier.id, attachment.id)) : false,
       })),
       sellerName: dossier?.seller_name ?? item.seller_name,
       dossierId: dossier?.id ?? null,

@@ -959,7 +959,9 @@
       "showAll": "Zobrazit celý text",
       "showLess": "Méně textu",
       "emptyAssign": "Nic k rozdělení.",
-      "emptyWaiting": "Žádná poptávka nečeká na nabídku."
+      "emptyWaiting": "Žádná poptávka nečeká na nabídku.",
+      "fileAttachments": "Zařadit přílohy",
+      "fileAttachmentsLead": "Zařaďte každou přílohu do správné kategorie. E-mail si soubor ponechá. Složka dostane vlastní kopii ve správě dokumentů."
     },
     "documentsTitle": "Document management",
     "followUp": "Follow-up",

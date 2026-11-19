@@ -956,7 +956,9 @@
       "showAll": "Ganzen Text zeigen",
       "showLess": "Weniger Text",
       "emptyAssign": "Nichts zu verteilen.",
-      "emptyWaiting": "Keine Anfrage wartet auf ein Angebot."
+      "emptyWaiting": "Keine Anfrage wartet auf ein Angebot.",
+      "fileAttachments": "Anhänge einordnen",
+      "fileAttachmentsLead": "Ordnen Sie jeden Anhang der richtigen Kategorie zu. Die E-Mail behält die Datei. Das Dossier erhält eine eigene Kopie in der Dokumentenverwaltung."
     },
     "documentsTitle": "Document management",
     "followUp": "Follow-up",

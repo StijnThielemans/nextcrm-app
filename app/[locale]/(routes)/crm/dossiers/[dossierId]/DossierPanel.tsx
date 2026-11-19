@@ -37,6 +37,8 @@ import {
   markSentAction,
 } from "@/actions/crm/sales/actions";
 import { uploadDocumentFile, uploadPdf } from "../../sales/upload-pdf";
+import { FileAttachmentsDialog } from "../../sales/FileAttachmentsDialog";
+import type { PendingOfferteboxAttachment } from "@/lib/sales/offertebox-filing";
 import { QuotePositionsSection } from "./QuotePositionsSection";
 
 const today = new Date().toISOString().slice(0, 10);
@@ -181,7 +183,15 @@ function DocumentFolders({ documents }: { documents: DossierDetail["documents"] 
   );
 }
 
-export function DossierPanel({ dossier }: { dossier: DossierDetail }) {
+export function DossierPanel({
+  dossier,
+  pendingAttachments = [],
+  promptAttachments = false,
+}: {
+  dossier: DossierDetail;
+  pendingAttachments?: PendingOfferteboxAttachment[];
+  promptAttachments?: boolean;
+}) {
   const t = useTranslations("Sales");
   const router = useRouter();
   const quoteInput = useRef<HTMLInputElement>(null);
@@ -195,6 +205,7 @@ export function DossierPanel({ dossier }: { dossier: DossierDetail }) {
   const [price, setPrice] = useState("");
   const [closeMode, setCloseMode] = useState<"won" | "lost" | null>(null);
   const [quoteToDelete, setQuoteToDelete] = useState<{ id: string; name: string } | null>(null);
+  const [filingOpen, setFilingOpen] = useState(promptAttachments && pendingAttachments.length > 0);
   const versions = dossier.families.flatMap((family) => family.quotes);
   const canChooseWinner = versions.some((quote) => quoteCanWin(quote.gross));
 
@@ -552,7 +563,14 @@ export function DossierPanel({ dossier }: { dossier: DossierDetail }) {
         </div>
 
         <div className="rounded-md border p-4 space-y-3 text-sm">
-          <h2 className="text-lg font-semibold">{t("documentsTitle")}</h2>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-lg font-semibold">{t("documentsTitle")}</h2>
+            {pendingAttachments.length > 0 && !dossier.terminal && (
+              <Button type="button" variant="secondary" data-testid="file-attachments" onClick={() => setFilingOpen(true)}>
+                {t("offertebox.fileAttachments")}
+              </Button>
+            )}
+          </div>
           {!dossier.terminal && (
             <label
               className={`flex min-h-28 cursor-pointer items-center justify-center rounded-md border border-dashed px-3 text-center ${dragging ? "bg-muted" : ""}`}
@@ -605,6 +623,12 @@ export function DossierPanel({ dossier }: { dossier: DossierDetail }) {
             </DialogContent>
           </Dialog>
           <DocumentFolders documents={dossier.documents} />
+          <FileAttachmentsDialog
+            dossierId={dossier.id}
+            attachments={pendingAttachments}
+            open={filingOpen && pendingAttachments.length > 0}
+            onOpenChange={setFilingOpen}
+          />
         </div>
 
       </section>

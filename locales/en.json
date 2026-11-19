@@ -956,7 +956,9 @@
       "showAll": "Show the full text",
       "showLess": "Less text",
       "emptyAssign": "Nothing to assign.",
-      "emptyWaiting": "No requests waiting for a quote."
+      "emptyWaiting": "No requests waiting for a quote.",
+      "fileAttachments": "File the attachments",
+      "fileAttachmentsLead": "Put each attachment in the right category. The email keeps the file. The dossier gets its own copy in document management."
     },
     "documentsTitle": "Document management",
     "followUp": "Follow-up",

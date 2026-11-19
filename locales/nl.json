@@ -1060,7 +1060,9 @@
       "showAll": "Toon de hele tekst",
       "showLess": "Minder tekst",
       "emptyAssign": "Niets te verdelen.",
-      "emptyWaiting": "Geen aanvragen die op een offerte wachten."
+      "emptyWaiting": "Geen aanvragen die op een offerte wachten.",
+      "fileAttachments": "Bijlagen indelen",
+      "fileAttachmentsLead": "Zet elke bijlage in de juiste categorie. De mail houdt het bestand. Het dossier krijgt een eigen kopie in Documentbeheer."
     },
     "documentsTitle": "Documentbeheer",
     "followUp": "Opvolging",

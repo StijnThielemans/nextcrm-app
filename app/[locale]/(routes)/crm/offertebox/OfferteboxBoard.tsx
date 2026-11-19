@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { OfferteboxRow, OfferteboxView } from "@/lib/sales/offertebox";
 import { addOfferteboxRequestAction, assignOfferteboxSellerAction } from "@/actions/crm/sales/actions";
+import { FileAttachmentsDialog } from "../sales/FileAttachmentsDialog";
 
 const IMAGE_PREVIEW_BYTES = 200_000;
 
@@ -17,6 +18,7 @@ export function OfferteboxBoard({ view }: { view: OfferteboxView }) {
   const router = useRouter();
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [filing, setFiling] = useState<OfferteboxRow | null>(null);
   const [adding, setAdding] = useState(false);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -206,8 +208,19 @@ export function OfferteboxBoard({ view }: { view: OfferteboxView }) {
           pendingId={pendingId}
           when={when}
           onSeller={onSeller}
+          onFile={setFiling}
         />
       </div>
+      {filing?.dossierId && (
+        <FileAttachmentsDialog
+          dossierId={filing.dossierId}
+          attachments={filing.attachments.filter((attachment) => !attachment.filed)}
+          open
+          onOpenChange={(open) => {
+            if (!open) setFiling(null);
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -221,6 +234,7 @@ function MailColumn({
   pendingId,
   when,
   onSeller,
+  onFile,
 }: {
   title: string;
   empty: string;
@@ -230,6 +244,7 @@ function MailColumn({
   pendingId: string | null;
   when: Intl.DateTimeFormat;
   onSeller: (id: string, sellerName: string) => Promise<void>;
+  onFile?: (row: OfferteboxRow) => void;
 }) {
   const t = useTranslations("Sales");
   return (
@@ -312,6 +327,11 @@ function MailColumn({
                       {t("newRequest")}
                     </Link>
                   )
+                )}
+                {showDossier && row.dossierId && onFile && row.attachments.some((attachment) => !attachment.filed) && (
+                  <button type="button" className="underline" data-testid="file-attachments" onClick={() => onFile(row)}>
+                    {t("offertebox.fileAttachments")}
+                  </button>
                 )}
               </div>
             </article>

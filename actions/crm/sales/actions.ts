@@ -7,6 +7,7 @@ import { suggestAddresses } from "@/lib/sales/aanvraag-fields";
 import { SalesError } from "@/lib/sales/errors";
 import { SALES_ERROR_TEXT, type DossierDocumentCategory, type DossierStatus, type RequestChannel } from "@/lib/sales/labels";
 import { addOfferteboxRequest, assignOfferteboxSeller, linkOfferteboxDossier } from "@/lib/sales/offertebox";
+import { fileOfferteboxAttachments, listPendingOfferteboxAttachments, type FilingAssignment } from "@/lib/sales/offertebox-filing";
 import {
   confirmLogikalImport,
   createLogikalProjectForDossier,
@@ -106,9 +107,13 @@ export async function createAanvraagAction(input: AanvraagInput, offerteboxId?: 
   if ("error" in auth) return { error: auth.error };
   try {
     const created = await createAanvraag(auth.user, input);
-    if (offerteboxId) await linkOfferteboxDossier(auth.user, offerteboxId, created.id);
+    let pendingAttachments = 0;
+    if (offerteboxId) {
+      await linkOfferteboxDossier(auth.user, offerteboxId, created.id);
+      pendingAttachments = (await listPendingOfferteboxAttachments(auth.user, created.id)).length;
+    }
     refresh();
-    return { id: created.id, number: created.number };
+    return { id: created.id, number: created.number, pendingAttachments };
   } catch (error) {
     return await fail(error);
   }
@@ -131,6 +136,18 @@ export async function assignOfferteboxSellerAction(id: string, sellerName: strin
   if ("error" in auth) return { error: auth.error };
   try {
     await assignOfferteboxSeller(auth.user, id, sellerName);
+    refresh();
+    return { ok: true as const };
+  } catch (error) {
+    return await fail(error);
+  }
+}
+
+export async function fileOfferteboxAttachmentsAction(dossierId: string, assignments: FilingAssignment[]) {
+  const auth = await userOrError();
+  if ("error" in auth) return { error: auth.error };
+  try {
+    await fileOfferteboxAttachments(auth.user, dossierId, assignments);
     refresh();
     return { ok: true as const };
   } catch (error) {

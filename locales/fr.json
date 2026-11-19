@@ -956,7 +956,9 @@
       "showAll": "Afficher tout le texte",
       "showLess": "Moins de texte",
       "emptyAssign": "Rien à répartir.",
-      "emptyWaiting": "Aucune demande en attente d'offre."
+      "emptyWaiting": "Aucune demande en attente d'offre.",
+      "fileAttachments": "Classer les pièces jointes",
+      "fileAttachmentsLead": "Placez chaque pièce jointe dans la bonne catégorie. Le mail conserve le fichier. Le dossier reçoit sa propre copie dans la gestion des documents."
     },
     "documentsTitle": "Gestion des documents",
     "followUp": "Suivi",
