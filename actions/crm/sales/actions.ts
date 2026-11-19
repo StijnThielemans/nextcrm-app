@@ -2,8 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 import { requireAuthenticated, AuthenticationError } from "@/lib/authz";
+import { suggestAddresses } from "@/lib/sales/aanvraag-fields";
 import { SalesError } from "@/lib/sales/errors";
-import { SALES_ERROR_TEXT, type DossierStatus, type RequestChannel } from "@/lib/sales/labels";
+import { SALES_ERROR_TEXT, type DossierDocumentCategory, type DossierStatus, type RequestChannel } from "@/lib/sales/labels";
 import {
   addChannelEvent,
   changeDossierStatus,
@@ -17,6 +18,7 @@ import {
   registerExternalQuote,
   searchCustomers,
   updateDossierFields,
+  attachDossierDocument,
   uploadCustomerQuote,
   type AanvraagInput,
   type QuoteFile,
@@ -52,6 +54,17 @@ export async function searchCustomersAction(query: string) {
   } catch (error) {
     const failed = fail(error);
     return { ...failed, hits: [] };
+  }
+}
+
+export async function suggestAddressesAction(query: string) {
+  const auth = await userOrError();
+  if ("error" in auth) return { error: auth.error, suggestions: [] as Awaited<ReturnType<typeof suggestAddresses>> };
+  try {
+    return { suggestions: await suggestAddresses(query) };
+  } catch (error) {
+    const failed = fail(error);
+    return { ...failed, suggestions: [] as Awaited<ReturnType<typeof suggestAddresses>> };
   }
 }
 
@@ -136,6 +149,21 @@ export async function registerQuoteAction(
   if ("error" in auth) return { error: auth.error };
   try {
     const id = await registerExternalQuote(auth.user, dossierId, input);
+    refresh();
+    return { id };
+  } catch (error) {
+    return fail(error);
+  }
+}
+
+export async function attachDossierDocumentAction(
+  dossierId: string,
+  file: QuoteFile & { category: DossierDocumentCategory },
+) {
+  const auth = await userOrError();
+  if ("error" in auth) return { error: auth.error };
+  try {
+    const id = await attachDossierDocument(auth.user, dossierId, file);
     refresh();
     return { id };
   } catch (error) {

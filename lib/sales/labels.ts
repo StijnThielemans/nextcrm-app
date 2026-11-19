@@ -72,6 +72,35 @@ export function euro(value: number): string {
   return new Intl.NumberFormat("nl-BE", { style: "currency", currency: "EUR" }).format(value);
 }
 
+export const DOSSIER_DOCUMENT_CATEGORIES = [
+  "PLAN",
+  "PHOTO",
+  "CUSTOMER_QUOTE",
+  "INTERNAL_SUPPLIER_QUOTE",
+  "CONTRACT",
+  "OFFER",
+  "OTHER",
+] as const;
+
+export type DossierDocumentCategory = (typeof DOSSIER_DOCUMENT_CATEGORIES)[number];
+
+export const DOSSIER_DOCUMENT_LABELS: Record<DossierDocumentCategory, string> = {
+  PLAN: "Plan",
+  PHOTO: "Foto",
+  CUSTOMER_QUOTE: "Klantofferte",
+  INTERNAL_SUPPLIER_QUOTE: "Leveranciersofferte",
+  CONTRACT: "Contract",
+  OFFER: "Offerte",
+  OTHER: "Overig",
+};
+
+export function documentCategoryLabel(category: string | null | undefined): string {
+  if (category && category in DOSSIER_DOCUMENT_LABELS) {
+    return DOSSIER_DOCUMENT_LABELS[category as DossierDocumentCategory];
+  }
+  return "Overig";
+}
+
 export function percentLabel(value: number | null): string {
   if (value == null) return "—";
   return `${new Intl.NumberFormat("nl-BE", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value)} %`;
@@ -87,8 +116,19 @@ export const SALES_ERROR_TEXT: Record<string, string> = {
   contactPoint: "Vul een e-mail of een telefoonnummer in.",
   nameRequired: "Naam is verplicht.",
   personName: "Voornaam en achternaam zijn verplicht.",
-  projectRequired: "Projectnaam is verplicht.",
+  projectRequired: "Projectbeschrijving is verplicht.",
   channelRequired: "Kies het kanaal van de aanvraag.",
+  sellerRequired: "Kies een verkoper.",
+  projectGroupRequired: "Kies een projectgroep.",
+  roleRequired: "Kies een contacttype.",
+  addressRequired: "Kies een adres uit de suggesties, of vul straat, postcode en plaats in.",
+  phoneRequired: "Telefoonnummer is verplicht.",
+  mobileRequired: "Gsm-nummer is verplicht.",
+  emailRequired: "E-mailadres is verplicht.",
+  vatRequired: "BTW-nummer is verplicht.",
+  taxRateRequired: "Kies een belastingstarief.",
+  categoryRequired: "Kies een documentcategorie.",
+  fileType: "Dit bestandstype is niet toegestaan.",
   lostReason: "Een verliesreden is verplicht (maximaal 500 tekens).",
   notCustomerQuote: "Alleen een klantofferte mag naar de klant. De leveranciersofferte blijft intern.",
   noCustomerQuote: "Laad eerst de klantofferte op.",

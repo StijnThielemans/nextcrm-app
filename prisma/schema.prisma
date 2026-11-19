@@ -44,6 +44,11 @@ model crm_Accounts {
   type                 String?   @default("Customer")
   /// Particulier of bedrijf. Leeg op rijen van vóór de Thielemans-verkoopflow.
   customer_kind        crm_Customer_Kind?
+  /// Klant, leverancier, of beide. Leeg op bestaande rijen.
+  account_role         crm_Account_Role?
+  mobile_phone         String?
+  tax_rate_id          String?                 @db.Uuid
+  tax_rate             Invoice_TaxRates?       @relation(fields: [tax_rate_id], references: [id], onDelete: SetNull)
   vat                  String?
   website              String?
   /// Id of this account's record in another system (set by integrations, e.g. over MCP).
@@ -81,6 +86,7 @@ model crm_Accounts {
   @@index([createdAt])
   @@index([deletedAt])
   @@index([external_ref])
+  @@index([tax_rate_id])
   pricelist_id String?         @db.Uuid
   pricelist    crm_PriceLists? @relation(fields: [pricelist_id], references: [id], onDelete: SetNull)
 
@@ -263,6 +269,11 @@ model crm_Opportunities {
   project_city         String?
   project_country      String?
   request_date         DateTime?               @db.Date
+  /// Datum waarop de prijsaanvraag bij de leverancier vertrekt.
+  price_request_date   DateTime?               @db.Date
+  project_group        crm_Project_Group?
+  /// Gekozen verkoper, ook als die naam geen gebruikersaccount heeft.
+  seller_name          String?
   source_channel       crm_Request_Channel?
   follow_up_date       DateTime?               @db.Date
   internal_notes       String?
@@ -346,6 +357,20 @@ enum crm_Request_Channel {
 enum crm_Customer_Kind {
   COMPANY
   PRIVATE
+}
+
+enum crm_Account_Role {
+  CUSTOMER
+  SUPPLIER
+  BOTH
+}
+
+enum crm_Project_Group {
+  AFHALING
+  HAROL
+  NIEUWBOUW
+  PROJECT
+  RENOVATIE
 }
 
 enum crm_ExternalQuote_Status {
@@ -2097,6 +2122,7 @@ model Invoice_TaxRates {
 
   lineItems   Invoice_LineItems[]
   defaultForSettings Invoice_Settings[]
+  accounts    crm_Accounts[]
 }
 
 model Invoice_Series {

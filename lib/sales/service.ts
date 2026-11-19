@@ -16,7 +16,18 @@ import {
 import { SalesError } from "./errors";
 import { quoteMargin } from "./margin";
 import { salesTiles, type DashRow, type SalesTiles } from "./dashboard-math";
-import { DOSSIER_STATUSES, type DossierStatus, type RequestChannel, CHANNELS } from "./labels";
+import { DOSSIER_STATUSES, DOSSIER_DOCUMENT_CATEGORIES, type DossierDocumentCategory, type DossierStatus, type RequestChannel, CHANNELS } from "./labels";
+import { uploadExtension } from "@/lib/upload-content-types";
+import { previewNumber } from "@/lib/orders/numbering";
+import {
+  isAccountRole,
+  isProjectGroup,
+  isSellerName,
+  matchSellerUser,
+  customerProjectLabel,
+  type AccountRole,
+  type ProjectGroup,
+} from "./aanvraag-fields";
 
 const TERMINAL = new Set(["GEWONNEN", "VERLOREN"]);
 
@@ -76,6 +87,7 @@ export type CustomerHit = {
   phone: string | null;
   address: string;
   kind: string | null;
+  projectLabel: string;
 };
 
 export async function searchCustomers(user: AuthzUser, rawQuery: string): Promise<CustomerHit[]> {
@@ -92,6 +104,7 @@ export async function searchCustomers(user: AuthzUser, rawQuery: string): Promis
             { name: contains },
             { email: contains },
             { office_phone: contains },
+            { mobile_phone: contains },
             { billing_street: contains },
             { billing_postal_code: contains },
             { billing_city: contains },
@@ -123,9 +136,11 @@ export async function searchCustomers(user: AuthzUser, rawQuery: string): Promis
       billing_postal_code: true,
       billing_city: true,
       customer_kind: true,
+      mobile_phone: true,
       contacts: {
         where: { deletedAt: null },
-        select: { mobile_phone: true, office_phone: true, email: true },
+        select: { first_name: true, last_name: true, mobile_phone: true, office_phone: true, email: true },
+        orderBy: { cratedAt: "asc" },
         take: 1,
       },
     },
@@ -136,31 +151,40 @@ export async function searchCustomers(user: AuthzUser, rawQuery: string): Promis
     id: row.id,
     name: row.name,
     email: row.email ?? row.contacts[0]?.email ?? null,
-    phone: row.office_phone ?? row.contacts[0]?.mobile_phone ?? row.contacts[0]?.office_phone ?? null,
+    phone: row.office_phone ?? row.mobile_phone ?? row.contacts[0]?.mobile_phone ?? row.contacts[0]?.office_phone ?? null,
     address: [row.billing_street, row.billing_postal_code, row.billing_city].filter(Boolean).join(", "),
     kind: row.customer_kind,
+    projectLabel: customerProjectLabel({
+      name: row.name,
+      firstName: row.contacts[0]?.first_name,
+      lastName: row.contacts[0]?.last_name,
+    }),
   }));
 }
 
 export type NewCustomerInput = {
-  kind: "COMPANY" | "PRIVATE";
-  name?: string;
-  firstName?: string;
-  lastName?: string;
-  email?: string;
-  phone?: string;
-  street?: string;
-  postalCode?: string;
-  city?: string;
+  name: string;
+  role: AccountRole;
+  street: string;
+  postalCode: string;
+  city: string;
   country?: string;
+  phone: string;
+  mobile: string;
+  email: string;
+  taxRateId: string;
+  vat: string;
 };
 
 export type AanvraagInput = {
   channel: RequestChannel;
   requestDate: string;
+  priceRequestDate: string;
   accountId?: string;
   customer?: NewCustomerInput;
   projectName: string;
+  sellerName: string;
+  projectGroup: ProjectGroup;
   projectStreet?: string;
   projectPostalCode?: string;
   projectCity?: string;
@@ -170,12 +194,39 @@ export type AanvraagInput = {
   nextStep?: string;
 };
 
+export async function previewDossierNumber(): Promise<string | null> {
+  const row = await prismadb.numberSeries.findFirst({
+    where: { scope: "dossier", isDefault: true, active: true },
+    orderBy: { createdAt: "asc" },
+    select: { template: true, counter: true, resetPolicy: true, currentYear: true },
+  });
+  if (!row) return null;
+  const year = new Date().getUTCFullYear();
+  const base = row.resetPolicy === "YEARLY" && row.currentYear !== year ? 0 : row.counter;
+  return previewNumber(row.template, base);
+}
+
+export async function listActiveTaxRates(): Promise<{ id: string; name: string; rate: number }[]> {
+  const rows = await prismadb.invoice_TaxRates.findMany({
+    where: { active: true },
+    orderBy: [{ isDefault: "desc" }, { rate: "desc" }],
+    select: { id: true, name: true, rate: true },
+  });
+  return rows.map((row) => ({ id: row.id, name: row.name, rate: Number(row.rate) }));
+}
+
 export async function createAanvraag(user: AuthzUser, input: AanvraagInput): Promise<{ id: string; number: string }> {
   denyPartner(user);
   if (!CHANNELS.includes(input.channel)) throw new SalesError("channelRequired");
+  if (!isSellerName(input.sellerName)) throw new SalesError("sellerRequired");
+  if (!isProjectGroup(input.projectGroup)) throw new SalesError("projectGroupRequired");
   const requestDate = day(input.requestDate);
-  const projectName = requireText(input.projectName, "projectRequired");
+  const priceRequestDate = day(input.priceRequestDate);
+  const projectName = requireText(input.projectName, "projectRequired", 500);
   const occurredAt = new Date(`${input.requestDate}T12:00:00.000Z`);
+  const sellers = await prismadb.users.findMany({ select: { id: true, name: true } });
+  const matchedSeller = matchSellerUser(sellers, input.sellerName);
+  const assignedTo = matchedSeller?.id ?? user.id;
 
   let accountId = input.accountId?.trim() || "";
   if (accountId) {
@@ -207,10 +258,10 @@ export async function createAanvraag(user: AuthzUser, input: AanvraagInput): Pro
         v: 0,
         name: projectName,
         account: accountId,
-        assigned_to: user.id,
+        assigned_to: assignedTo,
         createdBy: user.id,
         updatedBy: user.id,
-        description: input.description?.trim() || null,
+        description: input.description?.trim() || projectName,
         internal_notes: input.notes?.trim() || null,
         next_step: input.nextStep?.trim() || null,
         is_dossier: true,
@@ -226,6 +277,9 @@ export async function createAanvraag(user: AuthzUser, input: AanvraagInput): Pro
         project_city: input.projectCity?.trim() || null,
         project_country: input.projectCountry?.trim() || "BE",
         request_date: requestDate,
+        price_request_date: priceRequestDate,
+        project_group: input.projectGroup,
+        seller_name: input.sellerName,
         source_channel: input.channel,
       },
       select: { id: true, dossier_number: true },
@@ -251,6 +305,8 @@ export async function createAanvraag(user: AuthzUser, input: AanvraagInput): Pro
       { field: "dossier_number", old: null, new: created.number },
       { field: "dossier_status", old: null, new: "NIEUW" },
       { field: "source_channel", old: null, new: input.channel },
+      { field: "seller_name", old: null, new: input.sellerName },
+      { field: "project_group", old: null, new: input.projectGroup },
     ],
     userId: user.id,
   });
@@ -260,51 +316,55 @@ export async function createAanvraag(user: AuthzUser, input: AanvraagInput): Pro
 type Tx = Parameters<Parameters<typeof prismadb.$transaction>[0]>[0];
 
 async function createCustomer(tx: Tx, user: AuthzUser, input: NewCustomerInput): Promise<string> {
+  const name = requireText(input.name, "nameRequired");
+  if (!isAccountRole(input.role)) throw new SalesError("roleRequired");
   const email = input.email?.trim() || "";
-  const phone = input.phone?.trim() || "";
-  if (!email && !phone) throw new SalesError("contactPoint");
-  const kind = input.kind === "PRIVATE" ? "PRIVATE" : "COMPANY";
-  let name = input.name?.trim() || "";
-  let firstName = input.firstName?.trim() || "";
-  let lastName = input.lastName?.trim() || "";
-  if (kind === "PRIVATE") {
-    if (!firstName || !lastName) throw new SalesError("personName");
-    name = `${firstName} ${lastName}`;
-  } else if (!name) {
-    throw new SalesError("nameRequired");
-  }
+  if (!email.includes("@")) throw new SalesError("emailRequired");
+  const phone = requireText(input.phone, "phoneRequired", 40);
+  const mobile = requireText(input.mobile, "mobileRequired", 40);
+  const vat = requireText(input.vat, "vatRequired", 32);
+  const street = input.street?.trim() || "";
+  const postalCode = input.postalCode?.trim() || "";
+  const city = input.city?.trim() || "";
+  if (!street || !postalCode || !city) throw new SalesError("addressRequired");
+  const taxRate = await tx.invoice_TaxRates.findFirst({
+    where: { id: input.taxRateId, active: true },
+    select: { id: true },
+  });
+  if (!taxRate) throw new SalesError("taxRateRequired");
   const account = await tx.crm_Accounts.create({
     data: {
       v: 0,
       name,
-      email: email || null,
-      office_phone: phone || null,
-      billing_street: input.street?.trim() || null,
-      billing_postal_code: input.postalCode?.trim() || null,
-      billing_city: input.city?.trim() || null,
+      email,
+      office_phone: phone,
+      mobile_phone: mobile,
+      vat,
+      billing_street: street,
+      billing_postal_code: postalCode,
+      billing_city: city,
       billing_country: input.country?.trim() || "BE",
-      customer_kind: kind,
-      type: "Customer",
+      account_role: input.role,
+      tax_rate_id: taxRate.id,
+      type: input.role === "SUPPLIER" ? "Supplier" : input.role === "BOTH" ? "Customer and supplier" : "Customer",
       status: "Active",
       assigned_to: user.id,
       createdBy: user.id,
     },
     select: { id: true, name: true },
   });
-  if (kind === "PRIVATE" || (firstName && lastName)) {
-    await tx.crm_Contacts.create({
-      data: {
-        v: 0,
-        first_name: firstName || null,
-        last_name: lastName || name,
-        email: email || null,
-        mobile_phone: phone || null,
-        accountsIDs: account.id,
-        assigned_to: user.id,
-        createdBy: user.id,
-      },
-    });
-  }
+  await tx.crm_Contacts.create({
+    data: {
+      v: 0,
+      last_name: name,
+      email,
+      office_phone: phone,
+      mobile_phone: mobile,
+      accountsIDs: account.id,
+      assigned_to: user.id,
+      createdBy: user.id,
+    },
+  });
   await writeAuditLog({
     entityType: "account",
     entityId: account.id,
@@ -337,6 +397,7 @@ export async function listDossiers(user: AuthzUser): Promise<DossierListRow[]> {
       dossier_status: true,
       request_date: true,
       follow_up_date: true,
+      seller_name: true,
       assigned_account: { select: { name: true } },
       assigned_to_user: { select: { name: true } },
     },
@@ -350,7 +411,7 @@ export async function listDossiers(user: AuthzUser): Promise<DossierListRow[]> {
     customer: row.assigned_account?.name ?? null,
     requestDate: dayString(row.request_date),
     followUpDate: dayString(row.follow_up_date),
-    seller: row.assigned_to_user?.name ?? null,
+    seller: row.seller_name ?? row.assigned_to_user?.name ?? null,
   }));
 }
 
@@ -389,12 +450,24 @@ export type DossierDetail = {
   notes: string | null;
   nextStep: string | null;
   requestDate: string | null;
+  priceRequestDate: string | null;
+  projectGroup: string | null;
   followUpDate: string | null;
   channel: string | null;
   lostReason: string | null;
   projectAddress: string;
   terminal: boolean;
-  customer: { id: string; name: string; email: string | null; phone: string | null };
+  customer: {
+    id: string;
+    name: string;
+    email: string | null;
+    phone: string | null;
+    mobile: string | null;
+    vat: string | null;
+    address: string;
+    role: string | null;
+  };
+  documents: { id: string; name: string; category: string | null }[];
   seller: string | null;
   channels: { id: string; channel: string; at: string; note: string | null; original: boolean; seller: string | null }[];
   families: {
@@ -413,7 +486,20 @@ export async function getDossier(user: AuthzUser, dossierId: string): Promise<Do
   const row = await prismadb.crm_Opportunities.findFirst({
     where: { id: dossierId, is_dossier: true, ...opportunityReadScopeWhere(user) },
     include: {
-      assigned_account: { select: { id: true, name: true, email: true, office_phone: true } },
+      assigned_account: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          office_phone: true,
+          mobile_phone: true,
+          vat: true,
+          billing_street: true,
+          billing_postal_code: true,
+          billing_city: true,
+          account_role: true,
+        },
+      },
       assigned_to_user: { select: { name: true } },
       channel_events: {
         orderBy: { occurred_at: "asc" },
@@ -473,6 +559,8 @@ export async function getDossier(user: AuthzUser, dossierId: string): Promise<Do
     notes: row.internal_notes,
     nextStep: row.next_step,
     requestDate: dayString(row.request_date),
+    priceRequestDate: dayString(row.price_request_date),
+    projectGroup: row.project_group,
     followUpDate: dayString(row.follow_up_date),
     channel: row.source_channel,
     lostReason: row.lost_reason,
@@ -483,8 +571,19 @@ export async function getDossier(user: AuthzUser, dossierId: string): Promise<Do
       name: row.assigned_account.name,
       email: row.assigned_account.email,
       phone: row.assigned_account.office_phone,
+      mobile: row.assigned_account.mobile_phone,
+      vat: row.assigned_account.vat,
+      address: [row.assigned_account.billing_street, row.assigned_account.billing_postal_code, row.assigned_account.billing_city].filter(Boolean).join(", "),
+      role: row.assigned_account.account_role,
     },
-    seller: row.assigned_to_user?.name ?? null,
+    documents: row.documents
+      .filter((link) => link.document.deletedAt == null)
+      .map((link) => ({
+        id: link.document.id,
+        name: link.document.document_name,
+        category: link.document.document_system_type,
+      })),
+    seller: row.seller_name ?? row.assigned_to_user?.name ?? null,
     channels: row.channel_events.map((event) => ({
       id: event.id,
       channel: event.channel,
@@ -709,6 +808,49 @@ export async function registerExternalQuote(
     userId: user.id,
   });
   return quoteId;
+}
+
+export async function attachDossierDocument(
+  user: AuthzUser,
+  dossierId: string,
+  file: QuoteFile & { category: DossierDocumentCategory },
+) {
+  const dossier = await loadWritableDossier(user, dossierId);
+  assertOpen(dossier.dossier_status);
+  if (!(DOSSIER_DOCUMENT_CATEGORIES as readonly string[]).includes(file.category)) {
+    throw new SalesError("categoryRequired");
+  }
+  if (!uploadExtension(file.mimeType)) throw new SalesError("fileType");
+  const stored = await newDocumentFile(file.key);
+  const doc = await prismadb.documents.create({
+    data: {
+      v: 0,
+      document_name: file.fileName.trim() || "document",
+      description: file.category,
+      ...stored,
+      size: file.size,
+      document_file_mimeType: file.mimeType,
+      document_system_type: file.category,
+      processing_status: "PENDING",
+      createdBy: user.id,
+      assigned_user: user.id,
+      opportunities: { create: { opportunity_id: dossierId } },
+    },
+    select: { id: true },
+  });
+  try {
+    await inngest.send({ name: "document/uploaded", data: { documentId: doc.id } });
+  } catch (error) {
+    console.error("[sales] document enrich event failed", error);
+  }
+  await writeAuditLog({
+    entityType: "opportunity",
+    entityId: dossierId,
+    action: "relation_added",
+    changes: [{ field: "document", old: null, new: doc.id }],
+    userId: user.id,
+  });
+  return doc.id;
 }
 
 export async function uploadCustomerQuote(user: AuthzUser, dossierId: string, file: QuoteFile) {

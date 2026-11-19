@@ -1,13 +1,18 @@
 import Container from "@/app/[locale]/(routes)/components/ui/Container";
+import { listActiveTaxRates, previewDossierNumber } from "@/lib/sales/service";
 import { AanvraagForm } from "./AanvraagForm";
 
-export default function AanvraagPage() {
+export default async function AanvraagPage() {
+  const [projectNumber, taxRates] = await Promise.all([
+    previewDossierNumber(),
+    listActiveTaxRates(),
+  ]);
   return (
     <Container
       title="Nieuwe aanvraag"
-      description="Zoek eerst de klant. Daarna maak je het offertedossier. De offerte zelf komt uit de configurator van de leverancier."
+      description="Het projectnummer wordt automatisch toegekend. Zoek de klant, of maak er een nieuwe."
     >
-      <AanvraagForm />
+      <AanvraagForm projectNumber={projectNumber ?? "Automatisch"} taxRates={taxRates} />
     </Container>
   );
 }

@@ -8,18 +8,24 @@ import { Input } from "@/components/ui/input";
 import {
   CHANNEL_LABELS,
   CHANNELS,
+  DOSSIER_DOCUMENT_CATEGORIES,
+  DOSSIER_DOCUMENT_LABELS,
   DOSSIER_STATUS_LABELS,
   OPEN_STATUSES,
   channelLabel,
+  documentCategoryLabel,
   euro,
   percentLabel,
   statusLabel,
+  type DossierDocumentCategory,
   type DossierStatus,
   type RequestChannel,
 } from "@/lib/sales/labels";
+import { ACCOUNT_ROLE_LABELS, PROJECT_GROUP_LABELS, type AccountRole, type ProjectGroup } from "@/lib/sales/aanvraag-fields";
 import type { DossierDetail } from "@/lib/sales/service";
 import {
   addChannelAction,
+  attachDossierDocumentAction,
   changeStatusAction,
   markReadyAction,
   markSentAction,
@@ -27,7 +33,7 @@ import {
   updateDossierAction,
   uploadCustomerQuoteAction,
 } from "@/actions/crm/sales/actions";
-import { uploadPdf } from "../../sales/upload-pdf";
+import { uploadDocumentFile, uploadPdf } from "../../sales/upload-pdf";
 
 const today = new Date().toISOString().slice(0, 10);
 
@@ -37,6 +43,8 @@ export function DossierPanel({ dossier }: { dossier: DossierDetail }) {
   const [busy, setBusy] = useState(false);
   const [familyId, setFamilyId] = useState("");
   const [status, setStatus] = useState<DossierStatus>((dossier.status as DossierStatus) || "NIEUW");
+  const [category, setCategory] = useState<DossierDocumentCategory>("PLAN");
+  const [dragging, setDragging] = useState(false);
   const versions = dossier.families.flatMap((family) => family.quotes);
 
   async function run(work: () => Promise<{ error?: string; ok?: boolean; id?: string }>) {
@@ -48,18 +56,111 @@ export function DossierPanel({ dossier }: { dossier: DossierDetail }) {
     else router.refresh();
   }
 
+  async function storeDropped(file: File | undefined) {
+    if (!file) return;
+    await run(async () => {
+      const uploaded = await uploadDocumentFile(file);
+      if ("error" in uploaded) return uploaded;
+      return attachDossierDocumentAction(dossier.id, { ...uploaded, category });
+    });
+  }
+
+  const quoteRows = dossier.families.flatMap((family) => family.quotes.map((quote) => ({
+    id: quote.id,
+    number: quote.number,
+    date: quote.date,
+    status: quote.status === "ACTIVE" ? "Actief" : "Vorige versie",
+    type: "Leveranciersofferte",
+    seller: dossier.seller ?? "—",
+    totals: `${euro(quote.cost)} kost · ${euro(quote.sell)} verkoop · ${euro(quote.marginEuro)} marge`,
+  })));
+
   return (
     <div className="space-y-8 max-w-5xl">
-      <section className="grid gap-2 text-sm sm:grid-cols-2">
-        <p><span className="text-muted-foreground">Nummer </span>{dossier.number}</p>
-        <p><span className="text-muted-foreground">Status </span>{statusLabel(dossier.status)}</p>
-        <p><span className="text-muted-foreground">Klant </span><Link className="underline" href={`/crm/accounts/${dossier.customer.id}`}>{dossier.customer.name}</Link></p>
-        <p><span className="text-muted-foreground">Verkoper </span>{dossier.seller ?? "—"}</p>
-        <p><span className="text-muted-foreground">Kanaal </span>{channelLabel(dossier.channel)}</p>
-        <p><span className="text-muted-foreground">Aanvraag </span>{dossier.requestDate ?? "—"}</p>
-        <p className="sm:col-span-2"><span className="text-muted-foreground">Werf </span>{dossier.projectAddress || "—"}</p>
-        {dossier.description && <p className="sm:col-span-2">{dossier.description}</p>}
-        {dossier.lostReason && <p className="sm:col-span-2">Verliesreden: {dossier.lostReason}</p>}
+      <section className="grid gap-4 lg:grid-cols-3">
+        <div className="rounded-md border p-4 space-y-2 text-sm">
+          <h2 className="text-lg font-semibold">Klant en dossier</h2>
+          <p><span className="text-muted-foreground">Klant </span><Link className="underline" href={`/crm/accounts/${dossier.customer.id}`}>{dossier.customer.name}</Link></p>
+          <p><span className="text-muted-foreground">Contacttype </span>{dossier.customer.role && dossier.customer.role in ACCOUNT_ROLE_LABELS ? ACCOUNT_ROLE_LABELS[dossier.customer.role as AccountRole] : "—"}</p>
+          <p><span className="text-muted-foreground">E-mail </span>{dossier.customer.email ?? "—"}</p>
+          <p><span className="text-muted-foreground">Telefoon </span>{dossier.customer.phone ?? "—"}</p>
+          <p><span className="text-muted-foreground">Gsm </span>{dossier.customer.mobile ?? "—"}</p>
+          <p><span className="text-muted-foreground">BTW </span>{dossier.customer.vat ?? "—"}</p>
+          <p><span className="text-muted-foreground">Adres </span>{dossier.customer.address || "—"}</p>
+          <p><span className="text-muted-foreground">Project-Nr </span>{dossier.number ?? "—"}</p>
+          <p><span className="text-muted-foreground">Projectbeschrijving </span>{dossier.name ?? "—"}</p>
+          <p><span className="text-muted-foreground">Verkoper </span>{dossier.seller ?? "—"}</p>
+          <p><span className="text-muted-foreground">Projectgroep </span>{dossier.projectGroup && dossier.projectGroup in PROJECT_GROUP_LABELS ? PROJECT_GROUP_LABELS[dossier.projectGroup as ProjectGroup] : "—"}</p>
+          <p><span className="text-muted-foreground">Datum prijsaanvraag </span>{dossier.priceRequestDate ?? dossier.requestDate ?? "—"}</p>
+          <p><span className="text-muted-foreground">Werfadres </span>{dossier.projectAddress || "—"}</p>
+          <p><span className="text-muted-foreground">Status </span>{statusLabel(dossier.status)}</p>
+          {dossier.lostReason && <p>Verliesreden: {dossier.lostReason}</p>}
+        </div>
+
+        <div className="rounded-md border p-4 space-y-3 text-sm">
+          <h2 className="text-lg font-semibold">Offertes</h2>
+          {quoteRows.length === 0 && <p className="text-muted-foreground">Nog geen offertes.</p>}
+          <ul className="space-y-3">
+            {quoteRows.map((quote) => (
+              <li key={quote.id} className="rounded-md border p-2 space-y-1">
+                <p className="font-medium">{quote.number}</p>
+                <p><span className="text-muted-foreground">Datum </span>{quote.date}</p>
+                <p><span className="text-muted-foreground">Status </span>{quote.status}</p>
+                <p><span className="text-muted-foreground">Type </span>{quote.type}</p>
+                <p><span className="text-muted-foreground">Verkoper </span>{quote.seller}</p>
+                <p><span className="text-muted-foreground">Totalen </span>{quote.totals}</p>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <div className="rounded-md border p-4 space-y-3 text-sm">
+          <h2 className="text-lg font-semibold">Documentbeheer</h2>
+          {!dossier.terminal && (
+            <>
+              <label className="space-y-1 block">
+                <span>Categorie</span>
+                <select className="flex h-9 w-full rounded-md border bg-transparent px-2" value={category} onChange={(event) => setCategory(event.target.value as DossierDocumentCategory)}>
+                  {DOSSIER_DOCUMENT_CATEGORIES.map((item) => (
+                    <option key={item} value={item}>{DOSSIER_DOCUMENT_LABELS[item]}</option>
+                  ))}
+                </select>
+              </label>
+              <label
+                className={`flex min-h-28 cursor-pointer items-center justify-center rounded-md border border-dashed px-3 text-center ${dragging ? "bg-muted" : ""}`}
+                onDragOver={(event) => {
+                  event.preventDefault();
+                  setDragging(true);
+                }}
+                onDragLeave={() => setDragging(false)}
+                onDrop={(event) => {
+                  event.preventDefault();
+                  setDragging(false);
+                  void storeDropped(event.dataTransfer.files[0]);
+                }}
+              >
+                Sleep een document hierheen of kies een bestand
+                <input
+                  className="sr-only"
+                  type="file"
+                  onChange={(event) => {
+                    void storeDropped(event.target.files?.[0]);
+                    event.target.value = "";
+                  }}
+                />
+              </label>
+            </>
+          )}
+          <ul className="space-y-1">
+            {dossier.documents.map((doc) => (
+              <li key={doc.id}>
+                <a className="underline" href={`/api/documents/${doc.id}/file`}>{doc.name}</a>
+                {" · "}{documentCategoryLabel(doc.category)}
+              </li>
+            ))}
+            {dossier.documents.length === 0 && <li className="text-muted-foreground">Nog geen documenten.</li>}
+          </ul>
+        </div>
       </section>
 
       <section className="space-y-3">
