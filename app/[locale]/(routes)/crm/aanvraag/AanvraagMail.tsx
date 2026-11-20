@@ -1,9 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { OpenStoredFile } from "@/components/files/OpenStoredFile";
-import { fileLaunch } from "@/lib/documents/open-file";
 import { mailPanelBody } from "@/lib/sales/aanvraag-mail";
 import type { OfferteboxMailAside } from "@/lib/sales/offertebox";
 
@@ -12,7 +10,6 @@ const DATE_LOCALE: Record<string, string> = { cz: "cs" };
 export function AanvraagMail({ mail }: { mail: OfferteboxMailAside }) {
   const t = useTranslations("Sales");
   const locale = useLocale();
-  const [previewId, setPreviewId] = useState<string | null>(null);
   const when = new Intl.DateTimeFormat(DATE_LOCALE[locale] ?? locale, {
     timeZone: "Europe/Brussels",
     weekday: "short",
@@ -21,13 +18,7 @@ export function AanvraagMail({ mail }: { mail: OfferteboxMailAside }) {
     year: "numeric",
   });
   const body = mailPanelBody(mail.html, mail.body);
-  const preview = mail.attachments.find((attachment) => attachment.id === previewId) ?? null;
   const sender = mail.fromName || mail.fromEmail || "—";
-
-  useEffect(() => {
-    if (!previewId) return;
-    document.querySelector("[data-testid='aanvraag-mail-preview']")?.scrollIntoView({ block: "nearest" });
-  }, [previewId]);
 
   return (
     <aside
@@ -56,58 +47,25 @@ export function AanvraagMail({ mail }: { mail: OfferteboxMailAside }) {
         <div className="mt-4">
           <p className="text-xs font-medium text-muted-foreground">{t("offertebox.attachments")}</p>
           <ul className="mt-1 space-y-1">
-            {mail.attachments.map((attachment) => {
-              const launch = fileLaunch(attachment.fileName, attachment.contentType, attachment.isImage);
-              if (launch !== "image") {
-                return (
-                  <li key={attachment.id}>
-                    <OpenStoredFile
-                      kind="attachment"
-                      id={attachment.id}
-                      name={attachment.fileName}
-                      mimeType={attachment.contentType}
-                      className="underline"
-                      testId="aanvraag-mail-attachment"
-                    >
-                      {attachment.fileName}
-                    </OpenStoredFile>
-                  </li>
-                );
-              }
-              const open = previewId === attachment.id;
-              return (
-                <li key={attachment.id}>
-                  <button
-                    type="button"
-                    className="underline"
-                    aria-expanded={open}
-                    data-testid="aanvraag-mail-attachment"
-                    onClick={() => setPreviewId(open ? null : attachment.id)}
-                  >
-                    {attachment.fileName}
-                  </button>
-                </li>
-              );
-            })}
+            {mail.attachments.map((attachment) => (
+              <li key={attachment.id}>
+                <OpenStoredFile
+                  kind="attachment"
+                  id={attachment.id}
+                  name={attachment.fileName}
+                  mimeType={attachment.contentType}
+                  image={attachment.isImage}
+                  className="underline"
+                  testId="aanvraag-mail-attachment"
+                >
+                  {attachment.fileName}
+                </OpenStoredFile>
+              </li>
+            ))}
           </ul>
         </div>
       )}
       </div>
-      {preview && (
-        <div className="mt-3 shrink-0 space-y-2" data-testid="aanvraag-mail-preview">
-          <div className="flex items-center justify-between gap-2">
-            <p className="min-w-0 truncate text-sm font-medium">{preview.fileName}</p>
-            <button type="button" className="underline" onClick={() => setPreviewId(null)}>
-              {t("offertebox.closePreview")}
-            </button>
-          </div>
-          <img
-            src={`/api/crm/offertebox/attachments/${preview.id}`}
-            alt={preview.fileName}
-            className="max-h-[70vh] w-full rounded border object-contain"
-          />
-        </div>
-      )}
       {body.kind === "html" ? (
         <div
           className="mt-3 break-words text-sm leading-relaxed lg:min-h-0 lg:flex-1 lg:overflow-y-auto [&_a]:underline [&_img]:my-2 [&_img]:h-auto [&_img]:max-w-full [&_p]:mb-2 [&_table]:max-w-full"

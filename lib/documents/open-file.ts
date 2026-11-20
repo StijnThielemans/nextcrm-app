@@ -163,6 +163,15 @@ export function officeProtocol(launch: FileLaunch, absoluteUrl: string): string 
   return `${OFFICE_SCHEME[launch]}:ofe|u|${absoluteUrl}`;
 }
 
+/**
+ * Address for a new browser tab. PDF and images stay the file URL so the
+ * browser shows them inline. Word, Excel and PowerPoint use their Office link.
+ * The current page is never the target.
+ */
+export function fileOpenDestination(launch: FileLaunch, absoluteUrl: string): string {
+  return officeProtocol(launch, absoluteUrl) ?? absoluteUrl;
+}
+
 export function isHttpUrl(value: string): boolean {
   try {
     const url = new URL(value);

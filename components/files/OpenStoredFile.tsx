@@ -2,7 +2,7 @@
 
 import { useState, type MouseEvent, type ReactNode } from "react";
 import { documentFileRoute } from "@/lib/documents/file-key";
-import { fileLaunch, isFileLaunch, isHttpUrl, officeProtocol } from "@/lib/documents/open-file";
+import { fileLaunch, fileOpenDestination, isFileLaunch, isHttpUrl } from "@/lib/documents/open-file";
 
 type OpenKind = "document" | "attachment";
 
@@ -16,30 +16,20 @@ function fallbackHref(kind: OpenKind, id: string, name: string, mimeType: string
   if (kind === "document") return documentFileRoute(id);
   const launch = fileLaunch(name, mimeType, image);
   const base = `/api/crm/offertebox/attachments/${id}`;
-  return launch === "pdf" || launch === "image" ? base : `${base}?download=1`;
+  // PDF, images and Office open in the browser or in Office. Only an unknown type downloads.
+  return launch === "download" ? `${base}?download=1` : base;
 }
 
-function handoff(launch: ReturnType<typeof fileLaunch>, url: string, tab: Window | null) {
-  const protocol = officeProtocol(launch, url);
-  if (protocol) {
-    tab?.close();
-    const anchor = document.createElement("a");
-    anchor.href = protocol;
-    document.body.appendChild(anchor);
-    anchor.click();
-    anchor.remove();
-    return;
+function showInNewTab(url: string, tab: Window | null) {
+  if (tab && !tab.closed) {
+    try {
+      tab.location.replace(url);
+      return;
+    } catch {
+      tab.close();
+    }
   }
-  if (launch === "download") {
-    tab?.close();
-    window.location.assign(url);
-    return;
-  }
-  if (tab) {
-    tab.location.replace(url);
-    return;
-  }
-  window.location.assign(url);
+  window.open(url, "_blank");
 }
 
 export function OpenStoredFile({
@@ -66,12 +56,14 @@ export function OpenStoredFile({
 
   async function onClick(event: MouseEvent<HTMLAnchorElement>) {
     if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return;
+    if (pending) {
+      event.preventDefault();
+      return;
+    }
+    // Open the tab in this click. A later window.open is blocked, and this page must stay.
+    const tab = window.open("about:blank", "_blank");
+    if (!tab) return;
     event.preventDefault();
-    if (pending) return;
-    const predicted = fileLaunch(name, mimeType, image);
-    const tab = predicted === "word" || predicted === "excel" || predicted === "powerpoint"
-      ? null
-      : window.open("about:blank", "_blank");
     setPending(true);
     try {
       const response = await fetch(mintPath(kind, id), {
@@ -84,17 +76,23 @@ export function OpenStoredFile({
       if (typeof body.url !== "string" || !isHttpUrl(body.url) || !isFileLaunch(body.launch)) {
         throw new Error("open failed");
       }
-      handoff(body.launch, body.url, tab);
+      showInNewTab(fileOpenDestination(body.launch, body.url), tab);
     } catch {
-      tab?.close();
-      window.location.assign(href);
+      showInNewTab(href, tab);
     } finally {
       setPending(false);
     }
   }
 
   return (
-    <a className={className} href={href} data-testid={testId} onClick={(event) => void onClick(event)}>
+    <a
+      className={className}
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      data-testid={testId}
+      onClick={(event) => void onClick(event)}
+    >
       {children}
     </a>
   );

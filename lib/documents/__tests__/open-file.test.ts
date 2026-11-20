@@ -1,4 +1,4 @@
-import { fileLaunch, fileOpenUrl, officeProtocol, openFileSegment, publicRequestOrigin, desktopOpenHeaders } from "../open-file";
+import { fileLaunch, fileOpenDestination, fileOpenUrl, officeProtocol, openFileSegment, publicRequestOrigin, desktopOpenHeaders } from "../open-file";
 import { OPEN_TOKEN_TTL_MS, signOpenToken, verifyOpenToken } from "../open-token";
 
 describe("file open target", () => {
@@ -33,6 +33,16 @@ describe("file open target", () => {
     expect(officeProtocol("excel", "https://app.example/a.xlsx")).toBe("ms-excel:ofe|u|https://app.example/a.xlsx");
     expect(officeProtocol("powerpoint", "https://app.example/a.pptx")).toBe("ms-powerpoint:ofe|u|https://app.example/a.pptx");
     expect(officeProtocol("pdf", url)).toBeNull();
+    expect(fileOpenDestination("pdf", url)).toBe(url);
+    expect(fileOpenDestination("image", url)).toBe(url);
+    expect(fileOpenDestination("download", url)).toBe(url);
+    expect(fileOpenDestination("word", url)).toBe(`ms-word:ofe|u|${url}`);
+    expect(fileOpenDestination("excel", "https://app.example/a.xlsx")).toBe(
+      "ms-excel:ofe|u|https://app.example/a.xlsx",
+    );
+    expect(fileOpenDestination("powerpoint", "https://app.example/a.pptx")).toBe(
+      "ms-powerpoint:ofe|u|https://app.example/a.pptx",
+    );
     expect(officeProtocol("word", "javascript:alert(1)")).toBeNull();
     expect(openFileSegment("Offerte", "pdf")).toBe("Offerte.pdf");
     expect(openFileSegment("../../plan.doc", "word")).toBe("plan.doc");
