@@ -1250,6 +1250,7 @@
       "categoryRequired": "Choose a document category.",
       "fileType": "This file type is not allowed.",
       "mailInvalid": "Tohle není čitelný e-mail (.eml nebo .msg).",
+      "mailNoFile": "Uložte e-mail nejdříve jako .eml nebo .msg.",
       "mailTooLarge": "E-mail je příliš velký (nejvýše 20 MB).",
       "lostReason": "A loss reason is required (500 characters at most).",
       "notCustomerQuote": "Only a customer quote may go to the customer. The supplier quote stays internal.",

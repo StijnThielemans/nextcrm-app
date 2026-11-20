@@ -17,6 +17,11 @@ const nextConfig = {
     serverActions: {
       bodySizeLimit: "32mb",
     },
+    // A dropped mail is posted to /api through proxy.ts. The default 10MB
+    // buffer kept only the start of the file, and that cut-off mail was shown
+    // as "not a readable email". 32mb matches the server-action limit and sits
+    // above the 20MB mail cap, so a larger file can be refused as too big.
+    proxyClientMaxBodySize: "32mb",
   },
   images: {
     remotePatterns: [

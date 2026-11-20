@@ -231,6 +231,7 @@ export const SALES_ERROR_TEXT: Record<string, string> = {
   categoryRequired: "Kies een documentcategorie.",
   fileType: "Dit bestandstype is niet toegestaan.",
   mailInvalid: "Dit is geen leesbare e-mail (.eml of .msg).",
+  mailNoFile: "Sla de mail eerst op als .eml of .msg.",
   mailTooLarge: "De e-mail is te groot (maximaal 20 MB).",
   lostReason: "Een verliesreden is verplicht (maximaal 500 tekens).",
   notCustomerQuote: "Alleen een klantofferte mag naar de klant. De leveranciersofferte blijft intern.",

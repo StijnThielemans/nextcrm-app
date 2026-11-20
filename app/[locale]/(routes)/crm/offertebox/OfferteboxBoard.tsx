@@ -75,14 +75,12 @@ export function OfferteboxBoard({ view }: { view: OfferteboxView }) {
   }
 
   function onDragEnter(event: DragEvent<HTMLDivElement>) {
-    if (!hasFiles(event)) return;
     event.preventDefault();
     dragDepth.current += 1;
     setDragOver(true);
   }
 
   function onDragOver(event: DragEvent<HTMLDivElement>) {
-    if (!hasFiles(event)) return;
     event.preventDefault();
     event.dataTransfer.dropEffect = "copy";
   }
@@ -96,7 +94,21 @@ export function OfferteboxBoard({ view }: { view: OfferteboxView }) {
     event.preventDefault();
     dragDepth.current = 0;
     setDragOver(false);
-    void filesFromDrop(event).then((files) => uploadFiles(files));
+    // Read the drop while the event is still active. After the first await the
+    // browser clears dataTransfer, so an Outlook drop that is only HTML would
+    // look like an empty drop.
+    const listed = [...event.dataTransfer.files];
+    const incoming = listed.length > 0 ? listed : filesFromItems(event);
+    const offeredText = Boolean(event.dataTransfer.getData("text/html").trim() || event.dataTransfer.getData("text/plain").trim());
+    const offeredFile = incoming.length > 0 || [...event.dataTransfer.types].includes("Files");
+    void (async () => {
+      const ready = (await Promise.all(incoming.map(materializeDroppedFile))).filter((file) => file.size > 0);
+      if (ready.length > 0) {
+        await uploadFiles(ready);
+        return;
+      }
+      if (offeredFile || offeredText) setError(t("errors.mailNoFile"));
+    })();
   }
 
   async function onSeller(id: string, sellerName: string) {
@@ -497,25 +509,6 @@ function MailRow({
   );
 }
 
-function hasFiles(event: DragEvent<HTMLDivElement>) {
-  return [...event.dataTransfer.types].includes("Files");
-}
-
-/** Outlook gives the browser a virtual file. The first read is often empty, so copy the bytes before upload. */
-async function filesFromDrop(event: DragEvent<HTMLDivElement>): Promise<File[]> {
-  const listed = [...event.dataTransfer.files];
-  const incoming = listed.length > 0 ? listed : filesFromItems(event);
-  const ready = (await Promise.all(incoming.map(materializeDroppedFile))).filter((file) => file.size > 0);
-  if (ready.length > 0) return ready;
-  const text = event.dataTransfer.getData("text/plain").trim();
-  const html = event.dataTransfer.getData("text/html").trim();
-  const body = text || html;
-  if (!body) return [];
-  const subject = body.split("\n").map((line) => line.trim()).find(Boolean)?.slice(0, 180) || "Outlook";
-  const eml = `From: \r\nSubject: ${subject.replace(/[\r\n]/g, " ")}\r\nMIME-Version: 1.0\r\nContent-Type: text/plain; charset=utf-8\r\n\r\n${body}`;
-  return [new File([eml], "outlook.eml", { type: "message/rfc822" })];
-}
-
 function filesFromItems(event: DragEvent<HTMLDivElement>): File[] {
   const files: File[] = [];
   for (const item of event.dataTransfer.items) {
@@ -526,13 +519,26 @@ function filesFromItems(event: DragEvent<HTMLDivElement>): File[] {
   return files;
 }
 
+/** Outlook gives the browser a virtual file. The first read is often empty, so copy the bytes before upload. */
 async function materializeDroppedFile(file: File): Promise<File> {
   let bytes = await file.arrayBuffer();
   if (bytes.byteLength === 0) {
     await new Promise((resolve) => setTimeout(resolve, 300));
     bytes = await file.arrayBuffer();
   }
-  const name = file.name.trim() || "bericht.msg";
-  const type = file.type || (name.toLowerCase().endsWith(".eml") ? "message/rfc822" : "application/vnd.ms-outlook");
+  const name = file.name.trim() || "bericht";
+  const type = file.type || sniffedMailType(name, bytes);
   return new File([bytes], name, { type });
+}
+
+/** Outlook sometimes drops message/rfc822, or a file whose name has no extension. */
+function sniffedMailType(name: string, bytes: ArrayBuffer): string {
+  const view = new Uint8Array(bytes);
+  if (view.length >= 4 && view[0] === 0xd0 && view[1] === 0xcf && view[2] === 0x11 && view[3] === 0xe0) {
+    return "application/vnd.ms-outlook";
+  }
+  const lower = name.toLowerCase();
+  if (lower.endsWith(".eml") || lower.endsWith(".emlx") || lower.endsWith(".mime")) return "message/rfc822";
+  if (lower.endsWith(".msg")) return "application/vnd.ms-outlook";
+  return "";
 }

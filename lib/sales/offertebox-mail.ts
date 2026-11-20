@@ -309,20 +309,27 @@ export async function parseOfferteboxMail(
     try {
       return parseOutlookMessage(bytes);
     } catch (error) {
-      const compound = bytes.length >= 4 && bytes[0] === 0xd0 && bytes[1] === 0xcf && bytes[2] === 0x11 && bytes[3] === 0xe0;
-      if (compound || !(error instanceof SalesError)) throw error;
+      // A .msg name or Outlook MIME can still be an .eml or saved HTML. Only a
+      // real compound file (or an unexpected parser crash) stops here.
+      if (isOleCompound(bytes) || !(error instanceof SalesError)) {
+        console.error("[offertebox] msg parse failed", { fileName, bytes: bytes.length, contentType, error });
+        if (error instanceof SalesError) throw error;
+        throw new SalesError("mailInvalid");
+      }
     }
   }
-  if (!acceptedMailFile(fileName, bytes)) {
-    const dropped = outlookTextDrop(fileName, bytes);
+  const textBytes = mailTextBytes(bytes);
+  if (!acceptedMailFile(fileName, textBytes, contentType)) {
+    const dropped = outlookTextDrop(fileName, textBytes);
     if (dropped) return dropped;
     throw new SalesError("mailInvalid");
   }
 
   let mail: ParsedMail;
   try {
-    mail = await simpleParser(unwrapEmlx(fileName, bytes), { skipImageLinks: true });
-  } catch {
+    mail = await simpleParser(unwrapEmlx(fileName, textBytes), { skipImageLinks: true });
+  } catch (error) {
+    console.error("[offertebox] eml parse failed", { fileName, bytes: bytes.length, contentType, error });
     throw new SalesError("mailInvalid");
   }
 
@@ -351,11 +358,39 @@ export async function parseOfferteboxMail(
 
 /** Outlook drag-and-drop is a .msg compound file, often without a useful MIME type. */
 function isOutlookMessage(fileName: string, bytes: Buffer, contentType?: string): boolean {
-  if (bytes.length >= 4 && bytes[0] === 0xd0 && bytes[1] === 0xcf && bytes[2] === 0x11 && bytes[3] === 0xe0) return true;
+  if (isOleCompound(bytes)) return true;
   const name = safeFileName(fileName).toLowerCase();
   if (name.endsWith(".msg")) return true;
-  const mime = (contentType ?? "").split(";")[0]?.trim().toLowerCase() ?? "";
-  return mime === "application/vnd.ms-outlook";
+  return mailMime(contentType) === "application/vnd.ms-outlook";
+}
+
+/** OLE compound document, the container Outlook uses for a .msg (D0 CF 11 E0). */
+function isOleCompound(bytes: Buffer): boolean {
+  return bytes.length >= 4 && bytes[0] === 0xd0 && bytes[1] === 0xcf && bytes[2] === 0x11 && bytes[3] === 0xe0;
+}
+
+function mailMime(contentType?: string): string {
+  return (contentType ?? "").split(";")[0]?.trim().toLowerCase() ?? "";
+}
+
+/** A dropped .eml may start with a BOM, or be UTF-16, before the mail headers. */
+function mailTextBytes(bytes: Buffer): Buffer {
+  if (isOleCompound(bytes)) return bytes;
+  if (bytes.length >= 3 && bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf) return bytes.subarray(3);
+  if (bytes.length >= 2 && bytes[0] === 0xff && bytes[1] === 0xfe) {
+    return Buffer.from(bytes.subarray(2).toString("utf16le"), "utf8");
+  }
+  if (bytes.length >= 2 && bytes[0] === 0xfe && bytes[1] === 0xff) {
+    const swapped = Buffer.alloc(bytes.length - 2);
+    for (let i = 0; i + 1 < swapped.length; i += 2) {
+      const high = bytes[i + 2] ?? 0;
+      const low = bytes[i + 3] ?? 0;
+      swapped[i] = low;
+      swapped[i + 1] = high;
+    }
+    return Buffer.from(swapped.toString("utf16le"), "utf8");
+  }
+  return bytes;
 }
 
 function parseOutlookMessage(bytes: Buffer): ParsedOfferteboxMail {
@@ -364,10 +399,12 @@ function parseOutlookMessage(bytes: Buffer): ParsedOfferteboxMail {
   try {
     reader = new MsgReader(bytes);
     info = reader.getFileData();
-  } catch {
-    throw new SalesError("mailInvalid");
+  } catch (error) {
+    throw Object.assign(new SalesError("mailInvalid"), { cause: error });
   }
-  if (info.error || info.dataType === null) throw new SalesError("mailInvalid");
+  if (info.error || info.dataType === null) {
+    throw Object.assign(new SalesError("mailInvalid"), { cause: info.error || "empty outlook message" });
+  }
 
   const fromName = cleanHeader(info.senderName ?? "", 200);
   const fromEmail = outlookEmail(info);
@@ -470,16 +507,20 @@ function collectMsgAttachments(reader: MsgReader, list: FieldsData[], html: stri
   return attachments;
 }
 
-function acceptedMailFile(fileName: string, bytes: Buffer): boolean {
+function acceptedMailFile(fileName: string, bytes: Buffer, contentType?: string): boolean {
   const name = safeFileName(fileName).toLowerCase();
   if (name.endsWith(".eml") || name.endsWith(".emlx") || name.endsWith(".mime")) return true;
+  // Outlook often drops message/rfc822 under the subject, with no .eml extension.
+  if (mailMime(contentType) === "message/rfc822") return true;
+  if (isOleCompound(bytes)) return false;
   if (bytes.length >= 4) {
     const sig = bytes.subarray(0, 4).toString("latin1");
     if (sig === "%PDF" || sig.startsWith("\x89PNG") || sig.startsWith("PK")) return false;
   }
   const head = bytes.subarray(0, Math.min(bytes.length, 8192)).toString("latin1");
-  if (head.includes("\u0000")) return false;
-  return /^(from |return-path:|received:|mime-version:|from:|subject:|date:|delivered-to:|to:)/im.test(head);
+  const headerBlock = head.split(/\r?\n\r?\n/, 1)[0] ?? head;
+  if (headerBlock.includes("\u0000")) return false;
+  return /^(from |return-path:|received:|mime-version:|content-type:|from:|subject:|date:|delivered-to:|to:|cc:|sender:|message-id:)/im.test(headerBlock);
 }
 
 /** Apple Mail stores a byte count on the first line of an .emlx file, then the RFC 822 message. */

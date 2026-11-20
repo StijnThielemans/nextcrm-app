@@ -192,6 +192,53 @@ Content-Type: text/html; charset=utf-8
     expect(mail.fromEmail).toBe("jan@example.com");
   });
 
+  it("reads an .eml with no extension, a BOM, or UTF-16 headers", async () => {
+    const text = "From: Jan Peeters <jan@example.com>\r\nSubject: Zonder extensie\r\nMIME-Version: 1.0\r\nContent-Type: text/plain; charset=utf-8\r\n\r\nTekst van de mail.\r\n";
+    const plain = Buffer.from(text, "utf8");
+    const dropped = await parseOfferteboxMail("Prijs ramen", plain, "message/rfc822");
+    expect(dropped.fromName).toBe("Jan Peeters");
+    expect(dropped.fromEmail).toBe("jan@example.com");
+    expect(dropped.subject).toBe("Zonder extensie");
+    expect(dropped.body).toContain("Tekst van de mail.");
+
+    const onlyFrom = Buffer.concat([
+      Buffer.from([0xef, 0xbb, 0xbf]),
+      Buffer.from("From: Jan Peeters <jan@example.com>\r\n\r\nAlleen afzender.\r\n", "utf8"),
+    ]);
+    const withBom = await parseOfferteboxMail("bom", onlyFrom, "");
+    expect(withBom.fromEmail).toBe("jan@example.com");
+    expect(withBom.body).toContain("Alleen afzender.");
+
+    const utf16 = Buffer.concat([Buffer.from([0xff, 0xfe]), Buffer.from(text, "utf16le")]);
+    const wide = await parseOfferteboxMail("unicode", utf16, "");
+    expect(wide.fromEmail).toBe("jan@example.com");
+    expect(wide.subject).toBe("Zonder extensie");
+    expect(wide.body).toContain("Tekst van de mail.");
+  });
+
+  it("reads an extensionless .eml when a binary attachment follows the headers", async () => {
+    const png = Buffer.from(
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+      "base64",
+    );
+    const mail = await parseOfferteboxMail(
+      "Prijs ramen",
+      Buffer.concat([
+        Buffer.from(
+          "From: Jan Peeters <jan@example.com>\r\nSubject: Met bijlage\r\nMIME-Version: 1.0\r\nContent-Type: multipart/mixed; boundary=B\r\n\r\n--B\r\nContent-Type: text/plain; charset=utf-8\r\n\r\nTekst van de mail.\r\n\r\n--B\r\nContent-Type: image/png\r\nContent-Disposition: attachment; filename=raam.png\r\n\r\n",
+          "utf8",
+        ),
+        png,
+        Buffer.from("\r\n--B--\r\n", "utf8"),
+      ]),
+      "",
+    );
+    expect(mail.fromEmail).toBe("jan@example.com");
+    expect(mail.subject).toBe("Met bijlage");
+    expect(mail.body).toContain("Tekst van de mail.");
+    expect(mail.attachments[0]?.fileName).toBe("raam.png");
+  });
+
   it("rejects a .msg name that is not a readable Outlook message", async () => {
     await expect(parseOfferteboxMail("leeg.msg", Buffer.from("geen outlook"))).rejects.toBeInstanceOf(SalesError);
   });

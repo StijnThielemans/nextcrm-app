@@ -1247,6 +1247,7 @@
       "categoryRequired": "Choose a document category.",
       "fileType": "This file type is not allowed.",
       "mailInvalid": "This is not a readable email (.eml or .msg).",
+      "mailNoFile": "Save the email as .eml or .msg first.",
       "mailTooLarge": "The email is too large (maximum 20 MB).",
       "lostReason": "A loss reason is required (500 characters at most).",
       "notCustomerQuote": "Only a customer quote may go to the customer. The supplier quote stays internal.",

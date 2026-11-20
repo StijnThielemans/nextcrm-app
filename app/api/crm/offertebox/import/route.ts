@@ -18,10 +18,16 @@ export async function POST(req: NextRequest) {
     throw error;
   }
 
+  const declared = Number(req.headers.get("content-length") ?? "");
+  if (Number.isFinite(declared) && declared > MAX_MAIL_BYTES + 1024 * 1024) {
+    return NextResponse.json({ code: "mailTooLarge" }, { status: 400 });
+  }
+
   let form: FormData;
   try {
     form = await req.formData();
-  } catch {
+  } catch (error) {
+    console.error("[offertebox] import form", error);
     return NextResponse.json({ code: "mailInvalid" }, { status: 400 });
   }
   const file = form.get("file");
