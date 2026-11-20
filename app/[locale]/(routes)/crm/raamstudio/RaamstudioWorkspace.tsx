@@ -762,7 +762,7 @@ export function RaamstudioWorkspace({
             />
           ) : step === "maten" ? (
             <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-              <p className="shrink-0 px-3 pt-2 text-xs text-muted-foreground">Breedte en hoogte staan onder het raam, onder elkaar. ??? is leeg. Sleep een maat weg van de tekening. Dubbelklik om ze te wijzigen.</p>
+              <p className="shrink-0 px-3 pt-2 text-xs text-muted-foreground">Breedte onder het raam, hoogte rechts ernaast. ??? is leeg. Sleep een maat weg van de tekening. Dubbelklik om ze te wijzigen.</p>
               <ClipBoard
                 clips={visibleClips(draft.drawings, pdfs, isFacadeClip)}
                 planNames={draft.drawings.map((drawing) => drawing.planName)}
