@@ -635,10 +635,9 @@ export function RaamstudioWorkspace({
       <div className={cn(
         "grid min-h-[640px]",
         step === "tekeningen" ? "lg:grid-cols-[220px_minmax(0,1fr)_300px]"
-          : step === "gevels" ? "lg:grid-cols-[200px_minmax(0,1fr)_340px]"
+          : step === "gevels" || step === "maten" ? "lg:grid-cols-[200px_minmax(0,1fr)_340px]"
             : step === "grondplan" ? "lg:grid-cols-[200px_minmax(0,1fr)]"
-              : step === "maten" ? "lg:h-[calc(100dvh-12rem)] lg:min-h-0 lg:grid-cols-[minmax(0,1fr)_340px] lg:grid-rows-[minmax(0,1fr)] lg:overflow-hidden"
-                : "lg:grid-cols-[minmax(0,0.7fr)_minmax(460px,1.15fr)]",
+              : "lg:grid-cols-[minmax(0,0.7fr)_minmax(460px,1.15fr)]",
       )}>
         {step === "tekeningen" ? (
         <div className="border-black/10 lg:border-r" data-testid="raamstudio-plan-list">
@@ -691,7 +690,7 @@ export function RaamstudioWorkspace({
           </div>
         ) : null}
 
-        {step === "gevels" ? (
+        {step === "gevels" || step === "maten" ? (
           <div className="border-black/10 p-3 lg:border-r" data-testid="raamstudio-ground-numbers">
             <p className="text-sm font-medium">Nummering</p>
             <label className="mt-2 block text-xs text-muted-foreground">
@@ -712,17 +711,19 @@ export function RaamstudioWorkspace({
                     >
                       {number}
                     </button>
-                    <button
-                      type="button"
-                      className="text-[11px] text-muted-foreground underline"
-                      onClick={() => touch({
-                        ...draft,
-                        openings: draft.openings.filter((item) => item.number !== number),
-                        facades: draft.facades.filter((item) => item.number !== number),
-                      })}
-                    >
-                      Weg
-                    </button>
+                    {step === "gevels" ? (
+                      <button
+                        type="button"
+                        className="text-[11px] text-muted-foreground underline"
+                        onClick={() => touch({
+                          ...draft,
+                          openings: draft.openings.filter((item) => item.number !== number),
+                          facades: draft.facades.filter((item) => item.number !== number),
+                        })}
+                      >
+                        Weg
+                      </button>
+                    ) : null}
                   </li>
                 ))}
               </ul>
@@ -732,7 +733,7 @@ export function RaamstudioWorkspace({
           </div>
         ) : null}
 
-        <div className={cn("flex min-w-0 flex-col bg-neutral-100", step === "maten" ? "min-h-0 overflow-hidden" : "min-h-[520px] overflow-auto")} data-testid="raamstudio-plan-view">
+        <div className="flex min-h-[520px] min-w-0 flex-col overflow-auto bg-neutral-100" data-testid="raamstudio-plan-view">
           {step === "tekeningen" && pageCount > 1 ? (
             <div className="flex items-center gap-2 border-b border-black/10 bg-white px-2 py-1.5">
               <Button type="button" size="sm" variant="outline" disabled={page <= 0} onClick={() => setPage((value) => value - 1)}>Vorige pagina</Button>
@@ -761,19 +762,15 @@ export function RaamstudioWorkspace({
               emptyText="Duid eerst in stap 1 een gevel of snede aan. De grondplannen staan rechts als overzicht."
             />
           ) : step === "maten" ? (
-            <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-              <p className="shrink-0 px-3 pt-2 text-xs text-muted-foreground">Breedte onder het raam, hoogte rechts ernaast. ??? is leeg. Sleep een maat weg van de tekening. Dubbelklik om ze te wijzigen.</p>
-              <ClipBoard
-                clips={visibleClips(draft.drawings, pdfs, isFacadeClip)}
-                planNames={draft.drawings.map((drawing) => drawing.planName)}
-                numbers={clipNumbers(draft)}
-                measures={facadeMeasures}
-                onEditMeasure={setSize}
-                onMoveMeasure={setMeasurePlace}
-                fitFrames
-                emptyText="Duid eerst in stap 1 een gevel of snede aan en zet het raamnummer erop."
-              />
-            </div>
+            <ClipBoard
+              clips={visibleClips(draft.drawings, pdfs, isFacadeClip)}
+              planNames={draft.drawings.map((drawing) => drawing.planName)}
+              numbers={clipNumbers(draft)}
+              measures={facadeMeasures}
+              onEditMeasure={setSize}
+              onMoveMeasure={setMeasurePlace}
+              emptyText="Duid eerst in stap 1 een gevel of snede aan. De grondplannen staan rechts als overzicht."
+            />
           ) : step !== "tekeningen" ? (
             <p className="p-6 text-sm text-muted-foreground" data-testid="raamstudio-clips-hint">
               De lijst met PDF&apos;s is weg. Rechts staan de knipsels. Klik erop om een raamnummer te zetten.
@@ -811,7 +808,7 @@ export function RaamstudioWorkspace({
         </div>
 
         {step === "gevels" || step === "maten" ? (
-          <aside className={cn("flex min-h-0 flex-col border-black/10 bg-white lg:border-l", step === "maten" ? "overflow-hidden" : "max-h-[calc(100dvh-7.5rem)] lg:sticky lg:top-2")} data-testid="raamstudio-floor-overview">
+          <aside className="flex max-h-[calc(100dvh-7.5rem)] min-h-0 flex-col border-black/10 bg-white lg:sticky lg:top-2 lg:border-l" data-testid="raamstudio-floor-overview">
             <div className="px-3 pt-3">
               <p className="text-sm font-medium">Grondplannen</p>
               <p className="text-xs text-muted-foreground">Overzicht met de nummers. Hier plaats je niets.</p>
