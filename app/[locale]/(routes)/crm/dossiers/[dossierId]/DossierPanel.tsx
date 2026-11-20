@@ -41,6 +41,7 @@ import { FileAttachmentsDialog } from "../../sales/FileAttachmentsDialog";
 import type { PendingOfferteboxAttachment } from "@/lib/sales/offertebox-filing";
 import { QuotePositionsSection } from "./QuotePositionsSection";
 import { DossierProjectDialog } from "./DossierProjectDialog";
+import { AddressLink } from "@/components/crm/AddressLink";
 
 const today = new Date().toISOString().slice(0, 10);
 
@@ -439,7 +440,7 @@ export function DossierPanel({
           <Fact label={t("phone")}>{dossier.customer.phone ?? "—"}</Fact>
           <Fact label={t("gsm")}>{dossier.customer.mobile ?? "—"}</Fact>
           <Fact label={t("vat")}>{dossier.customer.vat ?? "—"}</Fact>
-          <Fact label={t("address")}>{dossier.customer.address || "—"}</Fact>
+          <Fact label={t("address")}><AddressLink address={dossier.customer.address} /></Fact>
           </div>
           <div className="space-y-5">
           <Fact label={t("projectNumber")}>{dossier.number ?? "—"}</Fact>
@@ -452,7 +453,7 @@ export function DossierPanel({
           </Fact>
           <Fact label={t("projectGroup")} testId="dossier-project-group">{dossier.projectGroup && t.has(`groups.${dossier.projectGroup}`) ? t(`groups.${dossier.projectGroup}`) : "—"}</Fact>
           <Fact label={t("priceRequestDate")}>{dossier.priceRequestDate ?? dossier.requestDate ?? "—"}</Fact>
-          <Fact label={t("siteAddress")}>{dossier.projectAddress || "—"}</Fact>
+          <Fact label={t("siteAddress")}><AddressLink address={dossier.projectAddress} /></Fact>
           <Fact label={t("status")} status={stepper.currentLabel}>{(() => { const current = stepper.steps.find((step) => step.state === "current"); return current ? t(`steps.${current.id}`) : stepper.currentLabel; })()}</Fact>
           {dossier.lostReason && <p>{t("lostReasonLine", { reason: dossier.lostReason })}</p>}
           </div>

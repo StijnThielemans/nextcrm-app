@@ -1,12 +1,17 @@
 import { getTranslations } from "next-intl/server";
+import type { ReactNode } from "react";
 import { AccountDetailActions } from "./AccountDetailActions";
+import { AddressLink } from "@/components/crm/AddressLink";
 import { ACCOUNT_ROLES, type AccountRole } from "@/lib/sales/aanvraag-fields";
 
-function line(label: string, value: string | null | undefined) {
+function line(label: string, value: ReactNode) {
+  const shown = typeof value === "string" || value == null
+    ? (typeof value === "string" && value.trim() ? value : "—")
+    : value;
   return (
     <p className="flex flex-col gap-0.5">
       <span className="text-[0.72rem] text-muted-foreground">{label}</span>
-      <span className="text-[0.95rem]">{value?.trim() ? value : "—"}</span>
+      <span className="text-[0.95rem]">{shown}</span>
     </p>
   );
 }
@@ -33,7 +38,7 @@ export async function BasicView({ data }: { data: any }) {
           {line(t("emailAddress"), data.email)}
         </div>
         <div className="space-y-5">
-          {line(t("address"), address)}
+          {line(t("address"), <AddressLink address={address} />)}
           {line(t("vat"), tax)}
           {line(t("vatNumber"), data.vat)}
         </div>
