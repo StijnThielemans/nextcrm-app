@@ -1,10 +1,12 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Link, useRouter } from "@/i18n/navigation";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { raamstudioDossierMatches } from "@/lib/raamstudio/dossier-list-search";
 import type { RaamstudioDossierOpen } from "@/lib/raamstudio/dossier-plans";
 import { RaamstudioWorkspace } from "./RaamstudioWorkspace";
 import {
@@ -25,13 +27,16 @@ export function RaamstudioPanel({
   dossiers,
   selected,
   missing,
+  intro,
 }: {
   dossiers: RaamstudioDossierChoice[];
   selected: RaamstudioDossierOpen | null;
   missing: boolean;
+  intro?: string | null;
 }) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
+  const [query, setQuery] = useState("");
   const [over, setOver] = useState(false);
   const [fileName, setFileName] = useState<string | null>(null);
   const [project, setProject] = useState<RaamstudioProject | null>(null);
@@ -49,6 +54,11 @@ export function RaamstudioPanel({
       setError(caught instanceof RaamstudioFileError ? caught.message : "Dit bestand kon niet worden gelezen.");
     }
   }
+
+  const visible = useMemo(
+    () => dossiers.filter((dossier) => raamstudioDossierMatches(dossier, query)),
+    [dossiers, query],
+  );
 
   return (
     <div className={cn("mx-auto flex w-full flex-col gap-6", selected ? "max-w-none" : "max-w-4xl")}>
@@ -76,11 +86,28 @@ export function RaamstudioPanel({
           </label>
         </div>
       ) : (
-      <section>
-        <h3 className="text-sm font-medium">Offertedossiers</h3>
+      <section className="space-y-2">
+        <div className="tilo-frame px-3 py-2">
+          <div className="flex items-center gap-2 overflow-x-auto">
+            <h2 className="flex shrink-0 items-center gap-2 text-base font-medium leading-none tracking-[-0.02em]">
+              <span aria-hidden className="h-4 w-[3px] shrink-0 rounded-full bg-[hsl(var(--tilo))]" />
+              RaamStudio
+            </h2>
+            <Input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Zoeken …"
+              aria-label="Zoeken"
+              className="h-8 w-52 rounded-full bg-[hsl(var(--canvas))] px-3 text-xs sm:w-64"
+              data-testid="raamstudio-dossier-search"
+            />
+          </div>
+        </div>
+        {intro ? <p className="px-1 text-sm text-muted-foreground">{intro}</p> : null}
         {dossiers.length ? (
-          <ul className="mt-3 divide-y divide-black/[0.06] rounded-xl border border-black/[0.06] bg-card" data-testid="raamstudio-dossiers">
-            {dossiers.map((dossier) => (
+          visible.length ? (
+            <ul className="divide-y divide-black/[0.06] rounded-xl border border-black/[0.06] bg-card" data-testid="raamstudio-dossiers">
+              {visible.map((dossier) => (
                 <li key={dossier.id}>
                   <Link
                     href={`/crm/raamstudio?dossier=${dossier.id}`}
@@ -91,10 +118,13 @@ export function RaamstudioPanel({
                     {dossier.customer ? <span className="mt-1 block text-xs text-muted-foreground">{dossier.customer}</span> : null}
                   </Link>
                 </li>
-            ))}
-          </ul>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm text-muted-foreground">Geen offertedossier gevonden.</p>
+          )
         ) : (
-          <p className="mt-3 text-sm text-muted-foreground">Nog geen offertedossiers.</p>
+          <p className="text-sm text-muted-foreground">Nog geen offertedossiers.</p>
         )}
       </section>
       )}

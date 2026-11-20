@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { saveRaamstudioProjectAction } from "@/actions/crm/raamstudio/actions";
 import type { RaamstudioDossierOpen } from "@/lib/raamstudio/dossier-plans";
+import { reorderItems } from "@/lib/raamstudio/plan-edit";
 import { readRaamstudioPayload } from "@/lib/raamstudio/read-project";
 import {
   DRAWING_KINDS,
@@ -191,6 +192,26 @@ export function RaamstudioWorkspace({ dossier }: { dossier: RaamstudioDossierOpe
       touch({ ...draft, facades });
       setSelectedId(`facade:${at >= 0 ? at : draft.facades.length}`);
       setArmed(chosenFacade);
+    }
+  }
+
+  function openDrawing(index: number) {
+    const drawing = draft.drawings[index];
+    if (!drawing) return;
+    const plan = pdfs.find((item) => item.name === drawing.planName);
+    if (plan) setActiveId(plan.id);
+    setPage(drawing.page ?? 0);
+    setSelectedId(`drawing:${index}`);
+  }
+
+  function reorderDrawings(from: number, to: number) {
+    const selectedIndex = selectedId?.startsWith("drawing:") ? Number(selectedId.slice("drawing:".length)) : -1;
+    const selected = selectedIndex >= 0 ? draft.drawings[selectedIndex] : null;
+    const drawings = reorderItems(draft.drawings, from, to);
+    touch({ ...draft, drawings });
+    if (selected) {
+      const nextIndex = drawings.indexOf(selected);
+      setSelectedId(nextIndex >= 0 ? `drawing:${nextIndex}` : null);
     }
   }
 
@@ -385,7 +406,7 @@ export function RaamstudioWorkspace({ dossier }: { dossier: RaamstudioDossierOpe
           )}
         </div>
 
-        <div className="flex min-h-[520px] flex-col bg-neutral-100" data-testid="raamstudio-plan-view">
+        <div className="flex min-h-[520px] min-w-0 flex-col overflow-hidden bg-neutral-100" data-testid="raamstudio-plan-view">
           {pageCount > 1 ? (
             <div className="flex items-center gap-2 border-b border-black/10 bg-white px-2 py-1.5">
               <Button type="button" size="sm" variant="outline" disabled={page <= 0} onClick={() => setPage((value) => value - 1)}>Vorige pagina</Button>
@@ -429,7 +450,7 @@ export function RaamstudioWorkspace({ dossier }: { dossier: RaamstudioDossierOpe
           {step === "tekeningen" ? (
             <div className="space-y-3">
               <p className="text-sm font-medium">Gevels en tekeningen aanduiden</p>
-              <p className="text-xs text-muted-foreground">Sleep een kader op de tekening, of neem de hele pagina. Het kader blijft staan.</p>
+              <p className="text-xs text-muted-foreground">Sleep een kader op de tekening, of neem de hele pagina. Een bestaand kader versleep je en maak je groter of kleiner met de handvatten. De blokken hieronder versleep je ook.</p>
               <label className="block text-xs text-muted-foreground">
                 Type
                 <select className={cn(fieldClass, "mt-1")} value={drawingKind} onChange={(event) => setDrawingKind(event.target.value)} aria-label="Type">
@@ -448,25 +469,14 @@ export function RaamstudioWorkspace({ dossier }: { dossier: RaamstudioDossierOpe
                   Selectie toevoegen
                 </Button>
               </div>
-              <ul className="space-y-1 text-sm" data-testid="raamstudio-drawings">
-                {draft.drawings.map((drawing, index) => (
-                  <li key={`${drawing.planName}-${drawing.name}-${index}`} className="flex items-start justify-between gap-2">
-                    <button
-                      type="button"
-                      className={cn("text-left", selectedId === `drawing:${index}` && "font-medium")}
-                      onClick={() => {
-                        const plan = pdfs.find((item) => item.name === drawing.planName);
-                        if (plan) setActiveId(plan.id);
-                        setPage(drawing.page ?? 0);
-                        setSelectedId(`drawing:${index}`);
-                      }}
-                    >
-                      {drawing.name} · {drawing.kind}
-                    </button>
-                    <button type="button" className="text-xs text-muted-foreground underline" onClick={() => touch({ ...draft, drawings: draft.drawings.filter((_, i) => i !== index) })}>Weg</button>
-                  </li>
-                ))}
-              </ul>
+              <ClipStack
+                testId="raamstudio-drawings"
+                items={draft.drawings.map((drawing, index) => ({ index, name: drawing.name, kind: drawing.kind }))}
+                selectedId={selectedId}
+                onOpen={(index) => openDrawing(index)}
+                onRemove={(index) => touch({ ...draft, drawings: draft.drawings.filter((_, i) => i !== index) })}
+                onReorder={reorderDrawings}
+              />
             </div>
           ) : null}
 
@@ -515,24 +525,15 @@ export function RaamstudioWorkspace({ dossier }: { dossier: RaamstudioDossierOpe
               <p className="text-sm font-medium">Nummers op deze gevel of snede</p>
               <p className="text-xs text-muted-foreground">Kies een nummer en klik op de tekening. Een geplaatst nummer kun je verslepen.</p>
               {draft.drawings.some((item) => item.kind === "Gevel" || item.kind === "Snede") ? (
-                <ul className="space-y-1 text-sm">
-                  {draft.drawings.map((drawing, index) => drawing.kind === "Gevel" || drawing.kind === "Snede" ? (
-                    <li key={`${drawing.name}-${index}`}>
-                      <button
-                        type="button"
-                        className="underline"
-                        onClick={() => {
-                          const plan = pdfs.find((item) => item.name === drawing.planName);
-                          if (plan) setActiveId(plan.id);
-                          setPage(drawing.page ?? 0);
-                          setSelectedId(`drawing:${index}`);
-                        }}
-                      >
-                        {drawing.name}
-                      </button>
-                    </li>
-                  ) : null)}
-                </ul>
+                <ClipStack
+                  testId="raamstudio-facades"
+                  items={draft.drawings.flatMap((drawing, index) => (
+                    drawing.kind === "Gevel" || drawing.kind === "Snede" ? [{ index, name: drawing.name, kind: drawing.kind }] : []
+                  ))}
+                  selectedId={selectedId}
+                  onOpen={(index) => openDrawing(index)}
+                  onReorder={reorderDrawings}
+                />
               ) : null}
               {numbers.length ? (
                 <ul className="space-y-1">
@@ -614,6 +615,69 @@ export function RaamstudioWorkspace({ dossier }: { dossier: RaamstudioDossierOpe
 
       {error ? <p role="alert" className="px-3 py-2 text-sm text-destructive" data-testid="raamstudio-error">{error}</p> : null}
     </section>
+  );
+}
+
+function ClipStack({
+  testId,
+  items,
+  selectedId,
+  onOpen,
+  onRemove,
+  onReorder,
+}: {
+  testId: string;
+  items: { index: number; name: string; kind: string }[];
+  selectedId: string | null;
+  onOpen: (index: number) => void;
+  onRemove?: (index: number) => void;
+  onReorder: (from: number, to: number) => void;
+}) {
+  const [over, setOver] = useState<number | null>(null);
+  return (
+    <ul className="space-y-1" data-testid={testId}>
+      {items.map((item) => (
+        <li
+          key={`${item.kind}-${item.name}-${item.index}`}
+          draggable
+          data-testid="raamstudio-clip"
+          data-clip-index={item.index}
+          data-clip-name={item.name}
+          data-clip-kind={item.kind}
+          className={cn(
+            "flex cursor-grab items-center gap-2 rounded-md border border-black/10 bg-white px-2 py-1.5 active:cursor-grabbing",
+            over === item.index && "border-[hsl(var(--tilo))]",
+            selectedId === `drawing:${item.index}` && "bg-accent",
+          )}
+          onDragStart={(event) => {
+            event.dataTransfer.setData("text/plain", String(item.index));
+            event.dataTransfer.effectAllowed = "move";
+          }}
+          onDragOver={(event) => {
+            event.preventDefault();
+            setOver(item.index);
+          }}
+          onDragLeave={() => setOver((current) => (current === item.index ? null : current))}
+          onDrop={(event) => {
+            event.preventDefault();
+            const from = Number(event.dataTransfer.getData("text/plain"));
+            setOver(null);
+            if (Number.isInteger(from)) onReorder(from, item.index);
+          }}
+          onDragEnd={() => setOver(null)}
+        >
+          <span className="text-xs text-muted-foreground" aria-hidden>⋮⋮</span>
+          <button type="button" className="min-w-0 flex-1 text-left text-sm" onClick={() => onOpen(item.index)}>
+            {item.name} · {item.kind}
+          </button>
+          {onRemove ? (
+            <button type="button" className="text-xs text-muted-foreground underline" onClick={() => onRemove(item.index)}>
+              Weg
+            </button>
+          ) : null}
+        </li>
+      ))}
+    </ul>
   );
 }
 

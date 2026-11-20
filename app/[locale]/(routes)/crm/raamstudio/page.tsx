@@ -13,12 +13,14 @@ export default async function RaamstudioPage({
   const { dossier: dossierId } = await searchParams;
   const rows = await listDossiers(user);
   const selected = dossierId ? await raamstudioPlansForDossier(user, dossierId) : null;
+  const intro = "Kies een offertedossier. RaamStudio opent daarna met de plannen van dat dossier. De projectgegevens komen uit het dossier.";
   return (
     <Container
+      bare={!selected}
       title="RaamStudio"
       description={selected
         ? "Duid gevels, snedes en raamopeningen aan op de plannen van dit dossier. De projectgegevens komen uit het dossier."
-        : "Kies een offertedossier. RaamStudio opent daarna met de plannen van dat dossier. De projectgegevens komen uit het dossier."}
+        : intro}
     >
       <RaamstudioPanel
         dossiers={rows.map((row) => ({
@@ -29,6 +31,7 @@ export default async function RaamstudioPage({
         }))}
         selected={selected}
         missing={Boolean(dossierId) && !selected}
+        intro={selected ? null : intro}
       />
     </Container>
   );

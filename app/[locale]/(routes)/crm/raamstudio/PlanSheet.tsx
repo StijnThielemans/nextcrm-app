@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode, type RefObject } from "react";
+import { hitFrame, moveNormRect, resizeNormRect, type FrameHandle } from "@/lib/raamstudio/plan-edit";
 import { bucketPlanPixels, planBitmapLongest } from "@/lib/raamstudio/plan-pixels";
 import type { NormRect } from "@/lib/raamstudio/workspace-model";
 
@@ -22,7 +23,8 @@ type Point = { x: number; y: number };
 type Mode = "draw" | "opening" | "facade" | "inspect";
 type Drag =
   | { kind: "new"; start: Point; current: Point }
-  | { kind: "move"; id: string; start: Point; origin: SheetMark; current: Point };
+  | { kind: "move"; id: string; start: Point; origin: SheetMark; current: Point }
+  | { kind: "resize"; id: string; handle: FrameHandle; start: Point; origin: NormRect; current: Point };
 
 const MIN_ZOOM = 0.5;
 const MAX_ZOOM = 3;
@@ -33,33 +35,6 @@ function clamp(value: number, min = 0, max = 1) {
 
 function clampZoom(value: number) {
   return clamp(Math.round(value * 100) / 100, MIN_ZOOM, MAX_ZOOM);
-}
-
-function labelPoint(mark: SheetMark): Point {
-  if (mark.w && mark.h) return { x: mark.x + Math.min(0.03, mark.w / 2), y: mark.y + Math.min(0.025, mark.h / 2) };
-  return { x: mark.x, y: mark.y };
-}
-
-function near(mark: SheetMark, point: Point): boolean {
-  const label = labelPoint(mark);
-  const dx = point.x - label.x;
-  const dy = point.y - label.y;
-  if (dx * dx + dy * dy <= 0.0012) return true;
-  if (mark.kind === "drawing" || !mark.w || !mark.h) return false;
-  return point.x >= mark.x && point.x <= mark.x + mark.w && point.y >= mark.y && point.y <= mark.y + mark.h;
-}
-
-function hit(marks: SheetMark[], point: Point, mode: Mode): SheetMark | null {
-  for (let index = marks.length - 1; index >= 0; index -= 1) {
-    const mark = marks[index];
-    if ((mode === "opening" || mode === "facade") && mark.kind === "drawing") continue;
-    if (near(mark, point)) return mark;
-    if (mode === "draw" && mark.kind === "drawing" && mark.w && mark.h
-      && point.x >= mark.x && point.x <= mark.x + mark.w && point.y >= mark.y && point.y <= mark.y + mark.h) {
-      return mark;
-    }
-  }
-  return null;
 }
 
 export function PlanSheet({
@@ -235,14 +210,16 @@ export function PlanSheet({
   useLayoutEffect(() => {
     const anchor = zoomAnchor.current;
     const sheet = sheetRef.current;
-    if (!anchor || !sheet) return;
+    const scroll = scrollRef.current;
+    if (!anchor || !sheet || !scroll) return;
     const frame = requestAnimationFrame(() => {
       const current = sheetRef.current;
+      const port = scrollRef.current;
       const point = zoomAnchor.current;
       zoomAnchor.current = null;
-      if (!current || !point) return;
+      if (!current || !port || !point) return;
       const next = current.getBoundingClientRect();
-      scrollByDelta(current, next.left + point.fracX * next.width - point.clientX, next.top + point.fracY * next.height - point.clientY);
+      scrollPlanOnly(port, next.left + point.fracX * next.width - point.clientX, next.top + point.fracY * next.height - point.clientY);
     });
     return () => cancelAnimationFrame(frame);
   }, [zoom]);
@@ -255,6 +232,7 @@ export function PlanSheet({
       const sheet = sheetRef.current;
       if (!sheet) return;
       event.preventDefault();
+      event.stopPropagation();
       const before = sheet.getBoundingClientRect();
       const fracX = (event.clientX - before.left) / Math.max(1, before.width);
       const fracY = (event.clientY - before.top) / Math.max(1, before.height);
@@ -280,17 +258,17 @@ export function PlanSheet({
   }
 
   function shownMarks(): SheetMark[] {
-    if (!activeDrag || activeDrag.kind !== "move") return marks;
+    if (!activeDrag || activeDrag.kind === "new") return marks;
+    if (activeDrag.kind === "resize") {
+      const rect = resizeNormRect(activeDrag.origin, activeDrag.handle, activeDrag.current);
+      return marks.map((mark) => (mark.id === activeDrag.id ? { ...mark, ...rect } : mark));
+    }
     const dx = activeDrag.current.x - activeDrag.start.x;
     const dy = activeDrag.current.y - activeDrag.start.y;
     return marks.map((mark) => {
       if (mark.id !== activeDrag.id) return mark;
-      if (mark.w && mark.h) {
-        return {
-          ...mark,
-          x: clamp(activeDrag.origin.x + dx, 0, 1 - mark.w),
-          y: clamp(activeDrag.origin.y + dy, 0, 1 - mark.h),
-        };
+      if (activeDrag.origin.w && activeDrag.origin.h) {
+        return { ...mark, ...moveNormRect({ x: activeDrag.origin.x, y: activeDrag.origin.y, w: activeDrag.origin.w, h: activeDrag.origin.h }, dx, dy) };
       }
       return { ...mark, x: clamp(activeDrag.origin.x + dx), y: clamp(activeDrag.origin.y + dy) };
     });
@@ -319,11 +297,11 @@ export function PlanSheet({
           </>
         ) : null}
       </div>
-      <div ref={scrollRef} className="min-h-0 flex-1 overflow-auto bg-neutral-200" data-testid="raamstudio-plan-scroll" data-zoom={zoom} data-rotation={rotation} data-render-px={pdfShown?.longest ?? undefined}>
+      <div ref={scrollRef} className="min-h-0 flex-1 overflow-auto overscroll-contain bg-neutral-200" data-testid="raamstudio-plan-scroll" data-zoom={zoom} data-rotation={rotation} data-render-px={pdfShown?.longest ?? undefined}>
         {status === "loading" ? <p className="p-6 text-sm text-muted-foreground" data-testid="raamstudio-plan-loading">Tekening laden…</p> : null}
         {status === "error" ? <p className="p-6 text-sm text-destructive">De tekening kon niet worden geopend.</p> : null}
         {status === "ready" && (pdf ? pdfShown : src) ? (
-          <div ref={sheetRef} className="relative inline-block align-top" style={{ width: `${zoom * 100}%` }}>
+          <div ref={sheetRef} className="relative inline-block align-top" style={{ width: `${zoom * 100}%` }} data-testid="raamstudio-plan-sheet" data-zoom={zoom}>
             <TurnedSheet
               src={pdf ? null : src}
               alt={planName}
@@ -339,13 +317,32 @@ export function PlanSheet({
                 if (event.button !== 0) return;
                 event.currentTarget.setPointerCapture(event.pointerId);
                 const point = pointOf(event);
-                const target = hit(marks, point, mode);
-                if (target && (mode !== "draw" || near(target, point))) {
+                const box = event.currentTarget.getBoundingClientRect();
+                const found = hitFrame(marks, point, mode, {
+                  x: Math.min(0.04, 14 / Math.max(1, box.width)),
+                  y: Math.min(0.04, 14 / Math.max(1, box.height)),
+                });
+                const target = found ? marks[found.index] : null;
+                if (target && found?.handle && target.w && target.h) {
+                  onSelect(target.id);
+                  setDrag({
+                    kind: "resize",
+                    key: requestKey,
+                    id: target.id,
+                    handle: found.handle,
+                    start: point,
+                    origin: { x: target.x, y: target.y, w: target.w, h: target.h },
+                    current: point,
+                  });
+                  return;
+                }
+                if (target) {
+                  onSelect(target.id);
                   setDrag({ kind: "move", key: requestKey, id: target.id, start: point, origin: target, current: point });
                   return;
                 }
                 if (mode === "inspect") {
-                  onSelect(target?.id ?? null);
+                  onSelect(null);
                   return;
                 }
                 setDrag({ kind: "new", key: requestKey, start: point, current: point });
@@ -359,6 +356,14 @@ export function PlanSheet({
                 const point = pointOf(event);
                 const travel = Math.abs(point.x - activeDrag.start.x) + Math.abs(point.y - activeDrag.start.y);
                 setDrag(null);
+                if (activeDrag.kind === "resize") {
+                  if (travel < 0.008) {
+                    onSelect(activeDrag.id);
+                    return;
+                  }
+                  onMove(activeDrag.id, resizeNormRect(activeDrag.origin, activeDrag.handle, point));
+                  return;
+                }
                 if (activeDrag.kind === "move") {
                   if (travel < 0.012) {
                     onSelect(activeDrag.id);
@@ -368,12 +373,7 @@ export function PlanSheet({
                   const dy = point.y - activeDrag.start.y;
                   const origin = activeDrag.origin;
                   if (origin.w && origin.h) {
-                    onMove(activeDrag.id, {
-                      x: clamp(origin.x + dx, 0, 1 - origin.w),
-                      y: clamp(origin.y + dy, 0, 1 - origin.h),
-                      w: origin.w,
-                      h: origin.h,
-                    });
+                    onMove(activeDrag.id, moveNormRect({ x: origin.x, y: origin.y, w: origin.w, h: origin.h }, dx, dy));
                   } else {
                     onMove(activeDrag.id, { x: clamp(origin.x + dx), y: clamp(origin.y + dy) });
                   }
@@ -393,7 +393,9 @@ export function PlanSheet({
                 if (mode === "opening" || mode === "facade") onPlace({ kind: "point", x: point.x, y: point.y });
               }}
             >
-              {shownMarks().map((mark) => <MarkView key={mark.id} mark={mark} selected={mark.id === selectedId} />)}
+              {shownMarks().map((mark) => (
+                <MarkView key={mark.id} mark={mark} selected={mark.id === selectedId || activeDrag?.id === mark.id} />
+              ))}
               {pending && !rubber ? <RectView rect={pending} label="Nieuw kader" pending /> : null}
               {rubber && rubber.w >= 0.008 && rubber.h >= 0.008 ? <RectView rect={rubber} label="" pending /> : null}
             </div>
@@ -405,27 +407,16 @@ export function PlanSheet({
   );
 }
 
-/** Move the sheet point back under the cursor. A positive error means the point sits too far right or down. */
-function scrollByDelta(start: HTMLElement, errorX: number, errorY: number) {
-  let node: HTMLElement | null = start.parentElement;
-  let left = errorX;
-  let top = errorY;
-  while (node) {
-    if (Math.abs(left) > 0.5 && node.scrollWidth > node.clientWidth + 1) {
-      const max = node.scrollWidth - node.clientWidth;
-      const next = Math.min(max, Math.max(0, node.scrollLeft + left));
-      left -= next - node.scrollLeft;
-      node.scrollLeft = next;
-    }
-    if (Math.abs(top) > 0.5 && node.scrollHeight > node.clientHeight + 1) {
-      const max = node.scrollHeight - node.clientHeight;
-      const next = Math.min(max, Math.max(0, node.scrollTop + top));
-      top -= next - node.scrollTop;
-      node.scrollTop = next;
-    }
-    node = node.parentElement;
+/** Keep the cursor point on the PDF. Only the plan viewport scrolls, never the rest of the page. */
+function scrollPlanOnly(port: HTMLElement, errorX: number, errorY: number) {
+  if (Math.abs(errorX) > 0.5 && port.scrollWidth > port.clientWidth + 1) {
+    const max = port.scrollWidth - port.clientWidth;
+    port.scrollLeft = Math.min(max, Math.max(0, port.scrollLeft + errorX));
   }
-  if (Math.abs(left) > 0.5 || Math.abs(top) > 0.5) window.scrollBy(left, top);
+  if (Math.abs(errorY) > 0.5 && port.scrollHeight > port.clientHeight + 1) {
+    const max = port.scrollHeight - port.clientHeight;
+    port.scrollTop = Math.min(max, Math.max(0, port.scrollTop + errorY));
+  }
 }
 
 function TurnedSheet({
@@ -589,6 +580,33 @@ function RectView({
           {label}
         </span>
       ) : null}
+      {selected && !pending ? <FrameHandles /> : null}
     </span>
+  );
+}
+
+const HANDLE_STYLE: Record<string, { left: string; top: string }> = {
+  nw: { left: "0%", top: "0%" },
+  n: { left: "50%", top: "0%" },
+  ne: { left: "100%", top: "0%" },
+  e: { left: "100%", top: "50%" },
+  se: { left: "100%", top: "100%" },
+  s: { left: "50%", top: "100%" },
+  sw: { left: "0%", top: "100%" },
+  w: { left: "0%", top: "50%" },
+};
+
+function FrameHandles() {
+  return (
+    <>
+      {Object.entries(HANDLE_STYLE).map(([handle, place]) => (
+        <span
+          key={handle}
+          data-testid={`raamstudio-handle-${handle}`}
+          className="pointer-events-none absolute h-2.5 w-2.5 border border-[#00aaff] bg-white"
+          style={{ left: place.left, top: place.top, marginLeft: -5, marginTop: -5 }}
+        />
+      ))}
+    </>
   );
 }
