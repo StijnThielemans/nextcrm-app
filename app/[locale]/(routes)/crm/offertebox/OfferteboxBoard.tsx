@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, type DragEvent, type FormEvent } from "react";
+import { useEffect, useRef, useState, type DragEvent, type FormEvent, type MouseEvent } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Link, useRouter } from "@/i18n/navigation";
 import { SELLERS } from "@/lib/sales/aanvraag-fields";
@@ -21,6 +21,11 @@ export function OfferteboxBoard({ view }: { view: OfferteboxView }) {
   const locale = useLocale();
   const router = useRouter();
   const [pendingId, setPendingId] = useState<string | null>(null);
+  const [openId, setOpenId] = useState<string | null>(null);
+
+  function toggleRow(id: string) {
+    setOpenId((current) => (current === id ? null : id));
+  }
   const [error, setError] = useState<string | null>(null);
   const [filing, setFiling] = useState<OfferteboxRow | null>(null);
   const [adding, setAdding] = useState(false);
@@ -207,8 +212,10 @@ export function OfferteboxBoard({ view }: { view: OfferteboxView }) {
           rows={unassigned}
           showDossier={false}
           pendingId={pendingId}
+          openId={openId}
           when={when}
           onSeller={onSeller}
+          onToggle={toggleRow}
         />
         <MailColumn
           title={t("offertebox.waitingQuote")}
@@ -217,8 +224,10 @@ export function OfferteboxBoard({ view }: { view: OfferteboxView }) {
           rows={waiting}
           showDossier
           pendingId={pendingId}
+          openId={openId}
           when={when}
           onSeller={onSeller}
+          onToggle={toggleRow}
           onFile={setFiling}
         />
       </div>
@@ -243,8 +252,10 @@ function MailColumn({
   rows,
   showDossier,
   pendingId,
+  openId,
   when,
   onSeller,
+  onToggle,
   onFile,
 }: {
   title: string;
@@ -253,8 +264,10 @@ function MailColumn({
   rows: OfferteboxRow[];
   showDossier: boolean;
   pendingId: string | null;
+  openId: string | null;
   when: Intl.DateTimeFormat;
   onSeller: (id: string, sellerName: string) => Promise<void>;
+  onToggle: (id: string) => void;
   onFile?: (row: OfferteboxRow) => void;
 }) {
   const t = useTranslations("Sales");
@@ -275,19 +288,20 @@ function MailColumn({
             <MailRow
               key={row.id}
               row={row}
+              open={openId === row.id}
               showDossier={showDossier}
               pending={pendingId === row.id}
               when={when}
               onSeller={onSeller}
+              onToggle={() => onToggle(row.id)}
               onFile={onFile}
               sellerLabel={t("offertebox.seller")}
               divideLabel={t("offertebox.divide")}
               newRequestLabel={t("newRequest")}
               stepLabel={row.step ? t(`steps.${row.step}`) : ""}
               bodyLabel={t("offertebox.body")}
+              emptyBody={t("offertebox.noBody")}
               attachmentsLabel={t("offertebox.attachments")}
-              showAll={t("offertebox.showAll")}
-              showLess={t("offertebox.showLess")}
               fileLabel={t("offertebox.fileAttachments")}
             />
           ))}
@@ -299,67 +313,104 @@ function MailColumn({
 
 function MailRow({
   row,
+  open,
   showDossier,
   pending,
   when,
   onSeller,
+  onToggle,
   onFile,
   sellerLabel,
   divideLabel,
   newRequestLabel,
   stepLabel,
   bodyLabel,
+  emptyBody,
   attachmentsLabel,
-  showAll,
-  showLess,
   fileLabel,
 }: {
   row: OfferteboxRow;
+  open: boolean;
   showDossier: boolean;
   pending: boolean;
   when: Intl.DateTimeFormat;
   onSeller: (id: string, sellerName: string) => Promise<void>;
+  onToggle: () => void;
   onFile?: (row: OfferteboxRow) => void;
   sellerLabel: string;
   divideLabel: string;
   newRequestLabel: string;
   stepLabel: string;
   bodyLabel: string;
+  emptyBody: string;
   attachmentsLabel: string;
-  showAll: string;
-  showLess: string;
   fileLabel: string;
 }) {
-  const [open, setOpen] = useState(false);
+  const articleRef = useRef<HTMLElement>(null);
   const name = row.fromName || row.fromEmail || "—";
   const email = row.fromEmail && row.fromName ? row.fromEmail : "";
   const dossierText = `${row.dossierNumber ?? ""}${stepLabel ? ` · ${stepLabel}` : ""}`;
   const unfiled = row.attachments.some((attachment) => !attachment.filed);
 
+  useEffect(() => {
+    if (!open) return;
+    articleRef.current?.scrollIntoView({ block: "nearest" });
+  }, [open]);
+
+  function onRowClick(event: MouseEvent<HTMLElement>) {
+    const target = event.target instanceof Element ? event.target : null;
+    if (target?.closest("a, button, select, input, textarea, label, [data-testid='offertebox-detail']")) return;
+    onToggle();
+  }
+
   return (
-    <article data-testid="offertebox-row" className={`border-b ${hairline} last:border-b-0 ${open ? "bg-[hsl(210_20%_98%)] dark:bg-[hsl(210_8%_14%)]" : ""}`}>
-      <div className="px-1 py-1">
-        <div className="flex items-baseline gap-2">
+    <article
+      ref={articleRef}
+      data-testid="offertebox-row"
+      data-open={open ? "true" : "false"}
+      onClick={onRowClick}
+      className={open
+        ? "my-1 rounded-[0.7rem] border border-[hsl(215_16%_70%)] bg-[hsl(210_33%_98%)] dark:border-[hsl(210_8%_32%)] dark:bg-[hsl(210_8%_13%)]"
+        : `border-b ${hairline} last:border-b-0`}
+    >
+      <div className={open ? "px-3 py-3" : "px-1 py-1"}>
+        <div className="flex items-start gap-3">
           <button
             type="button"
-            className="flex min-w-0 flex-1 items-baseline gap-2 text-left"
+            className={open ? "min-w-0 flex-1 text-left" : "flex min-w-0 flex-1 items-baseline gap-2 text-left"}
             aria-expanded={open}
             data-testid="offertebox-toggle"
             title={[name, email, row.subject].filter(Boolean).join(" · ")}
-            onClick={() => setOpen((value) => !value)}
+            onClick={(event) => {
+              event.stopPropagation();
+              onToggle();
+            }}
           >
-            <span className="max-w-[62%] shrink truncate text-sm font-medium leading-5">{name}</span>
-            {email ? <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">{email}</span> : null}
+            {open ? (
+              <span className="block">
+                <span className="block text-lg font-medium leading-6">{name}</span>
+                {email ? <span className="mt-0.5 block truncate text-sm text-muted-foreground">{email}</span> : null}
+                {row.subject ? <span className="mt-2 block text-base font-medium leading-6">{row.subject}</span> : null}
+              </span>
+            ) : (
+              <>
+                <span className="max-w-[62%] shrink truncate text-sm font-medium leading-5">{name}</span>
+                {email ? <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">{email}</span> : null}
+              </>
+            )}
           </button>
-          <time className="shrink-0 whitespace-nowrap text-xs text-muted-foreground">{when.format(new Date(row.receivedAt))}</time>
+          <time className={`shrink-0 whitespace-nowrap text-muted-foreground ${open ? "pt-1 text-sm" : "text-xs"}`}>
+            {when.format(new Date(row.receivedAt))}
+          </time>
         </div>
-        <div className="mt-0.5 flex items-center gap-2">
+        <div className={open ? "mt-3 flex items-center gap-3" : "mt-0.5 flex items-center gap-2"}>
           <select
             className="h-7 w-[8.75rem] shrink-0 rounded-full border border-input bg-transparent px-2 text-xs"
             value={row.sellerName ?? ""}
             disabled={pending}
             aria-label={sellerLabel}
             data-testid="offertebox-seller"
+            onClick={(event) => event.stopPropagation()}
             onChange={(event) => void onSeller(row.id, event.target.value)}
           >
             <option value="">{divideLabel}</option>
@@ -381,18 +432,7 @@ function MailRow({
         </div>
       </div>
       {open && (
-        <div className="space-y-2 px-2 pb-2" data-testid="offertebox-detail">
-          {row.subject && <p className="text-sm font-medium">{row.subject}</p>}
-          {(row.html || row.body) && (
-            <div data-testid="offertebox-body">
-              <p className="text-xs font-medium text-muted-foreground">{bodyLabel}</p>
-              {row.html ? (
-                <MailHtml html={row.html} showAll={showAll} showLess={showLess} />
-              ) : (
-                <MailText text={row.body} showAll={showAll} showLess={showLess} />
-              )}
-            </div>
-          )}
+        <div className="space-y-3 px-3 pb-3" data-testid="offertebox-detail">
           {row.attachments.length > 0 && (
             <div>
               <p className="text-xs font-medium text-muted-foreground">{attachmentsLabel}</p>
@@ -403,7 +443,7 @@ function MailRow({
                       <img
                         src={`/api/crm/offertebox/attachments/${attachment.id}`}
                         alt={attachment.fileName}
-                        className="h-10 w-10 rounded border object-cover"
+                        className="h-12 w-12 rounded border object-cover"
                       />
                     )}
                     <OpenStoredFile
@@ -412,7 +452,7 @@ function MailRow({
                       name={attachment.fileName}
                       mimeType={attachment.contentType}
                       image={attachment.isImage}
-                      className="truncate text-xs underline"
+                      className="truncate text-sm underline"
                       testId="offertebox-attachment"
                     >
                       {attachment.fileName}
@@ -420,13 +460,37 @@ function MailRow({
                   </li>
                 ))}
               </ul>
+              {showDossier && row.dossierId && onFile && unfiled && (
+                <button
+                  type="button"
+                  className="mt-2 text-sm underline"
+                  data-testid="file-attachments"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onFile(row);
+                  }}
+                >
+                  {fileLabel}
+                </button>
+              )}
             </div>
           )}
-          {showDossier && row.dossierId && onFile && unfiled && (
-            <button type="button" className="text-xs underline" data-testid="file-attachments" onClick={() => onFile(row)}>
-              {fileLabel}
-            </button>
-          )}
+          <div data-testid="offertebox-body">
+            <p className="text-xs font-medium text-muted-foreground">{bodyLabel}</p>
+            <div className="mt-1 min-h-72 max-h-[32rem] overflow-auto rounded-md border border-[hsl(215_14%_84%)] bg-white p-4 text-base leading-7 break-words text-black dark:border-[hsl(210_8%_24%)] dark:bg-card dark:text-foreground">
+              {row.html ? (
+                <div
+                  data-testid="offertebox-html"
+                  className="[&_a]:underline [&_img]:h-auto [&_img]:max-w-full [&_table]:max-w-full"
+                  dangerouslySetInnerHTML={{ __html: row.html }}
+                />
+              ) : row.body ? (
+                <div className="whitespace-pre-wrap">{row.body}</div>
+              ) : (
+                <p className="text-muted-foreground">{emptyBody}</p>
+              )}
+            </div>
+          </div>
         </div>
       )}
     </article>
@@ -471,40 +535,4 @@ async function materializeDroppedFile(file: File): Promise<File> {
   const name = file.name.trim() || "bericht.msg";
   const type = file.type || (name.toLowerCase().endsWith(".eml") ? "message/rfc822" : "application/vnd.ms-outlook");
   return new File([bytes], name, { type });
-}
-
-function MailHtml({ html, showAll, showLess }: { html: string; showAll: string; showLess: string }) {
-  const [open, setOpen] = useState(false);
-  const long = html.length > 1500;
-  return (
-    <>
-      <div
-        data-testid="offertebox-html"
-        className={`${open ? "mt-1" : "mt-1 max-h-48"} overflow-auto rounded border bg-white p-2 text-sm text-black break-words [&_a]:underline [&_img]:h-auto [&_img]:max-w-full [&_table]:max-w-full`}
-        dangerouslySetInnerHTML={{ __html: html }}
-      />
-      {long && (
-        <button type="button" className="mt-1 text-xs underline" onClick={() => setOpen((value) => !value)}>
-          {open ? showLess : showAll}
-        </button>
-      )}
-    </>
-  );
-}
-
-function MailText({ text, showAll, showLess }: { text: string; showAll: string; showLess: string }) {
-  const [open, setOpen] = useState(false);
-  const long = text.length > 420 || text.split("\n").length > 6;
-  return (
-    <>
-      <div className={open ? "mt-1 whitespace-pre-wrap break-words text-sm" : "mt-1 max-h-32 overflow-y-auto whitespace-pre-wrap break-words text-sm"}>
-        {text}
-      </div>
-      {long && (
-        <button type="button" className="mt-1 text-xs underline" onClick={() => setOpen((value) => !value)}>
-          {open ? showLess : showAll}
-        </button>
-      )}
-    </>
-  );
 }
