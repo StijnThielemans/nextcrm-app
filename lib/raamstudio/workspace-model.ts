@@ -42,7 +42,7 @@ export const RAAMINFO_OPTIONS: Record<string, readonly string[]> = {
 
 export const WORKSPACE_STEPS = [
   { id: "tekeningen", label: "Tekeningen", hint: "Sleep een kader rond een gevel, snede of grondplan en geef het een naam." },
-  { id: "grondplan", label: "Grondplan", hint: "De PDF-lijst is weg. Klik op een knipsel om een raamnummer te zetten. Sleep het nummer om het te verplaatsen." },
+  { id: "grondplan", label: "Grondplan", hint: "Alleen de grondplannen. Links staan de nummers. Klik op een grondplan om het volgende nummer te zetten." },
   { id: "gevels", label: "Gevels", hint: "Alleen gevels en snedes. Kies links een nummer van het grondplan en klik op de tekening." },
   { id: "maten", label: "Maten", hint: "Vul breedte en hoogte in millimeter in." },
   { id: "raaminfo", label: "Raaminfo", hint: "Kies raaminfo bij het raamnummer." },

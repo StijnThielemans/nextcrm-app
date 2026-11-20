@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type PointerEvent as ReactPointerEvent } from "react";
+import { cn } from "@/lib/utils";
 import { localPointInClip, pagePointInClip } from "@/lib/raamstudio/plan-edit";
 import type { NormRect } from "@/lib/raamstudio/workspace-model";
 
@@ -30,6 +31,7 @@ export function ClipBoard({
   onMove,
   onRemove,
   emptyText = "Duid eerst in stap 1 een gevel, snede of grondplan aan. Die knipsels komen hier.",
+  large = false,
 }: {
   clips: ClipView[];
   planNames: string[];
@@ -38,6 +40,7 @@ export function ClipBoard({
   onMove?: (id: string, x: number, y: number) => void;
   onRemove?: (id: string) => void;
   emptyText?: string;
+  large?: boolean;
 }) {
   if (!clips.length) {
     return (
@@ -57,6 +60,7 @@ export function ClipBoard({
           onPlace={onPlace}
           onMove={onMove}
           onRemove={onRemove}
+          large={large}
         />
       ))}
     </div>
@@ -70,6 +74,7 @@ function ClipCard({
   onPlace,
   onMove,
   onRemove,
+  large = false,
 }: {
   clip: ClipView;
   planName: string;
@@ -77,6 +82,7 @@ function ClipCard({
   onPlace?: (index: number, localX: number, localY: number) => void;
   onMove?: (id: string, x: number, y: number) => void;
   onRemove?: (id: string) => void;
+  large?: boolean;
 }) {
   const [ratio, setRatio] = useState<number | null>(null);
   const [drag, setDrag] = useState<{ id: string; dx: number; dy: number } | null>(null);
@@ -102,7 +108,7 @@ function ClipCard({
   return (
     <article className="rounded-lg border border-black/10 bg-white p-2" data-testid="raamstudio-clip-view" data-clip-name={clip.name} data-clip-kind={clip.kind}>
       <p className="mb-2 text-sm font-medium">{clip.name} <span className="font-normal text-muted-foreground">· {clip.kind}</span></p>
-      <div className="relative max-h-[340px] overflow-hidden bg-neutral-100" style={{ aspectRatio: aspect }}>
+      <div className={cn("relative overflow-hidden bg-neutral-100", large ? "min-h-[48vh]" : "max-h-[340px]")} style={{ aspectRatio: aspect }}>
         {/* The full page is shifted so only this knipsel stays in view. */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img

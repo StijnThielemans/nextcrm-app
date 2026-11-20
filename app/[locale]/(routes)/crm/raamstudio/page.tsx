@@ -13,15 +13,9 @@ export default async function RaamstudioPage({
   const { dossier: dossierId } = await searchParams;
   const rows = await listDossiers(user);
   const selected = dossierId ? await raamstudioPlansForDossier(user, dossierId) : null;
-  const intro = "Kies een offertedossier. RaamStudio opent daarna met de plannen van dat dossier. De projectgegevens komen uit het dossier.";
+  const intro = "Kies een offertedossier. RaamStudio opent daarna met de plannen van dat dossier.";
   return (
-    <Container
-      bare={!selected}
-      title="RaamStudio"
-      description={selected
-        ? "Duid gevels, snedes en raamopeningen aan op de plannen van dit dossier. De projectgegevens komen uit het dossier."
-        : intro}
-    >
+    <Container bare title="RaamStudio" description={intro}>
       <RaamstudioPanel
         dossiers={rows.map((row) => ({
           id: row.id,

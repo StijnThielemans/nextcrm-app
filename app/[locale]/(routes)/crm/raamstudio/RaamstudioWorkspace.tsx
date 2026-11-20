@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useRouter } from "@/i18n/navigation";
+import { Link, useRouter } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -40,11 +40,23 @@ function isFacadeClip(drawing: { kind: string; name: string }): boolean {
   return /gevel|snede/i.test(drawing.name);
 }
 
+function isFloorClip(drawing: { kind: string; name: string }): boolean {
+  if (isFacadeClip(drawing)) return false;
+  return drawing.kind === "Verdieping / grondplan" || drawing.kind === "Dakplan";
+}
+
+function shortDossierNumber(number: string | null): string {
+  if (!number) return "Zonder nummer";
+  return number.replace(/^OFF-\d{4}-/, "");
+}
+
 export function RaamstudioWorkspace({
   dossier,
+  dossiers = [],
   onDirtyChange,
 }: {
   dossier: RaamstudioDossierOpen;
+  dossiers?: { id: string; number: string | null; name: string | null }[];
   onDirtyChange?: (dirty: boolean) => void;
 }) {
   const router = useRouter();
@@ -78,7 +90,6 @@ export function RaamstudioWorkspace({
   const active = pdfs.find((plan) => plan.id === activeId) ?? pdfs[0] ?? null;
   const savedId = savedFile?.id ?? null;
   const savedName = savedFile?.name ?? null;
-  const stepMeta = WORKSPACE_STEPS.find((item) => item.id === step) ?? WORKSPACE_STEPS[0];
   const stepIndex = WORKSPACE_STEPS.findIndex((item) => item.id === step);
 
   useEffect(() => {
@@ -418,7 +429,6 @@ export function RaamstudioWorkspace({
     void persist(false);
   }
 
-  const context = [dossier.number, dossier.name, dossier.customer, dossier.siteAddress, dossier.seller].filter(Boolean).join(" · ");
   const numbers = [...new Set(draft.openings.map((item) => item.number))];
   const chosenNumber = numbers.includes(infoNumber) ? infoNumber : (numbers[0] ?? "");
   const chosenFacade = armed && numbers.includes(armed)
@@ -430,57 +440,77 @@ export function RaamstudioWorkspace({
 
   return (
     <section className="overflow-hidden rounded-xl border border-black/10 bg-card" data-testid="raamstudio-program">
-      <div className="flex flex-wrap items-center gap-3 border-b border-black/10 px-3 py-2">
-        <div className="min-w-28">
-          <p className="text-xs font-semibold tracking-wide">{dossier.projectGroup === "RENOVATIE" ? "RENOVATIE" : "CALCULATIE"}</p>
-          <p className="text-[10px] text-muted-foreground">WERKVOORBEREIDING BUITENSCHRIJNWERK</p>
-        </div>
-        <p className="ml-auto text-[10px] tracking-wide text-muted-foreground">THIELEMANS & CO · TILO</p>
-      </div>
-
-      <div className="flex gap-1 overflow-x-auto border-b border-black/10 px-2 py-2" data-testid="raamstudio-steps">
-        {WORKSPACE_STEPS.map((item, index) => (
-          <button
-            key={item.id}
-            type="button"
-            className={cn(
-              "min-w-24 flex-1 rounded-md px-2 py-1.5 text-xs",
-              step === item.id ? "bg-[hsl(var(--tilo))] text-white" : "hover:bg-accent",
-            )}
-            aria-pressed={step === item.id}
-            data-testid={`raamstudio-step-${item.id}`}
-            onClick={() => go(item.id)}
+      <div className="border-b border-black/10" data-testid="raamstudio-header">
+        <div className="flex flex-wrap items-center gap-2 px-2 py-1">
+          <Link
+            href={`/crm/dossiers/${dossier.id}`}
+            data-testid="raamstudio-dossier-link"
+            className="shrink-0 text-sm underline decoration-[hsl(var(--tilo))] underline-offset-4"
+            onClick={(event) => {
+              if (pristine.current) return;
+              if (!window.confirm("De wijzigingen in RaamStudio zijn nog niet opgeslagen. Toch naar het dossier gaan?")) event.preventDefault();
+            }}
           >
-            {index + 1} · {item.label}
-          </button>
-        ))}
-      </div>
-
-      <div className="flex flex-wrap items-center gap-2 border-b border-black/10 px-3 py-2">
-        <Button type="button" size="sm" onClick={() => void save()} disabled={saving || dossier.locked} data-testid="raamstudio-save">
-          {saving ? "Opslaan…" : "Opslaan"}
-        </Button>
-        <p className="text-xs text-muted-foreground" data-testid="raamstudio-status">{status}</p>
-        <div className="ml-auto flex gap-2">
-          <Button type="button" size="sm" variant="outline" disabled={stepIndex <= 0} onClick={() => go(WORKSPACE_STEPS[stepIndex - 1].id)}>
-            ← Vorige
+            <span className="font-medium" data-testid="raamstudio-dossier-selected">{shortDossierNumber(dossier.number)}</span>
+            <span className="text-muted-foreground"> · {dossier.name ?? "Zonder projectbeschrijving"}</span>
+          </Link>
+          <label className="flex items-center gap-1 text-[11px] text-muted-foreground">
+            Ander dossier
+            <select
+              className="h-7 max-w-[14rem] rounded-md border border-input bg-card px-1.5 text-xs text-foreground"
+              value={dossier.id}
+              aria-label="Ander dossier"
+              data-testid="raamstudio-dossier-switch"
+              onChange={(event) => {
+                const next = event.target.value;
+                if (next === dossier.id) return;
+                if (!pristine.current && !window.confirm("De wijzigingen in RaamStudio zijn nog niet opgeslagen. Toch een ander dossier openen?")) return;
+                router.push(`/crm/raamstudio?dossier=${next}`);
+              }}
+            >
+              {dossiers.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {shortDossierNumber(item.number)} · {item.name ?? "Zonder projectbeschrijving"}
+                </option>
+              ))}
+            </select>
+          </label>
+          <Button type="button" size="sm" className="h-7 px-2 text-xs" onClick={() => void save()} disabled={saving || dossier.locked} data-testid="raamstudio-save">
+            {saving ? "Opslaan…" : "Opslaan"}
           </Button>
-          <Button type="button" size="sm" disabled={stepIndex >= WORKSPACE_STEPS.length - 1} onClick={() => go(WORKSPACE_STEPS[stepIndex + 1].id)}>
-            Volgende →
-          </Button>
+          <p className="min-w-0 truncate text-[11px] text-muted-foreground" data-testid="raamstudio-status">{status}</p>
+          <div className="ml-auto flex gap-1">
+            <Button type="button" size="sm" variant="outline" className="h-7 px-2 text-xs" disabled={stepIndex <= 0} onClick={() => go(WORKSPACE_STEPS[stepIndex - 1].id)}>
+              ← Vorige
+            </Button>
+            <Button type="button" size="sm" className="h-7 px-2 text-xs" disabled={stepIndex >= WORKSPACE_STEPS.length - 1} onClick={() => go(WORKSPACE_STEPS[stepIndex + 1].id)}>
+              Volgende →
+            </Button>
+          </div>
+        </div>
+        <div className="flex gap-1 overflow-x-auto px-2 pb-1" data-testid="raamstudio-steps">
+          {WORKSPACE_STEPS.map((item, index) => (
+            <button
+              key={item.id}
+              type="button"
+              className={cn(
+                "min-w-0 flex-1 rounded-md px-2 py-1 text-[11px]",
+                step === item.id ? "bg-[hsl(var(--tilo))] text-white" : "hover:bg-accent",
+              )}
+              aria-pressed={step === item.id}
+              data-testid={`raamstudio-step-${item.id}`}
+              onClick={() => go(item.id)}
+            >
+              {index + 1} · {item.label}
+            </button>
+          ))}
         </div>
       </div>
-
-      <p className="border-b border-black/10 px-3 py-2 text-xs text-muted-foreground" data-testid="raamstudio-from-dossier">
-        De projectgegevens komen uit dit offertedossier. Je vult ze hier niet opnieuw in.
-        {context ? ` ${context}` : ""}
-      </p>
-      <p className="px-3 py-1.5 text-xs">{stepMeta.hint}</p>
 
       <div className={cn(
         "grid min-h-[640px]",
         step === "tekeningen" ? "lg:grid-cols-[220px_minmax(0,1fr)_300px]"
-          : step === "gevels" ? "lg:grid-cols-[220px_minmax(0,1fr)]"
+          : step === "gevels" || step === "grondplan" ? "lg:grid-cols-[200px_minmax(0,1fr)]"
             : "lg:grid-cols-[minmax(0,0.7fr)_minmax(460px,1.15fr)]",
       )}>
         {step === "tekeningen" ? (
@@ -510,6 +540,28 @@ export function RaamstudioWorkspace({
             <p className="px-3 py-3 text-sm text-muted-foreground">Geen plannen op dit dossier.</p>
           )}
         </div>
+        ) : null}
+
+        {step === "grondplan" ? (
+          <div className="border-black/10 p-3 lg:border-r" data-testid="raamstudio-opening-numbers">
+            <p className="text-sm font-medium">Nummering</p>
+            <label className="mt-2 block text-xs text-muted-foreground">
+              Verdieping / code
+              <Input className="mt-1 h-8" value={floor} onChange={(event) => setFloor(event.target.value)} data-testid="raamstudio-floor" />
+            </label>
+            {draft.openings.length ? (
+              <ul className="mt-3 space-y-1" data-testid="raamstudio-openings">
+                {draft.openings.map((opening, index) => (
+                  <li key={`${opening.number}-${index}`} className="flex items-center gap-1">
+                    <span className="w-12 shrink-0 text-xs font-medium" data-testid="raamstudio-opening-number" data-number={opening.number}>{opening.number}</span>
+                    <button type="button" className="ml-auto text-[11px] text-muted-foreground underline" onClick={() => touch({ ...draft, openings: draft.openings.filter((_, item) => item !== index) })}>Weg</button>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="mt-3 text-sm text-muted-foreground">Klik op een grondplan. Het volgende nummer komt op die plek.</p>
+            )}
+          </div>
         ) : null}
 
         {step === "gevels" ? (
@@ -552,7 +604,18 @@ export function RaamstudioWorkspace({
               <Button type="button" size="sm" variant="outline" disabled={page + 1 >= pageCount} onClick={() => setPage((value) => value + 1)} data-testid="raamstudio-page-next">Volgende pagina</Button>
             </div>
           ) : null}
-          {step === "gevels" ? (
+          {step === "grondplan" ? (
+            <ClipBoard
+              large
+              clips={visibleClips(draft.drawings, pdfs, isFloorClip)}
+              planNames={draft.drawings.map((drawing) => drawing.planName)}
+              numbers={clipNumbers(draft)}
+              onPlace={placeOnClip}
+              onMove={(id, x, y) => moveMark(id, { x, y })}
+              onRemove={removeClipNumber}
+              emptyText="Duid eerst in stap 1 een grondplan aan. Gevels en snedes staan hier niet."
+            />
+          ) : step === "gevels" ? (
             <ClipBoard
               clips={visibleClips(draft.drawings, pdfs, isFacadeClip)}
               planNames={draft.drawings.map((drawing) => drawing.planName)}
@@ -598,7 +661,7 @@ export function RaamstudioWorkspace({
           )}
         </div>
 
-        {step === "gevels" ? null : (
+        {step === "gevels" || step === "grondplan" ? null : (
         <div className={cn("flex min-h-0 flex-col border-black/10 lg:border-l", step !== "tekeningen" && "max-h-[760px] overflow-hidden")} data-testid="raamstudio-side">
           {step !== "tekeningen" ? (
             <ClipBoard
@@ -641,46 +704,6 @@ export function RaamstudioWorkspace({
                 onRemove={(index) => touch({ ...draft, drawings: draft.drawings.filter((_, i) => i !== index) })}
                 onReorder={reorderDrawings}
               />
-            </div>
-          ) : null}
-
-          {step === "grondplan" ? (
-            <div className="space-y-3" data-testid="raamstudio-marking">
-              <p className="text-sm font-medium">Raamopeningen op het grondplan</p>
-              <p className="text-xs text-muted-foreground">Klik op een grondplanknipsel. Het volgende nummer, bijvoorbeeld 0.1, komt op die plek. Sleep het om het te verplaatsen.</p>
-              <label className="block text-xs text-muted-foreground">
-                Verdieping / code
-                <Input className="mt-1" value={floor} onChange={(event) => setFloor(event.target.value)} data-testid="raamstudio-floor" />
-              </label>
-              <ul className="space-y-2" data-testid="raamstudio-openings">
-                {draft.openings.map((opening, index) => (
-                  <li key={`${opening.number}-${index}`} className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      className={cn("text-xs text-muted-foreground", selectedId === `opening:${index}` && "text-foreground")}
-                      onClick={() => {
-                        const plan = pdfs.find((item) => item.name === opening.planName);
-                        if (plan) setActiveId(plan.id);
-                        setPage(opening.page ?? 0);
-                        setSelectedId(`opening:${index}`);
-                        setInfoNumber(opening.number);
-                      }}
-                    >
-                      {opening.x == null ? "zonder plek" : "op plan"}
-                    </button>
-                    <Input
-                      value={opening.number}
-                      aria-label={`Raamnummer ${opening.number}`}
-                      onChange={(event) => {
-                        const openings = draft.openings.slice();
-                        openings[index] = { ...opening, number: event.target.value };
-                        touch({ ...draft, openings });
-                      }}
-                    />
-                    <button type="button" className="text-xs text-muted-foreground underline" onClick={() => touch({ ...draft, openings: draft.openings.filter((_, i) => i !== index) })}>Weg</button>
-                  </li>
-                ))}
-              </ul>
             </div>
           ) : null}
 
