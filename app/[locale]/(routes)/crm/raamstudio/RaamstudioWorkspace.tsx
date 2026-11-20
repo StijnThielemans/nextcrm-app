@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { saveRaamstudioProjectAction } from "@/actions/crm/raamstudio/actions";
 import type { RaamstudioDossierOpen } from "@/lib/raamstudio/dossier-plans";
+import type { WindowMeasure } from "@/lib/raamstudio/opening-measures";
 import { localPointInClip, nextSharedNumber, pagePointInClip, reorderItems } from "@/lib/raamstudio/plan-edit";
 import { ClipBoard, type ClipNumber } from "./ClipBoard";
 import { readRaamstudioPayload } from "@/lib/raamstudio/read-project";
@@ -44,6 +45,55 @@ function isFacadeClip(drawing: { kind: string; name: string }): boolean {
 function isFloorClip(drawing: { kind: string; name: string }): boolean {
   if (isFacadeClip(drawing)) return false;
   return drawing.kind === "Verdieping / grondplan" || drawing.kind === "Dakplan";
+}
+
+function sheetForMark(
+  drawings: WorkspaceDraft["drawings"],
+  mark: { planName: string; page?: number; x?: number; y?: number },
+  match: (drawing: { kind: string; name: string }) => boolean,
+) {
+  if (mark.x == null || mark.y == null) return null;
+  const same = drawings.filter((drawing) => (
+    match(drawing) && drawing.planName === mark.planName && (drawing.page ?? 0) === (mark.page ?? 0)
+  ));
+  const inside = same.find((drawing) => {
+    if (!drawing.rect) return false;
+    return mark.x! >= drawing.rect.x && mark.x! <= drawing.rect.x + drawing.rect.w
+      && mark.y! >= drawing.rect.y && mark.y! <= drawing.rect.y + drawing.rect.h;
+  });
+  return inside ?? (same.length === 1 ? same[0] : null);
+}
+
+function measureSheets(draft: WorkspaceDraft, pdfs: { id: string; name: string }[]) {
+  const grouped = new Map<string, {
+    documentId: string;
+    page: number;
+    name: string;
+    role: "floor" | "facade";
+    marks: { number: string; x: number; y: number }[];
+  }>();
+  const roles = [
+    ["floor", isFloorClip, draft.openings],
+    ["facade", isFacadeClip, draft.facades],
+  ] as const;
+  for (const [role, match, marks] of roles) {
+    for (const mark of marks) {
+      const drawing = sheetForMark(draft.drawings, mark, match);
+      const pdf = drawing ? pdfs.find((plan) => plan.name === drawing.planName) : null;
+      if (!drawing || !pdf || mark.x == null || mark.y == null) continue;
+      const key = `${role}:${pdf.id}:${drawing.page ?? 0}:${drawing.name}`;
+      const sheet = grouped.get(key) ?? {
+        documentId: pdf.id,
+        page: drawing.page ?? 0,
+        name: drawing.name,
+        role,
+        marks: [],
+      };
+      sheet.marks.push({ number: mark.number, x: mark.x, y: mark.y });
+      grouped.set(key, sheet);
+    }
+  }
+  return [...grouped.values()];
 }
 
 function shortDossierNumber(number: string | null): string {
@@ -84,11 +134,17 @@ export function RaamstudioWorkspace({
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [ready, setReady] = useState(!savedFile);
+  const [measures, setMeasures] = useState<WindowMeasure[]>([]);
   const pristine = useRef(true);
   const canPersist = useRef(!savedFile);
   const draftRef = useRef(draft);
   const saveQueue = useRef(Promise.resolve());
   const planKey = pdfs.map((plan) => plan.name).join("\n");
+  const pdfsRef = useRef(pdfs);
+  const measureKey = [
+    ...draft.openings.map((item) => `o:${item.number}:${item.planName}:${item.page ?? 0}:${item.x ?? ""}:${item.y ?? ""}`),
+    ...draft.facades.map((item) => `f:${item.number}:${item.planName}:${item.page ?? 0}:${item.x ?? ""}:${item.y ?? ""}`),
+  ].join("|");
   const active = pdfs.find((plan) => plan.id === activeId) ?? pdfs[0] ?? null;
   const savedId = savedFile?.id ?? null;
   const savedName = savedFile?.name ?? null;
@@ -142,6 +198,33 @@ export function RaamstudioWorkspace({
     })();
     return () => controller.abort();
   }, [savedId, savedName, planKey]);
+
+  useEffect(() => {
+    pdfsRef.current = pdfs;
+  }, [pdfs]);
+
+  useEffect(() => {
+    if (!ready || !measureKey) return;
+    const controller = new AbortController();
+    const sheets = measureSheets(draftRef.current, pdfsRef.current);
+    if (!sheets.length) return;
+    void (async () => {
+      try {
+        const response = await fetch("/api/crm/raamstudio/measures", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sheets }),
+          signal: controller.signal,
+        });
+        if (!response.ok) return;
+        const data = await response.json() as { measures?: WindowMeasure[] };
+        if (!controller.signal.aborted && Array.isArray(data.measures)) setMeasures(data.measures);
+      } catch {
+        if (!controller.signal.aborted) setMeasures([]);
+      }
+    })();
+    return () => controller.abort();
+  }, [ready, measureKey]);
 
   function suggestFor(planName: string) {
     setDrawingKind(suggestedDrawingKind(planName));
@@ -739,26 +822,52 @@ export function RaamstudioWorkspace({
           {step === "maten" ? (
             <div className="space-y-3" data-testid="raamstudio-sizes">
               <p className="text-sm font-medium">Breedte en hoogte</p>
-              <p className="text-xs text-muted-foreground">Alleen millimeter die je zelf invult. De nummers op de tekening zijn de ramen van de vorige stappen.</p>
-              {numbers.length ? numbers.map((number) => (
-                <div key={number} className="space-y-1">
-                  <p className="text-sm">{number}</p>
-                  <Input
-                    inputMode="decimal"
-                    placeholder="Breedte (mm)"
-                    aria-label={`Breedte ${number}`}
-                    value={draft.sizes.find((item) => item.number === number && item.orientation === "width")?.valueMm ?? ""}
-                    onChange={(event) => setSize(number, "width", event.target.value)}
-                  />
-                  <Input
-                    inputMode="decimal"
-                    placeholder="Hoogte (mm)"
-                    aria-label={`Hoogte ${number}`}
-                    value={draft.sizes.find((item) => item.number === number && item.orientation === "height")?.valueMm ?? ""}
-                    onChange={(event) => setSize(number, "height", event.target.value)}
-                  />
-                </div>
-              )) : <p className="text-sm text-muted-foreground">Nummer eerst de ramen op het grondplan.</p>}
+              <p className="text-xs text-muted-foreground">Breedte van het grondplan, gecontroleerd op de gevel. Hoogte van de gevel of de snede. Alleen een maatcijfer bij het raam telt. Een lege maat is niet gevonden. Wat je zelf invult, blijft staan.</p>
+              {numbers.length ? numbers.map((number) => {
+                const measure = measures.find((item) => item.number === number);
+                const savedWidth = draft.sizes.find((item) => item.number === number && item.orientation === "width")?.valueMm ?? "";
+                const savedHeight = draft.sizes.find((item) => item.number === number && item.orientation === "height")?.valueMm ?? "";
+                const widthText = measure?.width
+                  ? `${measure.width.mm} mm breedte, ${measure.width.method} op ${measure.width.plan}${measure.planWidth ? `. Grondplan ${measure.planWidth.mm} mm, ${measure.planWidth.method} op ${measure.planWidth.plan}` : ""}`
+                  : "";
+                const heightText = measure?.height
+                  ? `${measure.height.mm} mm hoogte, ${measure.height.method} op ${measure.height.plan}`
+                  : "";
+                return (
+                  <div
+                    key={number}
+                    className="space-y-1"
+                    data-testid="raamstudio-measure"
+                    data-number={number}
+                    data-width={measure?.width?.mm ?? ""}
+                    data-height={measure?.height?.mm ?? ""}
+                    data-width-method={measure?.width?.method ?? ""}
+                    data-height-method={measure?.height?.method ?? ""}
+                    data-width-plan={measure?.width?.plan ?? ""}
+                    data-height-plan={measure?.height?.plan ?? ""}
+                    data-plan-width={measure?.planWidth?.mm ?? ""}
+                  >
+                    <p className="text-sm">{number}</p>
+                    {widthText ? <p className="text-xs text-muted-foreground" data-testid="raamstudio-measure-width">{widthText}</p> : null}
+                    {heightText ? <p className="text-xs text-muted-foreground" data-testid="raamstudio-measure-height">{heightText}</p> : null}
+                    {measure && !measure.onFacade ? <p className="text-xs text-muted-foreground">Staat niet op een gevel, dus geen hoogte.</p> : null}
+                    <Input
+                      inputMode="decimal"
+                      placeholder="Breedte (mm)"
+                      aria-label={`Breedte ${number}`}
+                      value={savedWidth}
+                      onChange={(event) => setSize(number, "width", event.target.value)}
+                    />
+                    <Input
+                      inputMode="decimal"
+                      placeholder="Hoogte (mm)"
+                      aria-label={`Hoogte ${number}`}
+                      value={savedHeight}
+                      onChange={(event) => setSize(number, "height", event.target.value)}
+                    />
+                  </div>
+                );
+              }) : <p className="text-sm text-muted-foreground">Nummer eerst de ramen op het grondplan.</p>}
             </div>
           ) : null}
 
