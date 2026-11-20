@@ -1,9 +1,18 @@
 "use client";
 
-import { useState, type PointerEvent as ReactPointerEvent } from "react";
+import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { cn } from "@/lib/utils";
 import { localPointInClip, pagePointInClip } from "@/lib/raamstudio/plan-edit";
+import { bucketPlanPixels } from "@/lib/raamstudio/plan-pixels";
 import type { NormRect } from "@/lib/raamstudio/workspace-model";
+
+const MIN_ZOOM = 0.5;
+const MAX_ZOOM = 3;
+
+function clampZoom(value: number): number {
+  const rounded = Math.round(value * 100) / 100;
+  return Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, rounded));
+}
 
 export type ClipView = {
   index: number;
@@ -85,8 +94,26 @@ function ClipCard({
   large?: boolean;
 }) {
   const [ratio, setRatio] = useState<number | null>(null);
+  const [zoom, setZoom] = useState(1);
   const [drag, setDrag] = useState<{ id: string; dx: number; dy: number } | null>(null);
+  const frameRef = useRef<HTMLDivElement>(null);
   const aspect = ratio ? (clip.rect.w / clip.rect.h) * ratio : 1.3;
+  const pixels = bucketPlanPixels(4096 * Math.max(1, zoom));
+
+  useEffect(() => {
+    const onWheel = (event: WheelEvent) => {
+      const frame = frameRef.current;
+      if (!frame) return;
+      const over = event.target instanceof Node && frame.contains(event.target);
+      if (!event.ctrlKey && !event.metaKey) return;
+      if (!over) return;
+      event.preventDefault();
+      if (event.buttons !== 0 || !event.deltaY) return;
+      setZoom((current) => clampZoom(current * Math.exp(-event.deltaY * 0.0015)));
+    };
+    window.addEventListener("wheel", onWheel, { passive: false, capture: true });
+    return () => window.removeEventListener("wheel", onWheel, { capture: true });
+  }, []);
   const visible = numbers.flatMap((number) => {
     if (number.planName !== planName || number.page !== clip.page) return [];
     const local = localPointInClip(clip.rect, number.x, number.y);
@@ -107,12 +134,21 @@ function ClipCard({
 
   return (
     <article className="rounded-lg border border-black/10 bg-white p-2" data-testid="raamstudio-clip-view" data-clip-name={clip.name} data-clip-kind={clip.kind}>
-      <p className="mb-2 text-sm font-medium">{clip.name} <span className="font-normal text-muted-foreground">· {clip.kind}</span></p>
-      <div className={cn("relative overflow-hidden bg-neutral-100", large ? "min-h-[48vh]" : "max-h-[340px]")} style={{ aspectRatio: aspect }}>
+      <div className="mb-2 flex flex-wrap items-center gap-2">
+        <p className="text-sm font-medium">{clip.name} <span className="font-normal text-muted-foreground">· {clip.kind}</span></p>
+        <div className="ml-auto flex items-center gap-1">
+          <button type="button" className="rounded border px-2 py-0.5 text-sm" aria-label="Uitzoomen" onClick={() => setZoom((value) => clampZoom(value - 0.25))}>−</button>
+          <button type="button" className="rounded border px-2 py-0.5 text-xs" onClick={() => setZoom(1)}>Passend</button>
+          <button type="button" className="rounded border px-2 py-0.5 text-sm" aria-label="Inzoomen" onClick={() => setZoom((value) => clampZoom(value + 0.25))}>+</button>
+          <span className="w-10 text-right text-xs" data-testid="raamstudio-clip-zoom">{Math.round(zoom * 100)}%</span>
+        </div>
+      </div>
+      <div ref={frameRef} className={cn("overflow-auto", large ? "min-h-[48vh]" : "max-h-[340px]")} data-testid="raamstudio-clip-scroll">
+      <div className="relative overflow-hidden bg-neutral-100" style={{ width: `${zoom * 100}%`, aspectRatio: aspect }} data-testid="raamstudio-clip-sheet" data-zoom={zoom}>
         {/* The full page is shifted so only this knipsel stays in view. */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src={`/api/crm/raamstudio/plan-page?documentId=${encodeURIComponent(clip.planId)}&page=${clip.page + 1}&px=4096`}
+          src={`/api/crm/raamstudio/plan-page?documentId=${encodeURIComponent(clip.planId)}&page=${clip.page + 1}&px=${pixels}`}
           alt={clip.name}
           draggable={false}
           className="pointer-events-none absolute max-w-none"
@@ -184,6 +220,7 @@ function ClipCard({
             </button>
           ))}
         </div>
+      </div>
       </div>
       {onRemove ? (
         <ul className="mt-2 space-y-1">
