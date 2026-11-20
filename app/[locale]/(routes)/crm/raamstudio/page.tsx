@@ -16,7 +16,7 @@ export default async function RaamstudioPage({
   return (
     <Container
       title="RaamStudio"
-      description="Calculatie, alleen lezen. Kies een offertedossier. De plannen die er al aan hangen, komen hier. Een .tc-raam toont de projectgegevens, de genummerde posities, de maten en de raaminfo."
+      description="Kies een offertedossier. RaamStudio opent daarna met de plannen van dat dossier. De projectgegevens komen uit het dossier."
     >
       <RaamstudioPanel
         dossiers={rows.map((row) => ({

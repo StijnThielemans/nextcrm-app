@@ -337,3 +337,12 @@ export function raamstudioProjectFromPayload(payload: unknown): RaamstudioProjec
 export async function readRaamstudioProject(bytes: Uint8Array): Promise<RaamstudioProject> {
   return raamstudioProjectFromPayload(await readProjectJson(bytes));
 }
+
+/** The project.json object, after the same format check as open_calc_project. */
+export async function readRaamstudioPayload(bytes: Uint8Array): Promise<Record<string, unknown>> {
+  const payload = await readProjectJson(bytes);
+  if (!isRecord(payload) || payload.format !== RAAMSTUDIO_FORMAT) {
+    throw new RaamstudioFileError(INVALID_PROJECT);
+  }
+  return payload;
+}

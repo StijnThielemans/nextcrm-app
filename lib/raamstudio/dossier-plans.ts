@@ -49,13 +49,33 @@ export function plansOnDossier(documents: DossierPlanSource[]): DossierPlanFile[
   return plans;
 }
 
-export async function raamstudioPlansForDossier(user: AuthzUser, dossierId: string) {
+export type RaamstudioDossierOpen = {
+  id: string;
+  number: string | null;
+  name: string | null;
+  customer: string | null;
+  /** Werfadres as the dossier already stores it. Empty when the dossier has none. */
+  siteAddress: string;
+  contact: string;
+  seller: string | null;
+  projectGroup: string | null;
+  locked: boolean;
+  plans: DossierPlanFile[];
+};
+
+export async function raamstudioPlansForDossier(user: AuthzUser, dossierId: string): Promise<RaamstudioDossierOpen | null> {
   const dossier = await getDossier(user, dossierId);
   if (!dossier) return null;
   return {
     id: dossier.id,
     number: dossier.number,
     name: dossier.name,
+    customer: dossier.customer.name,
+    siteAddress: dossier.projectAddress,
+    contact: [dossier.customer.phone, dossier.customer.mobile].filter(Boolean).join(" · "),
+    seller: dossier.seller,
+    projectGroup: dossier.projectGroup,
+    locked: dossier.terminal,
     plans: plansOnDossier(dossier.documents),
   };
 }
