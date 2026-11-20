@@ -231,7 +231,7 @@ export function PlanSheet({
       if (!port || !sheet) return;
       const overPlan = event.target instanceof Node && port.contains(event.target);
       const browserZoom = event.ctrlKey || event.metaKey;
-      if (!overPlan && !browserZoom) return;
+      if (!browserZoom) return;
       event.preventDefault();
       if (!overPlan || event.buttons !== 0 || !event.deltaY) return;
       const before = sheet.getBoundingClientRect();
