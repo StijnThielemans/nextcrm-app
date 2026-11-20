@@ -3,10 +3,14 @@ import { crc32, deflateRawSync } from "node:zlib";
 import { readRaamstudioPayload, readRaamstudioProject } from "../read-project";
 import { zipProjectJson } from "../project-archive";
 import {
+  WORKSPACE_STEPS,
   buildRaamstudioPayload,
   nextWindowNumber,
   normalizeDraft,
+  openingStep,
   raamstudioDocumentName,
+  suggestedDrawingKind,
+  suggestedDrawingName,
   workspaceFromPayload,
   type DossierPrefill,
   type WorkspaceDraft,
@@ -37,6 +41,15 @@ describe("RaamStudio workspace file", () => {
     expect(nextWindowNumber(null, "0")).toBe("0.1");
     expect(nextWindowNumber("0.1", "0")).toBe("0.2");
     expect(nextWindowNumber("0.2a", "0")).toBe("0.2b");
+  });
+
+  it("opens on Tekeningen, where gevels are marked, and skips the PDF step", () => {
+    expect(openingStep([{ name: "PB681_Grondplannen.pdf", kind: "plan" }])).toBe("tekeningen");
+    expect(WORKSPACE_STEPS.map((step) => step.id)).toEqual(["tekeningen", "grondplan", "gevels", "maten", "raaminfo"]);
+    expect(suggestedDrawingKind("BA_herbouwen_G_N_VG_Boutens.pdf")).toBe("Gevel");
+    expect(suggestedDrawingKind("BA_herbouwen_S_N_AA_Boutens.pdf")).toBe("Snede");
+    expect(suggestedDrawingName("BA_herbouwen_G_N_VG_Boutens.pdf")).toBe("Voorgevel");
+    expect(suggestedDrawingName("BA_herbouwen_S_N_AA_Boutens.pdf")).toBe("Snede AA");
   });
 
   it("names the dossier file as a RaamStudio project", () => {
@@ -77,6 +90,64 @@ describe("RaamStudio workspace file", () => {
   it("does not force a calculatie type onto other project groups", () => {
     const payload = buildRaamstudioPayload({ ...prefill, projectGroup: "HAROL" }, draft, plans);
     expect(payload.project_type).toBeUndefined();
+  });
+
+  it("keeps a gevel mark and an opening on the drawing after save and reload", () => {
+    const marked: WorkspaceDraft = {
+      drawings: [{ planName: plans[1], kind: "Gevel", name: "Voorgevel", rect: { x: 0.1, y: 0.2, w: 0.3, h: 0.4 } }],
+      openings: [{ planName: plans[0], floor: "0", number: "0.1", x: 0.4, y: 0.5, rect: { x: 0.35, y: 0.45, w: 0.1, h: 0.08 } }],
+      facades: [{ planName: plans[1], number: "0.1", x: 0.22, y: 0.33 }],
+      sizes: [],
+      raaminfo: [],
+    };
+    const dropped = normalizeDraft({
+      ...marked,
+      drawings: [...marked.drawings, { planName: plans[0], kind: "Gevel", name: "Zonder kader", rect: { x: 2, y: 0.2, w: 0.2, h: 0.2 } }],
+    }, plans);
+    expect(dropped.drawings[1]).toEqual({ planName: plans[0], kind: "Gevel", name: "Zonder kader" });
+    const payload = buildRaamstudioPayload(prefill, marked, plans);
+    expect(payload.selections).toEqual([
+      {
+        source: plans[1],
+        page_index: 0,
+        rect: [0.1, 0.2, 0.4, 0.6],
+        rect_unit: "normalized",
+        kind: "Gevel",
+        name: "Voorgevel",
+      },
+    ]);
+    expect(payload.window_markers).toEqual([
+      {
+        source: plans[0],
+        page_index: 0,
+        floor: "0",
+        number: "0.1",
+        selection_index: -1,
+        x: 0.4,
+        y: 0.5,
+        label_x: 0.4,
+        label_y: 0.5,
+        coord: "normalized",
+        x0: 0.35,
+        y0: 0.45,
+        x1: 0.45,
+        y1: 0.53,
+      },
+    ]);
+    expect(payload.facade_markers).toEqual([
+      {
+        source: plans[1],
+        page_index: 0,
+        number: "0.1",
+        selection_index: -1,
+        x: 0.22,
+        y: 0.33,
+        label_x: 0.22,
+        label_y: 0.33,
+        coord: "normalized",
+      },
+    ]);
+    expect(workspaceFromPayload(payload, plans)).toEqual(normalizeDraft(marked, plans));
   });
 
   it("round-trips a .tc-raam the reader already accepts", async () => {

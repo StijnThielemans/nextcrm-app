@@ -16,7 +16,9 @@ export default async function RaamstudioPage({
   return (
     <Container
       title="RaamStudio"
-      description="Kies een offertedossier. RaamStudio opent daarna met de plannen van dat dossier. De projectgegevens komen uit het dossier."
+      description={selected
+        ? "Duid gevels, snedes en raamopeningen aan op de plannen van dit dossier. De projectgegevens komen uit het dossier."
+        : "Kies een offertedossier. RaamStudio opent daarna met de plannen van dat dossier. De projectgegevens komen uit het dossier."}
     >
       <RaamstudioPanel
         dossiers={rows.map((row) => ({

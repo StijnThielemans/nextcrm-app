@@ -41,19 +41,29 @@ export const RAAMINFO_OPTIONS: Record<string, readonly string[]> = {
 };
 
 export const WORKSPACE_STEPS = [
-  { id: "pdfs", label: "PDF's", hint: "De plannen van het dossier staan klaar." },
-  { id: "tekeningen", label: "Tekeningen", hint: "Geef het open plan een type en een naam." },
-  { id: "grondplan", label: "Grondplan", hint: "Duid de raamopeningen aan op het grondplan." },
-  { id: "gevels", label: "Gevels", hint: "Zet de raamnummers op de gevel of de snede." },
+  { id: "tekeningen", label: "Tekeningen", hint: "Sleep een kader rond een gevel, snede of grondplan en geef het een naam." },
+  { id: "grondplan", label: "Grondplan", hint: "Klik of sleep op het grondplan om een raamopening aan te duiden." },
+  { id: "gevels", label: "Gevels", hint: "Klik op de gevel of de snede om het raamnummer te plaatsen." },
   { id: "maten", label: "Maten", hint: "Vul breedte en hoogte in millimeter in." },
   { id: "raaminfo", label: "Raaminfo", hint: "Kies raaminfo bij het raamnummer." },
 ] as const;
 
 export type WorkspaceStepId = (typeof WORKSPACE_STEPS)[number]["id"];
 
-export type WorkspaceDrawing = { planName: string; kind: string; name: string };
-export type WorkspaceOpening = { planName: string; floor: string; number: string };
-export type WorkspaceFacade = { planName: string; number: string };
+/** A rectangle on the rendered page, from the top-left, as a fraction of the page. */
+export type NormRect = { x: number; y: number; w: number; h: number };
+
+export type WorkspaceDrawing = { planName: string; kind: string; name: string; page?: number; rect?: NormRect };
+export type WorkspaceOpening = {
+  planName: string;
+  floor: string;
+  number: string;
+  page?: number;
+  x?: number;
+  y?: number;
+  rect?: NormRect;
+};
+export type WorkspaceFacade = { planName: string; number: string; page?: number; x?: number; y?: number };
 export type WorkspaceSize = { number: string; orientation: "width" | "height"; valueMm: string };
 export type WorkspaceRaaminfo = { number: string; category: string; text: string };
 
@@ -104,6 +114,51 @@ function baseName(value: string): string {
   return parts[parts.length - 1] || value;
 }
 
+function roundUnit(value: number): number {
+  return Math.round(value * 10000) / 10000;
+}
+
+/** A fraction of the rendered page. Values outside 0–1 are not a web mark. */
+function unit(value: unknown): number | null {
+  if (typeof value !== "number" || !Number.isFinite(value) || value < 0 || value > 1) return null;
+  return roundUnit(value);
+}
+
+/** Page 0 stays omitted so an older file without a page still round-trips. */
+function pageNumber(value: unknown): number | undefined {
+  if (typeof value !== "number" || !Number.isInteger(value) || value <= 0 || value > 500) return undefined;
+  return value;
+}
+
+function normRect(value: unknown): NormRect | null {
+  let rawX: unknown;
+  let rawY: unknown;
+  let rawW: unknown;
+  let rawH: unknown;
+  if (isRecord(value) && ("w" in value || "h" in value)) {
+    rawX = value.x;
+    rawY = value.y;
+    rawW = value.w;
+    rawH = value.h;
+  } else if (Array.isArray(value) && value.length >= 4) {
+    rawX = value[0];
+    rawY = value[1];
+    rawW = Number(value[2]) - Number(value[0]);
+    rawH = Number(value[3]) - Number(value[1]);
+  } else {
+    return null;
+  }
+  const x = unit(rawX);
+  const y = unit(rawY);
+  const w = unit(rawW);
+  const h = unit(rawH);
+  if (x == null || y == null || w == null || h == null || w < 0.008 || h < 0.008) return null;
+  const width = Math.min(w, roundUnit(1 - x));
+  const height = Math.min(h, roundUnit(1 - y));
+  if (width < 0.008 || height < 0.008) return null;
+  return { x, y, w: width, h: height };
+}
+
 export function raamstudioDocumentName(number: string | null): string {
   const safe = clean(number ?? "", 80).replace(/[<>:"/\\|?*]/g, "_") || "dossier";
   return `RaamStudio ${safe}.tc-raam`;
@@ -124,9 +179,9 @@ export function nextWindowNumber(previous: string | null, floor: string): string
   return `${prefix}${Number(digits) + 1}`;
 }
 
-export function openingStep(plans: { name: string; kind: string }[]): WorkspaceStepId {
-  const pdfs = plans.filter((plan) => plan.kind === "plan");
-  return pdfs.some((plan) => /grondplan/i.test(plan.name)) ? "grondplan" : "pdfs";
+/** The plans are already on the dossier, so the workspace opens on Tekeningen. */
+export function openingStep(_plans: { name: string; kind: string }[]): WorkspaceStepId {
+  return "tekeningen";
 }
 
 export function planForStep<T extends { name: string; kind: string }>(
@@ -135,11 +190,38 @@ export function planForStep<T extends { name: string; kind: string }>(
 ): T | null {
   const pdfs = plans.filter((plan) => plan.kind === "plan");
   if (!pdfs.length) return null;
-  if (step === "gevels") return pdfs.find((plan) => /gevel|snede/i.test(plan.name)) ?? pdfs[0];
-  if (step === "grondplan" || step === "tekeningen") {
-    return pdfs.find((plan) => /grondplan/i.test(plan.name)) ?? pdfs[0];
-  }
+  if (step === "gevels") return pdfs.find((plan) => /gevel|snede|_G_N_|_S_N_/i.test(plan.name)) ?? pdfs[0];
+  if (step === "grondplan") return pdfs.find((plan) => /grondplan|_P_N_/i.test(plan.name)) ?? pdfs[0];
   return pdfs[0];
+}
+
+/** Drawing type from the file name, the same kinds as the desktop type list. */
+export function suggestedDrawingKind(planName: string): (typeof DRAWING_KINDS)[number] {
+  const name = planName.toLowerCase();
+  if (/snede|doorsnede|section|_s_n_/.test(name)) return "Snede";
+  if (/dakplan|dakvlak/.test(name)) return "Dakplan";
+  if (/\bdetail\b|_d_n_/.test(name)) return "Detail";
+  if (/grondplan|gelijkvloers|verdiep|kelder|zolder|_p_n_/.test(name)) return "Verdieping / grondplan";
+  return "Gevel";
+}
+
+/** A name for a one-drawing sheet, from the file name. Empty when nothing is recognisable. */
+export function suggestedDrawingName(planName: string): string {
+  const base = baseName(planName).replace(/\.pdf$/i, "");
+  if (/_vg_|voorgevel/.test(base.toLowerCase())) return "Voorgevel";
+  if (/_ag_|achtergevel/.test(base.toLowerCase())) return "Achtergevel";
+  if (/_lg_/.test(base.toLowerCase())) return "Zijgevel links";
+  if (/_rg_/.test(base.toLowerCase())) return "Zijgevel rechts";
+  const snede = /_S_N_([A-Za-z0-9]+)_/i.exec(base);
+  if (snede) return `Snede ${snede[1].toUpperCase()}`;
+  const level = /_P_N_([+-]?\d+)_/i.exec(base);
+  if (level) {
+    const code = level[1].replace("+", "");
+    return code === "0" ? "Gelijkvloers" : `Niveau ${level[1]}`;
+  }
+  if (/grondplan/i.test(base)) return "Grondplan";
+  if (/gevel/i.test(base)) return "Gevel";
+  return "";
 }
 
 function canonicalPlan(name: string, planNames: readonly string[]): string | null {
@@ -162,21 +244,42 @@ export function normalizeDraft(draft: WorkspaceDraft, planNames: readonly string
     const planName = canonicalPlan(drawing.planName, planNames);
     const name = clean(drawing.name, 120);
     if (!planName || !name || !DRAWING_KINDS.includes(drawing.kind as (typeof DRAWING_KINDS)[number])) continue;
-    drawings.push({ planName, kind: drawing.kind, name });
+    const rect = normRect(drawing.rect);
+    const page = pageNumber(drawing.page);
+    drawings.push({ planName, kind: drawing.kind, name, ...(page ? { page } : {}), ...(rect ? { rect } : {}) });
   }
   const openings: WorkspaceOpening[] = [];
   for (const opening of draft.openings.slice(0, LIMIT)) {
     const planName = canonicalPlan(opening.planName, planNames);
     const number = clean(opening.number, 40);
     if (!planName || !number) continue;
-    openings.push({ planName, floor: clean(opening.floor, 12) || "0", number });
+    const x = unit(opening.x);
+    const y = unit(opening.y);
+    const rect = normRect(opening.rect);
+    const page = pageNumber(opening.page);
+    openings.push({
+      planName,
+      floor: clean(opening.floor, 12) || "0",
+      number,
+      ...(page ? { page } : {}),
+      ...(x != null && y != null ? { x, y } : {}),
+      ...(rect ? { rect } : {}),
+    });
   }
   const facades: WorkspaceFacade[] = [];
   for (const facade of draft.facades.slice(0, LIMIT)) {
     const planName = canonicalPlan(facade.planName, planNames);
     const number = clean(facade.number, 40);
     if (!planName || !number) continue;
-    facades.push({ planName, number });
+    const x = unit(facade.x);
+    const y = unit(facade.y);
+    const page = pageNumber(facade.page);
+    facades.push({
+      planName,
+      number,
+      ...(page ? { page } : {}),
+      ...(x != null && y != null ? { x, y } : {}),
+    });
   }
   const sizes: WorkspaceSize[] = [];
   for (const size of draft.sizes.slice(0, LIMIT)) {
@@ -240,25 +343,43 @@ export function buildRaamstudioPayload(
     customer_choices: {},
     sources: planNameSet.map((name) => ({ name, original_path: name })),
     documents: [],
-    selections: [],
+    selections: work.drawings.map((drawing) => ({
+      source: drawing.planName,
+      page_index: drawing.page ?? 0,
+      ...(drawing.rect
+        ? {
+            rect: [
+              drawing.rect.x,
+              drawing.rect.y,
+              roundUnit(drawing.rect.x + drawing.rect.w),
+              roundUnit(drawing.rect.y + drawing.rect.h),
+            ],
+            rect_unit: "normalized",
+          }
+        : {}),
+      kind: drawing.kind,
+      name: drawing.name,
+    })),
     tilo_drawings: work.drawings.map((drawing) => ({
       name: drawing.name,
       kind: drawing.kind,
       plan_name: drawing.planName,
+      ...(drawing.page ? { page: drawing.page } : {}),
+      ...(drawing.rect ? { rect: drawing.rect } : {}),
     })),
-    window_markers: work.openings.map((opening) => ({
+    window_markers: work.openings.map((opening) => placedMarker({
       source: opening.planName,
-      page_index: 0,
+      page_index: opening.page ?? 0,
       floor: opening.floor,
       number: opening.number,
       selection_index: -1,
-    })),
-    facade_markers: work.facades.map((facade) => ({
+    }, opening.x, opening.y, opening.rect)),
+    facade_markers: work.facades.map((facade) => placedMarker({
       source: facade.planName,
-      page_index: 0,
+      page_index: facade.page ?? 0,
       number: facade.number,
       selection_index: -1,
-    })),
+    }, facade.x, facade.y)),
     dimension_scales: {},
     dimensions: work.sizes.map((size) => ({
       number: size.number,
@@ -284,6 +405,47 @@ export function buildRaamstudioPayload(
   return payload;
 }
 
+function markPlace(marker: Record<string, unknown>): { page?: number; x?: number; y?: number; rect?: NormRect } {
+  if (marker.coord !== "normalized") return {};
+  const x = unit(marker.x);
+  const y = unit(marker.y);
+  const rect = normRect(
+    marker.x0 != null && marker.y0 != null && marker.x1 != null && marker.y1 != null
+      ? [marker.x0, marker.y0, marker.x1, marker.y1]
+      : null,
+  );
+  const page = pageNumber(marker.page_index);
+  return {
+    ...(page ? { page } : {}),
+    ...(x != null && y != null ? { x, y } : {}),
+    ...(rect ? { rect } : {}),
+  };
+}
+
+function placedMarker(
+  marker: Record<string, unknown>,
+  x: number | undefined,
+  y: number | undefined,
+  rect?: NormRect,
+): Record<string, unknown> {
+  const placed = { ...marker };
+  if (x != null && y != null) {
+    placed.x = x;
+    placed.y = y;
+    placed.label_x = x;
+    placed.label_y = y;
+    placed.coord = "normalized";
+  }
+  if (rect) {
+    placed.x0 = rect.x;
+    placed.y0 = rect.y;
+    placed.x1 = roundUnit(rect.x + rect.w);
+    placed.y1 = roundUnit(rect.y + rect.h);
+    placed.coord = "normalized";
+  }
+  return placed;
+}
+
 function planFromSource(source: unknown, planNames: readonly string[]): string | null {
   if (typeof source !== "string") return null;
   return canonicalPlan(baseName(source), planNames);
@@ -292,25 +454,31 @@ function planFromSource(source: unknown, planNames: readonly string[]): string |
 /** Restore a workspace from project.json. Unknown plans stay out. */
 export function workspaceFromPayload(payload: unknown, planNames: readonly string[]): WorkspaceDraft {
   if (!isRecord(payload) || payload.format !== RAAMSTUDIO_FORMAT) return EMPTY_DRAFT;
+  const storedDrawings = records(payload.tilo_drawings);
+  const drawingRecords = storedDrawings.length ? storedDrawings : records(payload.selections);
   const drawings: WorkspaceDrawing[] = [];
-  for (const drawing of records(payload.tilo_drawings)) {
-    const planName = typeof drawing.plan_name === "string" ? canonicalPlan(drawing.plan_name, planNames) : null;
+  for (const drawing of drawingRecords) {
+    const planSource = drawing.plan_name ?? drawing.source;
+    const planName = typeof planSource === "string" ? canonicalPlan(baseName(planSource), planNames) : null;
     const name = clean(drawing.name, 120);
     const kind = clean(drawing.kind, 40);
     if (!planName || !name || !DRAWING_KINDS.includes(kind as (typeof DRAWING_KINDS)[number])) continue;
-    drawings.push({ planName, kind, name });
+    const normalized = drawing.rect_unit === "normalized" || drawing.coord === "normalized" || storedDrawings.length > 0;
+    const rect = normalized ? normRect(drawing.rect) : null;
+    const page = pageNumber(drawing.page ?? drawing.page_index);
+    drawings.push({ planName, kind, name, ...(page ? { page } : {}), ...(rect ? { rect } : {}) });
   }
   const openings: WorkspaceOpening[] = records(payload.window_markers).flatMap((marker) => {
     const planName = planFromSource(marker.source, planNames);
     const number = clean(marker.number, 40);
     if (!planName || !number) return [];
-    return [{ planName, floor: clean(marker.floor, 12) || "0", number }];
+    return [{ planName, floor: clean(marker.floor, 12) || "0", number, ...markPlace(marker) }];
   });
   const facades: WorkspaceFacade[] = records(payload.facade_markers).flatMap((marker) => {
     const planName = planFromSource(marker.source, planNames);
     const number = clean(marker.number, 40);
     if (!planName || !number) return [];
-    return [{ planName, number }];
+    return [{ planName, number, ...markPlace(marker) }];
   });
   const sizes: WorkspaceSize[] = records(payload.dimensions).flatMap((dimension) => {
     const number = clean(dimension.number, 40);

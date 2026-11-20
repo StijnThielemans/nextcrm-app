@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Link } from "@/i18n/navigation";
+import { Link, useRouter } from "@/i18n/navigation";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -30,6 +30,7 @@ export function RaamstudioPanel({
   selected: RaamstudioDossierOpen | null;
   missing: boolean;
 }) {
+  const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const [over, setOver] = useState(false);
   const [fileName, setFileName] = useState<string | null>(null);
@@ -51,34 +52,52 @@ export function RaamstudioPanel({
 
   return (
     <div className={cn("mx-auto flex w-full flex-col gap-6", selected ? "max-w-none" : "max-w-4xl")}>
+      {selected ? (
+        <div className="flex flex-wrap items-center gap-3" data-testid="raamstudio-dossier-bar">
+          <p className="text-sm">
+            <span className="font-medium" data-testid="raamstudio-dossier-selected">{selected.number ?? "Zonder nummer"}</span>
+            <span className="text-muted-foreground"> · {selected.name ?? "Zonder projectbeschrijving"}</span>
+          </p>
+          <label className="ml-auto flex items-center gap-2 text-xs text-muted-foreground">
+            Ander dossier
+            <select
+              className="h-9 max-w-xs rounded-lg border border-input bg-card px-2 text-sm text-foreground"
+              value={selected.id}
+              aria-label="Ander dossier"
+              data-testid="raamstudio-dossier-switch"
+              onChange={(event) => router.push(`/crm/raamstudio?dossier=${event.target.value}`)}
+            >
+              {dossiers.map((dossier) => (
+                <option key={dossier.id} value={dossier.id}>
+                  {dossier.number ?? "Zonder nummer"} · {dossier.name ?? "Zonder projectbeschrijving"}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+      ) : (
       <section>
         <h3 className="text-sm font-medium">Offertedossiers</h3>
         {dossiers.length ? (
-          <ul className={cn("mt-3 divide-y divide-black/[0.06] rounded-xl border border-black/[0.06] bg-card", selected && "max-h-40 overflow-auto")} data-testid="raamstudio-dossiers">
-            {dossiers.map((dossier) => {
-              const active = selected?.id === dossier.id;
-              return (
+          <ul className="mt-3 divide-y divide-black/[0.06] rounded-xl border border-black/[0.06] bg-card" data-testid="raamstudio-dossiers">
+            {dossiers.map((dossier) => (
                 <li key={dossier.id}>
                   <Link
                     href={`/crm/raamstudio?dossier=${dossier.id}`}
-                    className={cn(
-                      "block px-4 py-3 text-sm hover:bg-accent",
-                      active && "border-l-[3px] border-l-[hsl(var(--tilo))] bg-accent",
-                    )}
-                    data-testid={active ? "raamstudio-dossier-selected" : undefined}
+                    className="block px-4 py-3 text-sm hover:bg-accent"
                   >
                     <span className="font-medium">{dossier.number ?? "Zonder nummer"}</span>
                     <span className="text-muted-foreground"> · {dossier.name ?? "Zonder projectbeschrijving"}</span>
                     {dossier.customer ? <span className="mt-1 block text-xs text-muted-foreground">{dossier.customer}</span> : null}
                   </Link>
                 </li>
-              );
-            })}
+            ))}
           </ul>
         ) : (
           <p className="mt-3 text-sm text-muted-foreground">Nog geen offertedossiers.</p>
         )}
       </section>
+      )}
 
       {missing ? <p className="text-sm text-muted-foreground">Dit dossier is niet gevonden.</p> : null}
 
