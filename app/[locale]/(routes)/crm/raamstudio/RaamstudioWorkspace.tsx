@@ -609,7 +609,7 @@ export function RaamstudioWorkspace({
           </div>
         ) : null}
 
-        <div className="flex min-h-[520px] min-w-0 flex-col overflow-hidden bg-neutral-100" data-testid="raamstudio-plan-view">
+        <div className="flex min-h-[520px] min-w-0 flex-col overflow-auto bg-neutral-100" data-testid="raamstudio-plan-view">
           {step === "tekeningen" && pageCount > 1 ? (
             <div className="flex items-center gap-2 border-b border-black/10 bg-white px-2 py-1.5">
               <Button type="button" size="sm" variant="outline" disabled={page <= 0} onClick={() => setPage((value) => value - 1)}>Vorige pagina</Button>
@@ -619,7 +619,6 @@ export function RaamstudioWorkspace({
           ) : null}
           {step === "grondplan" ? (
             <ClipBoard
-              large
               clips={visibleClips(draft.drawings, pdfs, isFloorClip)}
               planNames={draft.drawings.map((drawing) => drawing.planName)}
               numbers={clipNumbers(draft)}

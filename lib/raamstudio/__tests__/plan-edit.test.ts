@@ -1,5 +1,5 @@
 import { buildRaamstudioPayload, workspaceFromPayload, type DossierPrefill, type WorkspaceDraft } from "../workspace-model";
-import { hitFrame, localPointInClip, moveNormRect, nextSharedNumber, pagePointInClip, reorderItems, resizeNormRect } from "../plan-edit";
+import { clipViewRect, hitFrame, localPointInClip, moveNormRect, nextSharedNumber, pagePointInClip, reorderItems, resizeNormRect } from "../plan-edit";
 
 const plans = ["plan.pdf"];
 const prefill: DossierPrefill = {
@@ -50,6 +50,17 @@ describe("plan frame editing", () => {
     expect(localPointInClip(rect, 0.4, 0.225).inside).toBe(true);
     expect(nextSharedNumber(["0.1", "0.2"], new Set(["0.1"]))).toBe("0.2");
     expect(nextSharedNumber(["0.1"], new Set(["0.1"]))).toBeNull();
+  });
+
+  it("shows a margin around a clip without changing the stored frame", () => {
+    const rect = { x: 0.2, y: 0.1, w: 0.4, h: 0.5 };
+    const view = clipViewRect(rect);
+    expect(view.x).toBeLessThan(rect.x);
+    expect(view.y).toBeLessThan(rect.y);
+    expect(view.x + view.w).toBeGreaterThan(rect.x + rect.w);
+    expect(view.y + view.h).toBeGreaterThan(rect.y + rect.h);
+    expect(localPointInClip(view, 0.4, 0.225).inside).toBe(true);
+    expect(clipViewRect({ x: 0, y: 0, w: 1, h: 1 })).toEqual({ x: 0, y: 0, w: 1, h: 1 });
   });
 
   it("keeps a moved frame in the project file", () => {

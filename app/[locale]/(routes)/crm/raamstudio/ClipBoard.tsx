@@ -1,13 +1,13 @@
 "use client";
 
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
-import { cn } from "@/lib/utils";
-import { localPointInClip, pagePointInClip } from "@/lib/raamstudio/plan-edit";
+import { clipViewRect, localPointInClip, pagePointInClip } from "@/lib/raamstudio/plan-edit";
 import { bucketPlanPixels } from "@/lib/raamstudio/plan-pixels";
 import type { NormRect } from "@/lib/raamstudio/workspace-model";
 
 const MIN_ZOOM = 0.5;
 const MAX_ZOOM = 3;
+const FRAME_PAD = 16;
 
 function clampZoom(value: number): number {
   const rounded = Math.round(value * 100) / 100;
@@ -40,7 +40,6 @@ export function ClipBoard({
   onMove,
   onRemove,
   emptyText = "Duid eerst in stap 1 een gevel, snede of grondplan aan. Die knipsels komen hier.",
-  large = false,
 }: {
   clips: ClipView[];
   planNames: string[];
@@ -49,7 +48,6 @@ export function ClipBoard({
   onMove?: (id: string, x: number, y: number) => void;
   onRemove?: (id: string) => void;
   emptyText?: string;
-  large?: boolean;
 }) {
   if (!clips.length) {
     return (
@@ -69,7 +67,6 @@ export function ClipBoard({
           onPlace={onPlace}
           onMove={onMove}
           onRemove={onRemove}
-          large={large}
         />
       ))}
     </div>
@@ -83,7 +80,6 @@ function ClipCard({
   onPlace,
   onMove,
   onRemove,
-  large = false,
 }: {
   clip: ClipView;
   planName: string;
@@ -91,14 +87,40 @@ function ClipCard({
   onPlace?: (index: number, localX: number, localY: number) => void;
   onMove?: (id: string, x: number, y: number) => void;
   onRemove?: (id: string) => void;
-  large?: boolean;
 }) {
   const [ratio, setRatio] = useState<number | null>(null);
   const [zoom, setZoom] = useState(1);
+  const [frameWidth, setFrameWidth] = useState(0);
   const [drag, setDrag] = useState<{ id: string; dx: number; dy: number } | null>(null);
   const frameRef = useRef<HTMLDivElement>(null);
-  const aspect = ratio ? (clip.rect.w / clip.rect.h) * ratio : 1.3;
+  const zoomAnchor = useRef<{ relX: number; relY: number; clientX: number; clientY: number } | null>(null);
+  const view = clipViewRect(clip.rect);
+  const aspect = ratio ? (view.w / view.h) * ratio : null;
+  const innerWidth = Math.max(1, frameWidth - FRAME_PAD * 2);
+  const sheetWidth = innerWidth * zoom;
+  const sheetHeight = aspect ? sheetWidth / aspect : innerWidth;
+  const frameHeight = aspect ? innerWidth / aspect + FRAME_PAD * 2 : 320;
   const pixels = bucketPlanPixels(4096 * Math.max(1, zoom));
+
+  useEffect(() => {
+    const node = frameRef.current;
+    if (!node) return;
+    const observer = new ResizeObserver(() => setFrameWidth(node.clientWidth));
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    const frame = frameRef.current;
+    const anchor = zoomAnchor.current;
+    if (!frame || !anchor) return;
+    zoomAnchor.current = null;
+    const sheet = frame.querySelector<HTMLElement>('[data-testid="raamstudio-clip-sheet"]');
+    if (!sheet) return;
+    const rect = frame.getBoundingClientRect();
+    frame.scrollLeft = anchor.relX * sheet.offsetWidth - (anchor.clientX - rect.left);
+    frame.scrollTop = anchor.relY * sheet.offsetHeight - (anchor.clientY - rect.top);
+  }, [zoom, sheetWidth, sheetHeight]);
 
   useEffect(() => {
     const onWheel = (event: WheelEvent) => {
@@ -109,6 +131,15 @@ function ClipCard({
       if (!over) return;
       event.preventDefault();
       if (event.buttons !== 0 || !event.deltaY) return;
+      const sheet = frame.querySelector<HTMLElement>('[data-testid="raamstudio-clip-sheet"]');
+      if (!sheet) return;
+      const box = sheet.getBoundingClientRect();
+      zoomAnchor.current = {
+        relX: (event.clientX - box.left) / Math.max(1, box.width),
+        relY: (event.clientY - box.top) / Math.max(1, box.height),
+        clientX: event.clientX,
+        clientY: event.clientY,
+      };
       setZoom((current) => clampZoom(current * Math.exp(-event.deltaY * 0.0015)));
     };
     window.addEventListener("wheel", onWheel, { passive: false, capture: true });
@@ -116,13 +147,23 @@ function ClipCard({
   }, []);
   const visible = numbers.flatMap((number) => {
     if (number.planName !== planName || number.page !== clip.page) return [];
-    const local = localPointInClip(clip.rect, number.x, number.y);
-    if (!local.inside) return [];
+    const placed = localPointInClip(clip.rect, number.x, number.y);
+    if (!placed.inside) return [];
+    const local = localPointInClip(view, number.x, number.y);
     const moved = drag?.id === number.id
-      ? { x: Math.min(1, Math.max(0, local.x + drag.dx)), y: Math.min(1, Math.max(0, local.y + drag.dy)) }
+      ? { x: local.x + drag.dx, y: local.y + drag.dy }
       : { x: local.x, y: local.y };
     return [{ ...number, ...moved }];
   });
+
+  function originalLocal(localX: number, localY: number) {
+    const page = pagePointInClip(view, localX, localY);
+    const local = localPointInClip(clip.rect, page.x, page.y);
+    return {
+      x: Math.min(1, Math.max(0, local.x)),
+      y: Math.min(1, Math.max(0, local.y)),
+    };
+  }
 
   function localOf(event: ReactPointerEvent<HTMLDivElement>) {
     const box = event.currentTarget.getBoundingClientRect();
@@ -138,14 +179,14 @@ function ClipCard({
         <p className="text-sm font-medium">{clip.name} <span className="font-normal text-muted-foreground">· {clip.kind}</span></p>
         <div className="ml-auto flex items-center gap-1">
           <button type="button" className="rounded border px-2 py-0.5 text-sm" aria-label="Uitzoomen" onClick={() => setZoom((value) => clampZoom(value - 0.25))}>−</button>
-          <button type="button" className="rounded border px-2 py-0.5 text-xs" onClick={() => setZoom(1)}>Passend</button>
+          <button type="button" className="rounded border px-2 py-0.5 text-xs" onClick={() => { zoomAnchor.current = null; setZoom(1); const frame = frameRef.current; if (frame) { frame.scrollLeft = 0; frame.scrollTop = 0; } }}>Passend</button>
           <button type="button" className="rounded border px-2 py-0.5 text-sm" aria-label="Inzoomen" onClick={() => setZoom((value) => clampZoom(value + 0.25))}>+</button>
           <span className="w-10 text-right text-xs" data-testid="raamstudio-clip-zoom">{Math.round(zoom * 100)}%</span>
         </div>
       </div>
-      <div ref={frameRef} className={cn("overflow-auto", large ? "min-h-[48vh]" : "max-h-[340px]")} data-testid="raamstudio-clip-scroll">
-      <div className="relative overflow-hidden bg-neutral-100" style={{ width: `${zoom * 100}%`, aspectRatio: aspect }} data-testid="raamstudio-clip-sheet" data-zoom={zoom}>
-        {/* The full page is shifted so only this knipsel stays in view. */}
+      <div ref={frameRef} className="overflow-auto" style={{ height: aspect ? frameHeight : undefined, minHeight: aspect ? undefined : frameHeight, padding: FRAME_PAD }} data-testid="raamstudio-clip-scroll">
+      <div className="relative overflow-hidden bg-neutral-100" style={{ width: sheetWidth, height: sheetHeight, marginInline: zoom <= 1 ? "auto" : undefined }} data-testid="raamstudio-clip-sheet" data-zoom={zoom}>
+        {/* The full page is shifted so this knipsel, plus a margin, fills the sheet. */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={`/api/crm/raamstudio/plan-page?documentId=${encodeURIComponent(clip.planId)}&page=${clip.page + 1}&px=${pixels}`}
@@ -153,10 +194,16 @@ function ClipCard({
           draggable={false}
           className="pointer-events-none absolute max-w-none"
           style={{
-            width: `${100 / clip.rect.w}%`,
-            height: `${100 / clip.rect.h}%`,
-            left: `${(-clip.rect.x / clip.rect.w) * 100}%`,
-            top: `${(-clip.rect.y / clip.rect.h) * 100}%`,
+            maxWidth: "none",
+            width: `${100 / view.w}%`,
+            height: `${100 / view.h}%`,
+            left: `${(-view.x / view.w) * 100}%`,
+            top: `${(-view.y / view.h) * 100}%`,
+          }}
+          ref={(node) => {
+            if (node?.complete && node.naturalWidth > 0 && node.naturalHeight > 0) {
+              setRatio(node.naturalWidth / node.naturalHeight);
+            }
           }}
           onLoad={(event) => {
             const width = event.currentTarget.naturalWidth;
@@ -169,7 +216,7 @@ function ClipCard({
           data-testid="raamstudio-clip-surface"
           onPointerDown={(event) => {
             if (event.button !== 0 || !onPlace) return;
-            const point = localOf(event);
+            const point = originalLocal(localOf(event).x, localOf(event).y);
             onPlace(clip.index, point.x, point.y);
           }}
         >
@@ -209,7 +256,7 @@ function ClipCard({
                     y: Math.min(1, Math.max(0, origin.y + (pointer.clientY - box.top) / Math.max(1, box.height) - start.y)),
                   };
                   setDrag(null);
-                  const page = pagePointInClip(clip.rect, next.x, next.y);
+                  const page = pagePointInClip(view, next.x, next.y);
                   onMove(id, page.x, page.y);
                 };
                 window.addEventListener("pointermove", move);

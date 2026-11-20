@@ -133,6 +133,17 @@ export function pagePointInClip(rect: NormRect, localX: number, localY: number):
   };
 }
 
+/** The selection plus a margin, still inside the page. The stored rectangle stays as it is. */
+export function clipViewRect(rect: NormRect, margin = 0.04): NormRect {
+  const extraX = rect.w * margin;
+  const extraY = rect.h * margin;
+  const x = Math.max(0, rect.x - extraX);
+  const y = Math.max(0, rect.y - extraY);
+  const right = Math.min(1, rect.x + rect.w + extraX);
+  const bottom = Math.min(1, rect.y + rect.h + extraY);
+  return { x, y, w: Math.max(0.01, right - x), h: Math.max(0.01, bottom - y) };
+}
+
 /** The same page point, measured inside the clip. Outside points stay outside. */
 export function localPointInClip(rect: NormRect, x: number, y: number): { x: number; y: number; inside: boolean } {
   const localX = (x - rect.x) / rect.w;
