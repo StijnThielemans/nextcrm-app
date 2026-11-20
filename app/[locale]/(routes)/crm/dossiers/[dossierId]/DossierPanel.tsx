@@ -117,7 +117,11 @@ function followUpInDays(days: number) {
   return date.toISOString().slice(0, 10);
 }
 
-function DocumentFolderRow({ folder }: { folder: DocumentFolder }) {
+function isRaamstudioProject(name: string) {
+  return name.toLowerCase().endsWith(".tc-raam");
+}
+
+function DocumentFolderRow({ folder, dossierId }: { folder: DocumentFolder; dossierId: string }) {
   const t = useTranslations("Sales");
   const title = folderTitle(folder.label, folder.files[0]?.category, t);
   const [open, setOpen] = useState(true);
@@ -145,7 +149,13 @@ function DocumentFolderRow({ folder }: { folder: DocumentFolder }) {
           {folder.files.map((doc) => (
             <li key={doc.id} data-file={doc.name} className="flex items-start gap-2">
               <FileText className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" aria-hidden />
-              <OpenStoredFile kind="document" id={doc.id} name={doc.name} className="underline break-all">{doc.name}</OpenStoredFile>
+              {isRaamstudioProject(doc.name) ? (
+                <Link href={`/crm/raamstudio?dossier=${dossierId}`} className="underline break-all" data-testid="open-raamstudio">
+                  {doc.name}
+                </Link>
+              ) : (
+                <OpenStoredFile kind="document" id={doc.id} name={doc.name} className="underline break-all">{doc.name}</OpenStoredFile>
+              )}
             </li>
           ))}
         </ul>
@@ -196,7 +206,7 @@ function WinningQuoteChoices({ quotes }: { quotes: DossierDetail["families"][num
   );
 }
 
-function DocumentFolders({ documents }: { documents: DossierDetail["documents"] }) {
+function DocumentFolders({ documents, dossierId }: { documents: DossierDetail["documents"]; dossierId: string }) {
   const t = useTranslations("Sales");
   const folders = groupDocumentsIntoFolders(documents);
   if (folders.length === 0) {
@@ -206,7 +216,7 @@ function DocumentFolders({ documents }: { documents: DossierDetail["documents"] 
   return (
     <ul className="space-y-1">
       {folders.map((folder) => (
-        <DocumentFolderRow key={folder.key} folder={folder} />
+        <DocumentFolderRow key={folder.key} folder={folder} dossierId={dossierId} />
       ))}
     </ul>
   );
@@ -700,7 +710,7 @@ export function DossierPanel({
               </DialogFooter>
             </DialogContent>
           </Dialog>
-          <DocumentFolders documents={dossier.documents} />
+          <DocumentFolders documents={dossier.documents} dossierId={dossier.id} />
           <FileAttachmentsDialog
             dossierId={dossier.id}
             attachments={pendingAttachments}
