@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { saveRaamstudioProjectAction } from "@/actions/crm/raamstudio/actions";
 import type { RaamstudioDossierOpen } from "@/lib/raamstudio/dossier-plans";
-import { nextSharedNumber, pagePointInClip, reorderItems } from "@/lib/raamstudio/plan-edit";
+import { localPointInClip, nextSharedNumber, pagePointInClip, reorderItems } from "@/lib/raamstudio/plan-edit";
 import { ClipBoard, type ClipNumber } from "./ClipBoard";
 import { readRaamstudioPayload } from "@/lib/raamstudio/read-project";
 import {
@@ -35,7 +35,18 @@ const fieldClass =
 
 const WHOLE_PAGE: NormRect = { x: 0.01, y: 0.01, w: 0.98, h: 0.98 };
 
-export function RaamstudioWorkspace({ dossier }: { dossier: RaamstudioDossierOpen }) {
+function isFacadeClip(drawing: { kind: string; name: string }): boolean {
+  if (drawing.kind === "Gevel" || drawing.kind === "Snede") return true;
+  return /gevel|snede/i.test(drawing.name);
+}
+
+export function RaamstudioWorkspace({
+  dossier,
+  onDirtyChange,
+}: {
+  dossier: RaamstudioDossierOpen;
+  onDirtyChange?: (dirty: boolean) => void;
+}) {
   const router = useRouter();
   const pdfs = dossier.plans.filter((plan) => plan.kind === "plan");
   const savedFile = dossier.plans.find((plan) => plan.kind === "tc-raam" && plan.name.startsWith("RaamStudio "))
@@ -124,6 +135,7 @@ export function RaamstudioWorkspace({ dossier }: { dossier: RaamstudioDossierOpe
 
   function touch(next: WorkspaceDraft, nextStatus = "Niet opgeslagen") {
     pristine.current = false;
+    onDirtyChange?.(true);
     setDraft(next);
     setStatus(nextStatus);
     setError(null);
@@ -219,6 +231,33 @@ export function RaamstudioWorkspace({ dossier }: { dossier: RaamstudioDossierOpe
     if (!drawing?.rect) return;
     const point = pagePointInClip(drawing.rect, localX, localY);
     const page = drawing.page ?? 0;
+    if (step === "gevels" && isFacadeClip(drawing)) {
+      if (!chosenFacade) {
+        setStatus("Kies links een nummer van het grondplan.");
+        return;
+      }
+      const at = draft.facades.findIndex((item) => (
+        item.number === chosenFacade
+        && item.planName === drawing.planName
+        && (item.page ?? 0) === page
+        && item.x != null
+        && item.y != null
+        && localPointInClip(drawing.rect, item.x, item.y).inside
+      ));
+      const marker = {
+        planName: drawing.planName,
+        number: chosenFacade,
+        ...(page ? { page } : {}),
+        x: point.x,
+        y: point.y,
+      };
+      const facades = draft.facades.slice();
+      if (at >= 0) facades[at] = marker;
+      else facades.push(marker);
+      touch({ ...draft, facades });
+      setSelectedId(`facade:${at >= 0 ? at : facades.length - 1}`);
+      return;
+    }
     if (drawing.kind === "Verdieping / grondplan" || drawing.kind === "Dakplan") {
       const level = floor.trim() || "0";
       const same = draft.openings.filter((item) => item.floor === level);
@@ -352,6 +391,7 @@ export function RaamstudioWorkspace({ dossier }: { dossier: RaamstudioDossierOpe
         }
         if (draftRef.current === next) {
           pristine.current = true;
+          onDirtyChange?.(false);
           setStatus(`Opgeslagen in Calculatie: ${result.fileName}`);
         }
         if (refresh) router.refresh();
@@ -437,7 +477,12 @@ export function RaamstudioWorkspace({ dossier }: { dossier: RaamstudioDossierOpe
       </p>
       <p className="px-3 py-1.5 text-xs">{stepMeta.hint}</p>
 
-      <div className={cn("grid min-h-[640px]", step === "tekeningen" ? "lg:grid-cols-[220px_minmax(0,1fr)_300px]" : "lg:grid-cols-[minmax(0,0.7fr)_minmax(460px,1.15fr)]")}>
+      <div className={cn(
+        "grid min-h-[640px]",
+        step === "tekeningen" ? "lg:grid-cols-[220px_minmax(0,1fr)_300px]"
+          : step === "gevels" ? "lg:grid-cols-[220px_minmax(0,1fr)]"
+            : "lg:grid-cols-[minmax(0,0.7fr)_minmax(460px,1.15fr)]",
+      )}>
         {step === "tekeningen" ? (
         <div className="border-black/10 lg:border-r" data-testid="raamstudio-plan-list">
           <p className="px-3 pt-3 text-xs font-medium">Geïmporteerde PDF&apos;s</p>
@@ -467,6 +512,38 @@ export function RaamstudioWorkspace({ dossier }: { dossier: RaamstudioDossierOpe
         </div>
         ) : null}
 
+        {step === "gevels" ? (
+          <div className="border-black/10 p-3 lg:border-r" data-testid="raamstudio-ground-numbers">
+            <p className="text-sm font-medium">Nummers van het grondplan</p>
+            <p className="mt-1 text-xs text-muted-foreground">Kies een nummer en klik op een gevel of snede. Het blijft hetzelfde nummer.</p>
+            {numbers.length ? (
+              <ul className="mt-3 space-y-1">
+                {numbers.map((number) => {
+                  const placed = draft.facades.some((item) => item.number === number && item.x != null);
+                  return (
+                    <li key={number}>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant={chosenFacade === number ? "secondary" : "outline"}
+                        className="w-full justify-start"
+                        data-testid="raamstudio-ground-number"
+                        data-number={number}
+                        aria-pressed={chosenFacade === number}
+                        onClick={() => setArmed(number)}
+                      >
+                        {placed ? `${number} staat op de tekening` : `Kies ${number}`}
+                      </Button>
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : (
+              <p className="mt-3 text-sm text-muted-foreground">Nummer eerst de ramen op het grondplan.</p>
+            )}
+          </div>
+        ) : null}
+
         <div className="flex min-h-[520px] min-w-0 flex-col overflow-hidden bg-neutral-100" data-testid="raamstudio-plan-view">
           {step === "tekeningen" && pageCount > 1 ? (
             <div className="flex items-center gap-2 border-b border-black/10 bg-white px-2 py-1.5">
@@ -475,7 +552,17 @@ export function RaamstudioWorkspace({ dossier }: { dossier: RaamstudioDossierOpe
               <Button type="button" size="sm" variant="outline" disabled={page + 1 >= pageCount} onClick={() => setPage((value) => value + 1)} data-testid="raamstudio-page-next">Volgende pagina</Button>
             </div>
           ) : null}
-          {step !== "tekeningen" ? (
+          {step === "gevels" ? (
+            <ClipBoard
+              clips={visibleClips(draft.drawings, pdfs, isFacadeClip)}
+              planNames={draft.drawings.map((drawing) => drawing.planName)}
+              numbers={clipNumbers(draft)}
+              onPlace={placeOnClip}
+              onMove={(id, x, y) => moveMark(id, { x, y })}
+              onRemove={removeClipNumber}
+              emptyText="Duid eerst in stap 1 een gevel of snede aan. Grondplannen staan in deze stap niet."
+            />
+          ) : step !== "tekeningen" ? (
             <p className="p-6 text-sm text-muted-foreground" data-testid="raamstudio-clips-hint">
               De lijst met PDF&apos;s is weg. Rechts staan de knipsels. Klik erop om een raamnummer te zetten.
             </p>
@@ -511,22 +598,11 @@ export function RaamstudioWorkspace({ dossier }: { dossier: RaamstudioDossierOpe
           )}
         </div>
 
+        {step === "gevels" ? null : (
         <div className={cn("flex min-h-0 flex-col border-black/10 lg:border-l", step !== "tekeningen" && "max-h-[760px] overflow-hidden")} data-testid="raamstudio-side">
           {step !== "tekeningen" ? (
             <ClipBoard
-              clips={draft.drawings.flatMap((drawing, index) => {
-                if (!drawing.rect) return [];
-                const plan = pdfs.find((item) => item.name === drawing.planName);
-                if (!plan) return [];
-                return [{
-                  index,
-                  name: drawing.name,
-                  kind: drawing.kind,
-                  planId: plan.id,
-                  page: drawing.page ?? 0,
-                  rect: drawing.rect,
-                }];
-              })}
+              clips={visibleClips(draft.drawings, pdfs, null)}
               planNames={draft.drawings.map((drawing) => drawing.planName)}
               numbers={clipNumbers(draft)}
               onPlace={step === "maten" || step === "raaminfo" ? undefined : placeOnClip}
@@ -608,40 +684,6 @@ export function RaamstudioWorkspace({ dossier }: { dossier: RaamstudioDossierOpe
             </div>
           ) : null}
 
-          {step === "gevels" ? (
-            <div className="space-y-3">
-              <p className="text-sm font-medium">Nummers op deze gevel of snede</p>
-              <p className="text-xs text-muted-foreground">Kies een nummer en klik op de tekening. Een geplaatst nummer kun je verslepen.</p>
-              {draft.drawings.some((item) => item.kind === "Gevel" || item.kind === "Snede") ? (
-                <ClipStack
-                  testId="raamstudio-facades"
-                  items={draft.drawings.flatMap((drawing, index) => (
-                    drawing.kind === "Gevel" || drawing.kind === "Snede" ? [{ index, name: drawing.name, kind: drawing.kind }] : []
-                  ))}
-                  selectedId={selectedId}
-                  onOpen={(index) => openDrawing(index)}
-                  onReorder={reorderDrawings}
-                />
-              ) : null}
-              {numbers.length ? (
-                <ul className="space-y-1">
-                  {numbers.map((number) => {
-                    const placed = draft.facades.some((item) => item.number === number && item.x != null);
-                    return (
-                      <li key={number}>
-                        <Button type="button" size="sm" variant={chosenFacade === number ? "secondary" : "outline"} onClick={() => setArmed(number)}>
-                          {placed ? `${number} staat op de tekening` : `Kies ${number}`}
-                        </Button>
-                      </li>
-                    );
-                  })}
-                </ul>
-              ) : (
-                <p className="text-sm text-muted-foreground">Nummer eerst de ramen op het grondplan. De aangeduide gevels blijven zichtbaar.</p>
-              )}
-            </div>
-          ) : null}
-
           {step === "maten" ? (
             <div className="space-y-3" data-testid="raamstudio-sizes">
               <p className="text-sm font-medium">Breedte en hoogte</p>
@@ -700,6 +742,7 @@ export function RaamstudioWorkspace({ dossier }: { dossier: RaamstudioDossierOpe
           ) : null}
           </div>
         </div>
+        )}
       </div>
 
       {error ? <p role="alert" className="px-3 py-2 text-sm text-destructive" data-testid="raamstudio-error">{error}</p> : null}
@@ -772,6 +815,26 @@ function ClipStack({
 
 function round(value: number): number {
   return Math.round(value * 10000) / 10000;
+}
+
+function visibleClips(
+  drawings: WorkspaceDraft["drawings"],
+  pdfs: { id: string; name: string }[],
+  accept: ((drawing: WorkspaceDraft["drawings"][number]) => boolean) | null,
+) {
+  return drawings.flatMap((drawing, index) => {
+    if (!drawing.rect || (accept && !accept(drawing))) return [];
+    const plan = pdfs.find((item) => item.name === drawing.planName);
+    if (!plan) return [];
+    return [{
+      index,
+      name: drawing.name,
+      kind: drawing.kind,
+      planId: plan.id,
+      page: drawing.page ?? 0,
+      rect: drawing.rect,
+    }];
+  });
 }
 
 function clipNumbers(draft: WorkspaceDraft): ClipNumber[] {

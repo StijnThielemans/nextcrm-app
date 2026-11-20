@@ -29,6 +29,7 @@ export function ClipBoard({
   onPlace,
   onMove,
   onRemove,
+  emptyText = "Duid eerst in stap 1 een gevel, snede of grondplan aan. Die knipsels komen hier.",
 }: {
   clips: ClipView[];
   planNames: string[];
@@ -36,11 +37,12 @@ export function ClipBoard({
   onPlace?: (index: number, localX: number, localY: number) => void;
   onMove?: (id: string, x: number, y: number) => void;
   onRemove?: (id: string) => void;
+  emptyText?: string;
 }) {
   if (!clips.length) {
     return (
       <p className="p-6 text-sm text-muted-foreground" data-testid="raamstudio-clips-empty">
-        Duid eerst in stap 1 een gevel, snede of grondplan aan. Die knipsels komen hier.
+        {emptyText}
       </p>
     );
   }

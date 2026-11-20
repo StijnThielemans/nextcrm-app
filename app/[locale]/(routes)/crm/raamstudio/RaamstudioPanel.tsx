@@ -41,6 +41,8 @@ export function RaamstudioPanel({
   const [fileName, setFileName] = useState<string | null>(null);
   const [project, setProject] = useState<RaamstudioProject | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [dirtyFor, setDirtyFor] = useState<string | null>(null);
+  const dirty = dirtyFor === selected?.id;
 
   async function openFile(file: File) {
     setError(null);
@@ -64,10 +66,19 @@ export function RaamstudioPanel({
     <div className={cn("mx-auto flex w-full flex-col gap-6", selected ? "max-w-none" : "max-w-4xl")}>
       {selected ? (
         <div className="flex flex-wrap items-center gap-3" data-testid="raamstudio-dossier-bar">
-          <p className="text-sm">
+          <Link
+            href={`/crm/dossiers/${selected.id}`}
+            data-testid="raamstudio-dossier-link"
+            className="text-sm underline decoration-[hsl(var(--tilo))] underline-offset-4"
+            onClick={(event) => {
+              if (!dirty) return;
+              const stay = !window.confirm("De wijzigingen in RaamStudio zijn nog niet opgeslagen. Toch naar het dossier gaan?");
+              if (stay) event.preventDefault();
+            }}
+          >
             <span className="font-medium" data-testid="raamstudio-dossier-selected">{selected.number ?? "Zonder nummer"}</span>
             <span className="text-muted-foreground"> · {selected.name ?? "Zonder projectbeschrijving"}</span>
-          </p>
+          </Link>
           <label className="ml-auto flex items-center gap-2 text-xs text-muted-foreground">
             Ander dossier
             <select
@@ -75,7 +86,12 @@ export function RaamstudioPanel({
               value={selected.id}
               aria-label="Ander dossier"
               data-testid="raamstudio-dossier-switch"
-              onChange={(event) => router.push(`/crm/raamstudio?dossier=${event.target.value}`)}
+              onChange={(event) => {
+                const next = event.target.value;
+                if (next === selected.id) return;
+                if (dirty && !window.confirm("De wijzigingen in RaamStudio zijn nog niet opgeslagen. Toch een ander dossier openen?")) return;
+                router.push(`/crm/raamstudio?dossier=${next}`);
+              }}
             >
               {dossiers.map((dossier) => (
                 <option key={dossier.id} value={dossier.id}>
@@ -131,7 +147,13 @@ export function RaamstudioPanel({
 
       {missing ? <p className="text-sm text-muted-foreground">Dit dossier is niet gevonden.</p> : null}
 
-      {selected ? <RaamstudioWorkspace key={selected.id} dossier={selected} /> : null}
+      {selected ? (
+        <RaamstudioWorkspace
+          key={selected.id}
+          dossier={selected}
+          onDirtyChange={(value) => setDirtyFor(value ? selected.id : null)}
+        />
+      ) : null}
 
       {selected ? null : (
       <>
