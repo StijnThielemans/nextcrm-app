@@ -348,7 +348,7 @@ export function DossierPanel({
   const quoteInput = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [category, setCategory] = useState<DossierDocumentCategory | "">("");
   const [dragging, setDragging] = useState(false);
   const [quoteDragging, setQuoteDragging] = useState(false);
@@ -370,22 +370,38 @@ export function DossierPanel({
     else router.refresh();
   }
 
-  function queueFile(file: File | undefined) {
-    if (!file) return;
+  function queueFiles(list: FileList | readonly File[] | null | undefined) {
+    const files = Array.from(list ?? []);
+    if (files.length === 0) return;
     setCategory("");
-    setPendingFile(file);
+    setPendingFiles(files);
   }
 
   async function storeQueued() {
-    const file = pendingFile;
-    if (!file || !category) return;
+    const files = pendingFiles;
+    if (files.length === 0 || !category) return;
     const chosen = category;
-    setPendingFile(null);
-    await run(async () => {
+    setPendingFiles([]);
+    setBusy(true);
+    setError(null);
+    const rejected: string[] = [];
+    let saved = 0;
+    for (const file of files) {
       const uploaded = await uploadDocumentFile(file);
-      if ("error" in uploaded) return uploaded;
-      return attachDossierDocumentAction(dossier.id, { ...uploaded, category: chosen });
-    });
+      if ("error" in uploaded) {
+        rejected.push(`${file.name}: ${uploaded.error}`);
+        continue;
+      }
+      const attached = await attachDossierDocumentAction(dossier.id, { ...uploaded, category: chosen });
+      if (attached.error) {
+        rejected.push(`${file.name}: ${attached.error}`);
+        continue;
+      }
+      saved += 1;
+    }
+    setBusy(false);
+    if (rejected.length > 0) setError(rejected.join(" "));
+    if (saved > 0) router.refresh();
   }
 
   async function storeOfferte(file: File | undefined) {
@@ -782,26 +798,35 @@ export function DossierPanel({
               onDrop={(event) => {
                 event.preventDefault();
                 setDragging(false);
-                queueFile(event.dataTransfer.files[0]);
+                const dropped = Array.from(event.dataTransfer.files);
+                if (dropped.length === 0) {
+                  for (const item of Array.from(event.dataTransfer.items)) {
+                    if (item.kind !== "file") continue;
+                    const file = item.getAsFile();
+                    if (file) dropped.push(file);
+                  }
+                }
+                queueFiles(dropped);
               }}
             >
               {t("dropDocument")}
               <input
                 className="sr-only"
                 type="file"
+                multiple
                 accept="application/pdf,image/*,.doc,.docx,.txt"
                 onChange={(event) => {
-                  queueFile(event.target.files?.[0]);
+                  queueFiles(event.target.files);
                   event.target.value = "";
                 }}
               />
             </label>
           )}
-          <Dialog open={pendingFile != null} onOpenChange={(open) => { if (!open) setPendingFile(null); }}>
+          <Dialog open={pendingFiles.length > 0} onOpenChange={(open) => { if (!open) setPendingFiles([]); }}>
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>{t("chooseCategoryTitle")}</DialogTitle>
-                <DialogDescription>{pendingFile?.name}</DialogDescription>
+                <DialogDescription>{pendingFiles.map((file) => file.name).join(", ")}</DialogDescription>
               </DialogHeader>
               <label className="space-y-1 block text-sm">
                 <span>{t("category")}</span>
@@ -817,7 +842,7 @@ export function DossierPanel({
                 </select>
               </label>
               <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setPendingFile(null)}>{t("cancel")}</Button>
+                <Button type="button" variant="outline" onClick={() => setPendingFiles([])}>{t("cancel")}</Button>
                 <Button type="button" disabled={!category || busy} onClick={() => void storeQueued()}>{t("save")}</Button>
               </DialogFooter>
             </DialogContent>
