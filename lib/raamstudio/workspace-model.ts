@@ -65,6 +65,8 @@ export type WorkspaceOpening = {
 };
 export type WorkspaceFacade = { planName: string; number: string; page?: number; x?: number; y?: number };
 export type WorkspaceSize = { number: string; orientation: "width" | "height"; valueMm: string };
+/** Offset of a measure label from the window, as a fraction of the clip. Absent means the default place. */
+export type WorkspaceMeasurePlace = { number: string; orientation: "width" | "height"; dx: number; dy: number };
 export type WorkspaceRaaminfo = { number: string; category: string; text: string };
 
 /** Clockwise page rotation, the same steps as PyMuPDF page.rotation. 0 is omitted. */
@@ -78,6 +80,7 @@ export type WorkspaceDraft = {
   openings: WorkspaceOpening[];
   facades: WorkspaceFacade[];
   sizes: WorkspaceSize[];
+  measurePlaces?: WorkspaceMeasurePlace[];
   raaminfo: WorkspaceRaaminfo[];
   pageRotations: PageRotation[];
 };
@@ -97,6 +100,7 @@ export const EMPTY_DRAFT: WorkspaceDraft = {
   openings: [],
   facades: [],
   sizes: [],
+  measurePlaces: [],
   raaminfo: [],
   pageRotations: [],
 };
@@ -124,6 +128,12 @@ function baseName(value: string): string {
 
 function roundUnit(value: number): number {
   return Math.round(value * 10000) / 10000;
+}
+
+/** A drag offset. Zero is the default place under or beside the window. */
+function labelShift(value: unknown): number | null {
+  if (typeof value !== "number" || !Number.isFinite(value) || value < -1 || value > 1) return null;
+  return roundUnit(value);
 }
 
 /** A fraction of the rendered page. Values outside 0–1 are not a web mark. */
@@ -403,6 +413,19 @@ export function normalizeDraft(draft: WorkspaceDraft, planNames: readonly string
     if (!number || !valueMm || (size.orientation !== "width" && size.orientation !== "height")) continue;
     sizes.push({ number, orientation: size.orientation, valueMm });
   }
+  const measurePlaces: WorkspaceMeasurePlace[] = [];
+  const seenPlace = new Set<string>();
+  for (const place of (draft.measurePlaces ?? []).slice(0, LIMIT)) {
+    const number = clean(place.number, 40);
+    const dx = labelShift(place.dx);
+    const dy = labelShift(place.dy);
+    if (!number || dx == null || dy == null || (place.orientation !== "width" && place.orientation !== "height")) continue;
+    if (dx === 0 && dy === 0) continue;
+    const key = `${number}\n${place.orientation}`;
+    if (seenPlace.has(key)) continue;
+    seenPlace.add(key);
+    measurePlaces.push({ number, orientation: place.orientation, dx, dy });
+  }
   const raaminfo: WorkspaceRaaminfo[] = [];
   for (const item of draft.raaminfo.slice(0, LIMIT)) {
     const number = clean(item.number, 40);
@@ -425,7 +448,7 @@ export function normalizeDraft(draft: WorkspaceDraft, planNames: readonly string
     seenRotation.add(key);
     pageRotations.push({ planName, page, degrees });
   }
-  return { drawings, openings, facades, sizes, raaminfo, pageRotations };
+  return { drawings, openings, facades, sizes, measurePlaces, raaminfo, pageRotations };
 }
 
 function projectType(group: string | null): "Nieuwbouw" | "Renovatie" | null {
@@ -528,6 +551,14 @@ export function buildRaamstudioPayload(
       value_mm: size.valueMm,
       selection_index: -1,
     })),
+    ...(work.measurePlaces?.length ? {
+      tilo_measure_places: work.measurePlaces.map((place) => ({
+        number: place.number,
+        orientation: place.orientation,
+        dx: place.dx,
+        dy: place.dy,
+      })),
+    } : {}),
     window_info_annotations: work.raaminfo.map((item) => ({
       number: item.number,
       category: item.category,
@@ -630,6 +661,14 @@ export function workspaceFromPayload(payload: unknown, planNames: readonly strin
     if (!number || !valueMm || !orientation) return [];
     return [{ number, orientation, valueMm }];
   });
+  const measurePlaces: WorkspaceMeasurePlace[] = records(payload.tilo_measure_places).flatMap((place) => {
+    const number = clean(place.number, 40);
+    const orientation = place.orientation === "width" || place.orientation === "height" ? place.orientation : null;
+    const dx = labelShift(place.dx);
+    const dy = labelShift(place.dy);
+    if (!number || !orientation || dx == null || dy == null) return [];
+    return [{ number, orientation, dx, dy }];
+  });
   const raaminfo: WorkspaceRaaminfo[] = records(payload.window_info_annotations).flatMap((item) => {
     const number = clean(item.number, 40);
     const category = clean(item.category, 40);
@@ -647,5 +686,5 @@ export function workspaceFromPayload(payload: unknown, planNames: readonly strin
       return [{ planName, page, degrees }];
     });
   });
-  return normalizeDraft({ drawings, openings, facades, sizes, raaminfo, pageRotations }, planNames);
+  return normalizeDraft({ drawings, openings, facades, sizes, measurePlaces, raaminfo, pageRotations }, planNames);
 }

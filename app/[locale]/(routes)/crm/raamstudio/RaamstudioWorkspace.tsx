@@ -462,6 +462,15 @@ export function RaamstudioWorkspace({
     });
   }
 
+  function setMeasurePlace(number: string, orientation: "width" | "height", dx: number, dy: number) {
+    const others = (draft.measurePlaces ?? []).filter((item) => !(item.number === number && item.orientation === orientation));
+    const nearOrigin = Math.abs(dx) < 0.004 && Math.abs(dy) < 0.004;
+    touch({
+      ...draft,
+      measurePlaces: nearOrigin ? others : [...others, { number, orientation, dx: round(dx), dy: round(dy) }],
+    });
+  }
+
   function addInfo(number: string, text: string) {
     const label = text.trim();
     if (!number || !label) return;
@@ -532,10 +541,18 @@ export function RaamstudioWorkspace({
     const saved = (orientation: "width" | "height") =>
       draft.sizes.find((item) => item.number === number && item.orientation === orientation)?.valueMm ?? "";
     const read = measures.find((item) => item.number === number);
+    const place = (orientation: "width" | "height") =>
+      (draft.measurePlaces ?? []).find((item) => item.number === number && item.orientation === orientation);
+    const widthPlace = place("width");
+    const heightPlace = place("height");
     return {
       number,
       width: saved("width") || (read?.width ? String(read.width.mm) : "???"),
       height: saved("height") || (read?.height ? String(read.height.mm) : "???"),
+      widthDx: widthPlace?.dx ?? 0,
+      widthDy: widthPlace?.dy ?? 0,
+      heightDx: heightPlace?.dx ?? 0,
+      heightDy: heightPlace?.dy ?? 0,
     };
   });
   const chosenNumber = numbers.includes(infoNumber) ? infoNumber : (numbers[0] ?? "");
@@ -620,7 +637,7 @@ export function RaamstudioWorkspace({
         step === "tekeningen" ? "lg:grid-cols-[220px_minmax(0,1fr)_300px]"
           : step === "gevels" ? "lg:grid-cols-[200px_minmax(0,1fr)_340px]"
             : step === "grondplan" ? "lg:grid-cols-[200px_minmax(0,1fr)]"
-              : step === "maten" ? "lg:grid-cols-1"
+              : step === "maten" ? "lg:h-[calc(100dvh-12rem)] lg:min-h-0 lg:grid-cols-[minmax(0,1fr)_340px] lg:grid-rows-[minmax(0,1fr)] lg:overflow-hidden"
                 : "lg:grid-cols-[minmax(0,0.7fr)_minmax(460px,1.15fr)]",
       )}>
         {step === "tekeningen" ? (
@@ -715,7 +732,7 @@ export function RaamstudioWorkspace({
           </div>
         ) : null}
 
-        <div className="flex min-h-[520px] min-w-0 flex-col overflow-auto bg-neutral-100" data-testid="raamstudio-plan-view">
+        <div className={cn("flex min-w-0 flex-col bg-neutral-100", step === "maten" ? "min-h-0 overflow-hidden" : "min-h-[520px] overflow-auto")} data-testid="raamstudio-plan-view">
           {step === "tekeningen" && pageCount > 1 ? (
             <div className="flex items-center gap-2 border-b border-black/10 bg-white px-2 py-1.5">
               <Button type="button" size="sm" variant="outline" disabled={page <= 0} onClick={() => setPage((value) => value - 1)}>Vorige pagina</Button>
@@ -744,17 +761,19 @@ export function RaamstudioWorkspace({
               emptyText="Duid eerst in stap 1 een gevel of snede aan. De grondplannen staan rechts als overzicht."
             />
           ) : step === "maten" ? (
-            <>
-              <p className="px-3 pt-3 text-xs text-muted-foreground">Breedte onder het raam, hoogte rechts. Een ontbrekende maat is ???. Dubbelklik om ze te wijzigen.</p>
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+              <p className="shrink-0 px-3 pt-2 text-xs text-muted-foreground">Breedte onder het raam, hoogte rechts. ??? is leeg. Sleep een maat weg van de tekening. Dubbelklik om ze te wijzigen.</p>
               <ClipBoard
                 clips={visibleClips(draft.drawings, pdfs, isFacadeClip)}
                 planNames={draft.drawings.map((drawing) => drawing.planName)}
                 numbers={clipNumbers(draft)}
                 measures={facadeMeasures}
                 onEditMeasure={setSize}
+                onMoveMeasure={setMeasurePlace}
+                fitFrames
                 emptyText="Duid eerst in stap 1 een gevel of snede aan en zet het raamnummer erop."
               />
-            </>
+            </div>
           ) : step !== "tekeningen" ? (
             <p className="p-6 text-sm text-muted-foreground" data-testid="raamstudio-clips-hint">
               De lijst met PDF&apos;s is weg. Rechts staan de knipsels. Klik erop om een raamnummer te zetten.
@@ -791,8 +810,8 @@ export function RaamstudioWorkspace({
           )}
         </div>
 
-        {step === "gevels" ? (
-          <aside className="flex max-h-[calc(100dvh-7.5rem)] min-h-0 flex-col border-black/10 bg-white lg:sticky lg:top-2 lg:border-l" data-testid="raamstudio-floor-overview">
+        {step === "gevels" || step === "maten" ? (
+          <aside className={cn("flex min-h-0 flex-col border-black/10 bg-white lg:border-l", step === "maten" ? "overflow-hidden" : "max-h-[calc(100dvh-7.5rem)] lg:sticky lg:top-2")} data-testid="raamstudio-floor-overview">
             <div className="px-3 pt-3">
               <p className="text-sm font-medium">Grondplannen</p>
               <p className="text-xs text-muted-foreground">Overzicht met de nummers. Hier plaats je niets.</p>

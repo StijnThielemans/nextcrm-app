@@ -165,6 +165,18 @@ describe("RaamStudio workspace file", () => {
     expect(workspaceFromPayload(payload, plans)).toEqual(normalizeDraft(marked, plans));
   });
 
+  it("keeps a dragged measure label and does not turn it into a new size", () => {
+    const moved: WorkspaceDraft = {
+      ...draft,
+      measurePlaces: [{ number: "0.1", orientation: "width", dx: 0.12, dy: -0.08 }],
+    };
+    const payload = buildRaamstudioPayload(prefill, moved, plans);
+    expect(payload.tilo_measure_places).toEqual([{ number: "0.1", orientation: "width", dx: 0.12, dy: -0.08 }]);
+    expect(payload.dimensions).toEqual([{ number: "0.1", orientation: "width", value_mm: "1200", selection_index: -1 }]);
+    expect(workspaceFromPayload(payload, plans).measurePlaces).toEqual(moved.measurePlaces);
+    expect(workspaceFromPayload(payload, plans).sizes).toEqual(draft.sizes);
+  });
+
   it("turns one PDF page and keeps the kader and the number on that sheet", () => {
     const marked: WorkspaceDraft = {
       drawings: [

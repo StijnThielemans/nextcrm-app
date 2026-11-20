@@ -36,6 +36,10 @@ export type ClipMeasure = {
   number: string;
   width: string;
   height: string;
+  widthDx?: number;
+  widthDy?: number;
+  heightDx?: number;
+  heightDy?: number;
 };
 
 export function ClipBoard({
@@ -47,6 +51,8 @@ export function ClipBoard({
   onRemove,
   measures,
   onEditMeasure,
+  onMoveMeasure,
+  fitFrames = false,
   emptyText = "Duid eerst in stap 1 een gevel, snede of grondplan aan. Die knipsels komen hier.",
   testId = "raamstudio-clip-board",
 }: {
@@ -58,6 +64,8 @@ export function ClipBoard({
   onRemove?: (id: string) => void;
   measures?: ClipMeasure[];
   onEditMeasure?: (number: string, orientation: "width" | "height", value: string) => void;
+  onMoveMeasure?: (number: string, orientation: "width" | "height", dx: number, dy: number) => void;
+  fitFrames?: boolean;
   emptyText?: string;
   testId?: string;
 }) {
@@ -69,7 +77,7 @@ export function ClipBoard({
     );
   }
   return (
-    <div className="min-h-0 flex-1 space-y-3 overflow-auto p-3" data-testid={testId}>
+    <div className={fitFrames ? "flex min-h-0 flex-1 flex-col gap-3 overflow-hidden p-3" : "min-h-0 flex-1 space-y-3 overflow-auto p-3"} data-testid={testId} data-fit={fitFrames ? "true" : "false"}>
       {clips.map((clip) => (
         <ClipCard
           key={`${clip.planId}-${clip.page}-${clip.index}`}
@@ -78,6 +86,8 @@ export function ClipBoard({
           numbers={numbers}
           measures={measures}
           onEditMeasure={onEditMeasure}
+          onMoveMeasure={onMoveMeasure}
+          fill={fitFrames}
           onPlace={onPlace}
           onMove={onMove}
           onRemove={onRemove}
@@ -93,6 +103,8 @@ function ClipCard({
   numbers,
   measures,
   onEditMeasure,
+  onMoveMeasure,
+  fill = false,
   onPlace,
   onMove,
   onRemove,
@@ -102,6 +114,8 @@ function ClipCard({
   numbers: ClipNumber[];
   measures?: ClipMeasure[];
   onEditMeasure?: (number: string, orientation: "width" | "height", value: string) => void;
+  onMoveMeasure?: (number: string, orientation: "width" | "height", dx: number, dy: number) => void;
+  fill?: boolean;
   onPlace?: (index: number, localX: number, localY: number) => void;
   onMove?: (id: string, x: number, y: number) => void;
   onRemove?: (id: string) => void;
@@ -109,21 +123,29 @@ function ClipCard({
   const [ratio, setRatio] = useState<number | null>(null);
   const [zoom, setZoom] = useState(1);
   const [frameWidth, setFrameWidth] = useState(0);
+  const [frameHeightPx, setFrameHeightPx] = useState(0);
   const [drag, setDrag] = useState<{ id: string; dx: number; dy: number } | null>(null);
   const frameRef = useRef<HTMLDivElement>(null);
   const zoomAnchor = useRef<{ relX: number; relY: number; clientX: number; clientY: number } | null>(null);
   const view = clipViewRect(clip.rect);
   const aspect = ratio ? (view.w / view.h) * ratio : null;
   const innerWidth = Math.max(1, frameWidth - FRAME_PAD * 2);
-  const sheetWidth = innerWidth * zoom;
-  const sheetHeight = aspect ? sheetWidth / aspect : innerWidth;
+  const innerHeight = Math.max(1, frameHeightPx - FRAME_PAD * 2);
+  const naturalHeight = aspect ? innerWidth / aspect : innerWidth;
+  const fitScale = fill && frameHeightPx > 0 ? Math.min(1, innerHeight / naturalHeight) : 1;
+  const baseWidth = innerWidth * fitScale;
+  const sheetWidth = baseWidth * zoom;
+  const sheetHeight = aspect ? sheetWidth / aspect : baseWidth;
   const frameHeight = aspect ? innerWidth / aspect + FRAME_PAD * 2 : 320;
   const pixels = bucketPlanPixels(4096 * Math.max(1, zoom));
 
   useEffect(() => {
     const node = frameRef.current;
     if (!node) return;
-    const observer = new ResizeObserver(() => setFrameWidth(node.clientWidth));
+    const observer = new ResizeObserver(() => {
+      setFrameWidth(node.clientWidth);
+      setFrameHeightPx(node.clientHeight);
+    });
     observer.observe(node);
     return () => observer.disconnect();
   }, []);
@@ -192,8 +214,8 @@ function ClipCard({
   }
 
   return (
-    <article className="rounded-lg border border-black/10 bg-white p-2" data-testid="raamstudio-clip-view" data-clip-name={clip.name} data-clip-kind={clip.kind}>
-      <div className="mb-2 flex flex-wrap items-center gap-2">
+    <article className={fill ? "flex min-h-[220px] flex-1 flex-col rounded-lg border border-black/10 bg-white p-2" : "rounded-lg border border-black/10 bg-white p-2"} data-testid="raamstudio-clip-view" data-clip-name={clip.name} data-clip-kind={clip.kind}>
+      <div className="mb-2 flex shrink-0 flex-wrap items-center gap-2">
         <p className="text-sm font-medium">{clip.name} <span className="font-normal text-muted-foreground">· {clip.kind}</span></p>
         <div className="ml-auto flex items-center gap-1">
           <button type="button" className="rounded border px-2 py-0.5 text-sm" aria-label="Uitzoomen" onClick={() => setZoom((value) => clampZoom(value - 0.25))}>−</button>
@@ -202,7 +224,7 @@ function ClipCard({
           <span className="w-10 text-right text-xs" data-testid="raamstudio-clip-zoom">{Math.round(zoom * 100)}%</span>
         </div>
       </div>
-      <div ref={frameRef} className="overflow-auto" style={{ height: aspect ? frameHeight : undefined, minHeight: aspect ? undefined : frameHeight, padding: FRAME_PAD }} data-testid="raamstudio-clip-scroll">
+      <div ref={frameRef} className={fill ? "min-h-0 flex-1 overflow-auto" : "overflow-auto"} style={fill ? { padding: FRAME_PAD } : { height: aspect ? frameHeight : undefined, minHeight: aspect ? undefined : frameHeight, padding: FRAME_PAD }} data-testid="raamstudio-clip-scroll">
       <div className="relative overflow-hidden bg-neutral-100" style={{ width: sheetWidth, height: sheetHeight, marginInline: zoom <= 1 ? "auto" : undefined }} data-testid="raamstudio-clip-sheet" data-zoom={zoom}>
         {/* The full page is shifted so this knipsel, plus a margin, fills the sheet. */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -293,16 +315,26 @@ function ClipCard({
                   number={number.label}
                   orientation="width"
                   testId="raamstudio-facade-width"
-                  style={{ left: `${number.x * 100}%`, top: `${number.y * 100}%`, transform: "translate(-50%, 18px)" }}
+                  anchorX={number.x}
+                  anchorY={number.y}
+                  dx={measure?.widthDx ?? 0}
+                  dy={measure?.widthDy ?? 0}
+                  transform="translate(-50%, 18px)"
                   onCommit={(value) => onEditMeasure(number.label, "width", value)}
+                  onMove={onMoveMeasure ? (dx, dy) => onMoveMeasure(number.label, "width", dx, dy) : undefined}
                 />
                 <MeasureTag
                   text={measure?.height || "???"}
                   number={number.label}
                   orientation="height"
                   testId="raamstudio-facade-height"
-                  style={{ left: `${number.x * 100}%`, top: `${number.y * 100}%`, transform: "translate(28px, -50%)" }}
+                  anchorX={number.x}
+                  anchorY={number.y}
+                  dx={measure?.heightDx ?? 0}
+                  dy={measure?.heightDy ?? 0}
+                  transform="translate(28px, -50%)"
                   onCommit={(value) => onEditMeasure(number.label, "height", value)}
+                  onMove={onMoveMeasure ? (dx, dy) => onMoveMeasure(number.label, "height", dx, dy) : undefined}
                 />
               </span>
             );
@@ -329,19 +361,37 @@ function MeasureTag({
   number,
   orientation,
   testId,
-  style,
+  anchorX,
+  anchorY,
+  dx,
+  dy,
+  transform,
   onCommit,
+  onMove,
 }: {
   text: string;
   number: string;
   orientation: "width" | "height";
   testId: string;
-  style: { left: string; top: string; transform: string };
+  anchorX: number;
+  anchorY: number;
+  dx: number;
+  dy: number;
+  transform: string;
   onCommit: (value: string) => void;
+  onMove?: (dx: number, dy: number) => void;
 }) {
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState("");
+  const [drag, setDrag] = useState<{ dx: number; dy: number } | null>(null);
   const skipCommit = useRef(false);
+  const place = drag ?? { dx, dy };
+  const style = {
+    left: `${(anchorX + place.dx) * 100}%`,
+    top: `${(anchorY + place.dy) * 100}%`,
+    transform,
+    zIndex: drag || Math.abs(place.dx) + Math.abs(place.dy) > 0.001 ? 30 : 20,
+  };
   if (editing) {
     return (
       <input
@@ -380,15 +430,48 @@ function MeasureTag({
   return (
     <button
       type="button"
-      className="absolute z-20 whitespace-nowrap rounded bg-white/90 px-1 text-xs font-medium text-black"
+      className="absolute z-20 cursor-grab touch-none whitespace-nowrap rounded bg-white/90 px-1 text-xs font-medium text-black active:cursor-grabbing"
       style={style}
       data-testid={testId}
       data-number={number}
       data-value={text}
-      onPointerDown={(event) => event.stopPropagation()}
+      data-dx={place.dx}
+      data-dy={place.dy}
+      title="Sleep de maat. Dubbelklik om ze te wijzigen."
+      onPointerDown={(event) => {
+        if (event.button !== 0 || !onMove) {
+          event.stopPropagation();
+          return;
+        }
+        event.stopPropagation();
+        const sheet = event.currentTarget.closest("[data-testid='raamstudio-clip-sheet']");
+        if (!(sheet instanceof HTMLElement)) return;
+        const box = sheet.getBoundingClientRect();
+        const start = { x: event.clientX, y: event.clientY, dx: place.dx, dy: place.dy };
+        let moved = false;
+        const move = (pointer: PointerEvent) => {
+          if (Math.hypot(pointer.clientX - start.x, pointer.clientY - start.y) < 4) return;
+          moved = true;
+          const nextDx = Math.min(1 - anchorX, Math.max(-anchorX, start.dx + (pointer.clientX - start.x) / Math.max(1, box.width)));
+          const nextDy = Math.min(1 - anchorY, Math.max(-anchorY, start.dy + (pointer.clientY - start.y) / Math.max(1, box.height)));
+          setDrag({ dx: nextDx, dy: nextDy });
+        };
+        const up = (pointer: PointerEvent) => {
+          window.removeEventListener("pointermove", move);
+          window.removeEventListener("pointerup", up);
+          if (!moved) return;
+          const nextDx = Math.min(1 - anchorX, Math.max(-anchorX, start.dx + (pointer.clientX - start.x) / Math.max(1, box.width)));
+          const nextDy = Math.min(1 - anchorY, Math.max(-anchorY, start.dy + (pointer.clientY - start.y) / Math.max(1, box.height)));
+          setDrag(null);
+          onMove(nextDx, nextDy);
+        };
+        window.addEventListener("pointermove", move);
+        window.addEventListener("pointerup", up);
+      }}
       onDoubleClick={(event) => {
         event.preventDefault();
         event.stopPropagation();
+        setDrag(null);
         setValue(text === "???" ? "" : text);
         setEditing(true);
       }}
