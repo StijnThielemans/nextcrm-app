@@ -131,7 +131,7 @@ export default async function AppLayout({
         pluginNav={pluginNav}
         appName="TILO"
       />
-      <SidebarInset className="bg-card">
+      <SidebarInset className="bg-[hsl(210_16%_97%)] dark:bg-[hsl(210_12%_7%)]">
         <Header
           id={session.user.id as string}
           lang={session.user.userLanguage as string}

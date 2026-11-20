@@ -31,7 +31,7 @@ type Props = {
  */
 const Header = ({ id, lang }: Props) => {
   return (
-    <div className="flex h-14 shrink-0 items-center justify-between gap-3 border-b border-border/80 bg-card px-4 lg:px-8">
+    <div className="flex h-14 shrink-0 items-center justify-between gap-3 border-b border-[hsl(215_16%_84%)] bg-card px-4 lg:px-8">
       <div className="flex min-w-0 items-center gap-2">
         <SidebarTrigger className="-ml-1 text-muted-foreground" />
         <FulltextSearch />

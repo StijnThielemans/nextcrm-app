@@ -119,27 +119,29 @@ export function LoginComponent({ passwordSignIn = false }: { passwordSignIn?: bo
   };
 
   return (
-    <Card className="shadow-sm">
-      <CardHeader className="space-y-1">
+    <Card className="overflow-hidden border-[hsl(215_16%_76%)] shadow-none">
+      <CardHeader className="space-y-1 border-b border-[hsl(215_14%_86%)]">
         <CardTitle className="text-2xl font-bold">Aanmelden</CardTitle>
         <CardDescription>
           {passwordSignIn ? "Meld je aan met e-mail en wachtwoord" : "Kies hoe je wil aanmelden"}
         </CardDescription>
       </CardHeader>
-      <CardContent className="grid gap-4">
-        <Button
-          variant="outline"
-          onClick={loginWithGoogle}
-          disabled={isLoading}
-          className="w-full"
-        >
-          <Icons.google className="mr-2 h-4 w-4" />
-          Doorgaan met Google
-        </Button>
+      <CardContent className="grid gap-4 pt-6">
+        <div className="rounded-lg border border-[hsl(215_14%_84%)] p-3">
+          <Button
+            variant="outline"
+            onClick={loginWithGoogle}
+            disabled={isLoading}
+            className="w-full"
+          >
+            <Icons.google className="mr-2 h-4 w-4" />
+            Doorgaan met Google
+          </Button>
+        </div>
 
         <div className="relative">
           <div className="absolute inset-0 flex items-center">
-            <span className="w-full border-t" />
+            <span className="w-full border-t border-[hsl(215_14%_82%)]" />
           </div>
           <div className="relative flex justify-center text-xs">
             <span className="bg-background px-2 text-muted-foreground">
@@ -150,7 +152,7 @@ export function LoginComponent({ passwordSignIn = false }: { passwordSignIn?: bo
 
         {passwordSignIn && (
           <form
-            className="grid gap-3"
+            className="grid gap-3 rounded-lg border border-[hsl(215_14%_84%)] p-3"
             onSubmit={(event) => {
               event.preventDefault();
               void signInWithPassword();
@@ -186,7 +188,7 @@ export function LoginComponent({ passwordSignIn = false }: { passwordSignIn?: bo
         )}
 
         {!passwordSignIn && step === "email" && (
-          <div className="grid gap-3">
+          <div className="grid gap-3 rounded-lg border border-[hsl(215_14%_84%)] p-3">
             <div className="grid gap-1.5">
               <Label htmlFor="email">E-mail</Label>
               <Input
@@ -207,7 +209,7 @@ export function LoginComponent({ passwordSignIn = false }: { passwordSignIn?: bo
         )}
 
         {!passwordSignIn && step === "otp" && (
-          <div className="grid gap-3">
+          <div className="grid gap-3 rounded-lg border border-[hsl(215_14%_84%)] p-3">
             <p className="text-sm text-muted-foreground">
               Vul de code van 6 cijfers in die we stuurden naar <strong>{email}</strong>
             </p>

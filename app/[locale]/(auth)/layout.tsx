@@ -21,9 +21,9 @@ export async function generateMetadata(props: Props) {
 
 const AuthLayout = async ({ children }: { children: React.ReactNode }) => {
   return (
-    <div className="flex min-h-screen w-full flex-col bg-background">
-      <header className="flex items-center gap-4 border-b border-black/[0.06] bg-white px-6 py-4">
-        <div className="flex h-14 items-center rounded-lg bg-white px-3 ring-1 ring-black/[0.06]">
+    <div className="flex min-h-screen w-full flex-col bg-[hsl(210_16%_97%)]">
+      <header className="flex items-center gap-4 border-b border-[hsl(215_16%_84%)] bg-white px-6 py-4">
+        <div className="flex h-14 items-center rounded-lg border border-[hsl(215_16%_82%)] bg-white px-3">
           <Image
             src="/images/tilo-logo.png"
             alt="TILO"

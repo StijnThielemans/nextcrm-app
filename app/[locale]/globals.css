@@ -143,3 +143,184 @@
 [data-sidebar="sidebar"] {
   box-shadow: inset 2px 0 0 hsl(var(--tilo));
 }
+
+/* Light block edges. White fill, a visible hairline, no heavy card shadow. */
+.tilo-frame {
+  border: 1px solid hsl(215 16% 76%);
+  border-radius: 0.9rem;
+  background: #fff;
+}
+
+.tilo-cells {
+  display: grid;
+  overflow: hidden;
+  background: #fff;
+}
+
+.tilo-cells > * {
+  min-width: 0;
+  background: #fff;
+  border-right: 1px solid hsl(215 14% 84%);
+  border-bottom: 1px solid hsl(215 14% 84%);
+}
+
+.tilo-rows > * + * {
+  border-top: 1px solid hsl(215 14% 86%);
+}
+
+table.tilo-grid {
+  border-collapse: collapse;
+}
+
+table.tilo-grid th,
+table.tilo-grid td {
+  border-right: 1px solid hsl(215 14% 84%);
+  border-bottom: 1px solid hsl(215 14% 84%);
+  padding-inline: 0.75rem;
+}
+
+table.tilo-grid th:last-child,
+table.tilo-grid td:last-child {
+  border-right: none;
+}
+
+table.tilo-grid tbody tr:last-child td {
+  border-bottom: none;
+}
+
+table.tilo-grid thead th {
+  background: hsl(210 20% 98%);
+  border-bottom-color: hsl(215 14% 76%);
+}
+
+.dark .tilo-frame,
+.dark .tilo-cells > * {
+  border-color: hsl(210 8% 26%);
+  background: hsl(var(--card));
+}
+
+.dark .tilo-cells,
+.dark .tilo-cells > * {
+  background: hsl(var(--card));
+}
+
+.dark .tilo-cells > * {
+  border-color: hsl(210 8% 24%);
+}
+
+.dark .tilo-rows > * + * {
+  border-top-color: hsl(210 8% 24%);
+}
+
+.dark table.tilo-grid th,
+.dark table.tilo-grid td {
+  border-color: hsl(210 8% 24%);
+}
+
+.dark table.tilo-grid thead th {
+  background: hsl(210 8% 14%);
+}
+
+/* Sidebar stays white. Light rules mark the groups and the rows. */
+[data-sidebar="menu"] > [data-sidebar="menu-item"] + [data-sidebar="menu-item"] {
+  margin-top: 0.35rem;
+  border-top: 1px solid hsl(215 14% 88%);
+  padding-top: 0.35rem;
+}
+
+[data-sidebar="menu-sub"] {
+  border-left-color: hsl(215 14% 78%);
+}
+
+[data-sidebar="menu-sub"] > li + li {
+  border-top: 1px solid hsl(215 16% 90%);
+}
+
+/* RaamStudio: borders and gaps only. The workspace logic stays untouched. */
+section:has(> [data-testid="raamstudio-dossiers"]) {
+  border: 1px solid hsl(215 16% 76%);
+  border-radius: 0.9rem;
+  background: #fff;
+  padding: 1rem 1.125rem;
+}
+
+[data-testid="raamstudio-dossiers"] {
+  border: none;
+  border-radius: 0;
+  background: transparent;
+}
+
+[data-testid="raamstudio-dossiers"] > li {
+  border-color: hsl(215 14% 84%);
+}
+
+[data-testid="raamstudio-dossiers"] > li + li {
+  border-top: 1px solid hsl(215 14% 84%);
+}
+
+[data-testid="raamstudio-drop"] {
+  border-color: hsl(215 16% 72%);
+}
+
+[data-testid="raamstudio-program"] {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  border: 1px solid hsl(215 16% 76%);
+  border-radius: 0.9rem;
+  background: hsl(210 16% 97%);
+}
+
+[data-testid="raamstudio-program"] > *:not(:has([data-testid="raamstudio-plan-view"])) {
+  border: 1px solid hsl(215 16% 80%);
+  border-radius: 0.7rem;
+  background: #fff;
+}
+
+[data-testid="raamstudio-steps"] {
+  gap: 0.5rem;
+}
+
+[data-testid="raamstudio-steps"] > button {
+  border: 1px solid hsl(215 16% 78%);
+}
+
+[data-testid="raamstudio-steps"] > button[aria-pressed="true"] {
+  border-color: transparent;
+}
+
+[data-testid="raamstudio-program"] :has(> [data-testid="raamstudio-plan-view"]) {
+  gap: 0.75rem;
+  border: none;
+  background: transparent;
+}
+
+[data-testid="raamstudio-program"] :has(> [data-testid="raamstudio-plan-view"]) > * {
+  border: 1px solid hsl(215 16% 76%);
+  border-radius: 0.7rem;
+  background: #fff;
+}
+
+[data-testid="raamstudio-plan-view"] {
+  background: hsl(210 16% 96%);
+}
+
+[data-testid="raamstudio-plans"] > li + li {
+  border-top: 1px solid hsl(215 14% 88%);
+}
+
+[data-testid="raamstudio-positions"] {
+  border-collapse: collapse;
+}
+
+[data-testid="raamstudio-positions"] th,
+[data-testid="raamstudio-positions"] td {
+  border-right: 1px solid hsl(215 14% 84%);
+  border-bottom: 1px solid hsl(215 14% 84%);
+}
+
+[data-testid="raamstudio-positions"] th:last-child,
+[data-testid="raamstudio-positions"] td:last-child {
+  border-right: none;
+}

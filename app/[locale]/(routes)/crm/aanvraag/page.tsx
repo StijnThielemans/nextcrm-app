@@ -21,7 +21,7 @@ export default async function AanvraagPage({
       description={t("newRequestDescription")}
     >
       {fromBox ? (
-        <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,26rem)]">
+        <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,26rem)]">
           <AanvraagForm projectNumber={projectNumber ?? t("automatic")} fromBox={fromBox} />
           <AanvraagMail mail={fromBox.mail} />
         </div>

@@ -49,18 +49,18 @@ export async function SalesDashboard() {
     [t("tiles.lostSell"), euro(tiles.lostSell)],
   ];
   return (
-    <div className="space-y-12">
-      <dl className="grid grid-cols-2 gap-x-8 gap-y-8 sm:grid-cols-3 xl:grid-cols-4">
+    <div className="space-y-4">
+      <dl className="tilo-frame tilo-cells grid-cols-2 sm:grid-cols-3 xl:grid-cols-4">
         {cards.map(([label, value]) => (
-          <div key={label} className="min-w-0">
+          <div key={label} className="min-w-0 px-5 py-4">
             <dt className="text-[0.75rem] text-muted-foreground">{label}</dt>
             <dd className="mt-1.5 text-[1.65rem] font-medium tabular-nums leading-none tracking-tight">{value}</dd>
           </div>
         ))}
       </dl>
-      <div className="grid gap-10 lg:grid-cols-3" data-testid="sales-tasks">
+      <div className="grid gap-4 lg:grid-cols-3" data-testid="sales-tasks">
         {taskColumns.map((column) => (
-          <section key={column.kind} className="min-w-0" data-testid={`sales-task-${column.kind}`}>
+          <section key={column.kind} className="tilo-frame min-w-0 p-4" data-testid={`sales-task-${column.kind}`}>
             <h2 className="mb-1 flex items-center gap-2 text-sm font-medium">
               <span aria-hidden className="size-1.5 rounded-full bg-[hsl(var(--tilo))]" />
               {column.title}
@@ -68,9 +68,9 @@ export async function SalesDashboard() {
             {tasks[column.kind].length === 0 ? (
               <p className="py-3 text-sm text-muted-foreground">{t("tasksEmpty")}</p>
             ) : (
-              <ul className="max-h-72 overflow-y-auto text-sm">
+              <ul className="tilo-rows max-h-72 overflow-y-auto text-sm">
                 {tasks[column.kind].map((task) => (
-                  <li key={task.id} className="border-b border-border/70">
+                  <li key={task.id}>
                     <Link
                       className="flex min-h-11 items-center hover:text-[hsl(183_35%_28%)]"
                       href={task.href}
@@ -87,29 +87,29 @@ export async function SalesDashboard() {
           </section>
         ))}
       </div>
-      <div className="grid gap-12 lg:grid-cols-2">
-        <section>
+      <div className="grid gap-4 lg:grid-cols-2">
+        <section className="tilo-frame p-4">
           <h2 className="mb-1 text-sm font-medium">{t("recentCustomers")}</h2>
           {recent.customers.length === 0 ? (
             <p className="py-3 text-sm text-muted-foreground">{t("nothingOpened")}</p>
           ) : (
-            <ul className="text-sm">
+            <ul className="tilo-rows text-sm">
               {recent.customers.map((customer) => (
-                <li key={customer.id} className="border-b border-border/70">
+                <li key={customer.id}>
                   <Link className="flex h-12 items-center hover:text-[hsl(183_35%_28%)]" href={`/crm/accounts/${customer.id}`}>{customer.name}</Link>
                 </li>
               ))}
             </ul>
           )}
         </section>
-        <section>
+        <section className="tilo-frame p-4">
           <h2 className="mb-1 text-sm font-medium">{t("recentDossiers")}</h2>
           {recent.dossiers.length === 0 ? (
             <p className="py-3 text-sm text-muted-foreground">{t("nothingOpened")}</p>
           ) : (
-            <ul className="text-sm">
+            <ul className="tilo-rows text-sm">
               {recent.dossiers.map((dossier) => (
-                <li key={dossier.id} className="border-b border-border/70">
+                <li key={dossier.id}>
                   <Link className="flex h-12 items-center hover:text-[hsl(183_35%_28%)]" href={`/crm/dossiers/${dossier.id}`}>{dossier.label}</Link>
                 </li>
               ))}
@@ -117,11 +117,11 @@ export async function SalesDashboard() {
           )}
         </section>
       </div>
-      <section>
+      <section className="tilo-frame p-4">
         <h2 className="mb-1 text-sm font-medium">{t("byStatus")}</h2>
-        <ul className="grid grid-cols-2 gap-x-10 sm:grid-cols-3 xl:grid-cols-4">
+        <ul className="tilo-cells grid-cols-2 sm:grid-cols-3 xl:grid-cols-4">
           {DASHBOARD_STEPS.map((status) => (
-            <li key={status} className="flex items-center justify-between gap-3 border-b border-border/70 py-3 text-sm" data-testid={`dashboard-status-${status}`}>
+            <li key={status} className="flex items-center justify-between gap-3 px-4 py-3 text-sm" data-testid={`dashboard-status-${status}`}>
               <span>{t(`steps.${status}`)}</span>
               <span className="tabular-nums">{tiles.byStatus[status] ?? 0}</span>
             </li>

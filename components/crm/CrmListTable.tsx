@@ -134,24 +134,27 @@ export function CrmListTable<TData>({
   );
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       {hide ? (
-        <div className="flex items-center justify-end gap-2 text-sm text-muted-foreground">
+        <div className="tilo-frame flex items-center justify-end gap-2 px-4 py-3 text-sm text-muted-foreground">
           <span>This content is hidden now.</span>
           {panelToggle}
         </div>
       ) : (
         <>
-          <DataTableToolbar
-            table={table}
-            searchTestId={searchTestId}
-            onResetColumns={layout.reset}
-            actions={actions}
-            trailing={panelToggle}
-          />
-          <div className="overflow-x-auto">
+          <div className="tilo-frame px-4 py-3">
+            <DataTableToolbar
+              table={table}
+              searchTestId={searchTestId}
+              onResetColumns={layout.reset}
+              actions={actions}
+              trailing={panelToggle}
+            />
+          </div>
+          <div className="tilo-frame overflow-hidden">
+            <div className="overflow-x-auto">
             <DndContext id={`${tableId}-columns`} sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
-              <Table data-testid={tableTestId}>
+              <Table className="tilo-grid" data-testid={tableTestId}>
                 <TableHeader>
                   {table.getHeaderGroups().map((headerGroup) => (
                     <TableRow key={headerGroup.id}>
@@ -192,8 +195,11 @@ export function CrmListTable<TData>({
                 </TableBody>
               </Table>
             </DndContext>
+            </div>
+            <div className="border-t border-[hsl(215_14%_84%)] px-4 py-3">
+              <DataTablePagination table={table} />
+            </div>
           </div>
-          <DataTablePagination table={table} />
         </>
       )}
     </div>

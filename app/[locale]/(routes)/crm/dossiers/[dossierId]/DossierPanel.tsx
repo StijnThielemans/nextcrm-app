@@ -324,8 +324,8 @@ export function DossierPanel({
   const stepper = stepperForDossier(dossier);
 
   return (
-    <div className="space-y-12">
-      <section className="flex flex-wrap items-center justify-between gap-4" aria-label={t("status")}>
+    <div className="space-y-4">
+      <section className="tilo-frame flex flex-wrap items-center justify-between gap-4 px-4 py-3" aria-label={t("status")}>
         <ol className="flex min-w-0 flex-1 flex-nowrap items-center overflow-x-auto">
           {stepper.steps.map((step, index) => (
             <li key={step.id} className="flex items-center">
@@ -404,8 +404,8 @@ export function DossierPanel({
           </form>
         </DialogContent>
       </Dialog>
-      <section className="grid items-start gap-x-14 gap-y-12 xl:grid-cols-2">
-        <div className="text-sm xl:col-span-2">
+      <section className="grid items-start gap-4 xl:grid-cols-2">
+        <div className="tilo-frame p-5 text-sm xl:col-span-2">
           <div className="mb-6 flex items-center justify-between gap-2">
             <SectionTitle>{t("customerAndDossier")}</SectionTitle>
             {!dossier.terminal && (
@@ -460,7 +460,7 @@ export function DossierPanel({
         </div>
 
         <div
-          className={`space-y-4 text-sm ${quoteDragging ? "rounded-2xl bg-[hsl(183_42%_97%)]" : ""}`}
+          className={`tilo-frame space-y-4 p-5 text-sm ${quoteDragging ? "bg-[hsl(183_42%_97%)]" : ""}`}
           onDragOver={(event) => {
             if (dossier.terminal) return;
             event.preventDefault();
@@ -504,7 +504,7 @@ export function DossierPanel({
           {quoteRows.length === 0 && <p className="text-muted-foreground">{t("noQuotes")}</p>}
           {quoteRows.length > 0 && (
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="tilo-grid w-full text-sm">
                 <thead>
                   <tr className="border-b text-left text-xs font-medium text-muted-foreground">
                     <th className="pb-2 pr-3 font-medium">{t("quote")}</th>
@@ -640,7 +640,7 @@ export function DossierPanel({
           </Dialog>
         </div>
 
-        <div className="space-y-4 text-sm">
+        <div className="tilo-frame space-y-4 p-5 text-sm">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <SectionTitle>{t("documentsTitle")}</SectionTitle>
             {pendingAttachments.length > 0 && !dossier.terminal && (
@@ -711,11 +711,11 @@ export function DossierPanel({
 
       </section>
 
-      <section className="space-y-4 border-t border-border/70 pt-10" aria-label={t("followUp")}>
+      <section className="tilo-frame space-y-4 p-5" aria-label={t("followUp")}>
         <SectionTitle>{t("followUp")}</SectionTitle>
-        <ul className="text-sm space-y-1">
+        <ul className="tilo-rows text-sm">
           {dossier.channels.map((event) => (
-            <li key={event.id}>
+            <li key={event.id} className="py-2">
               {event.at} · {(event.channel === "EMAIL_OFFERTE" || event.channel === "EMAIL_SELLER") ? t("followUpChannels.EMAIL_SELLER") : t.has(`followUpChannels.${event.channel}`) ? t(`followUpChannels.${event.channel}`) : followUpChannelLabel(event.channel)} · {event.seller}
               {event.original ? ` · ${t("original")}` : ""}
               {event.note ? ` · ${event.note}` : ""}

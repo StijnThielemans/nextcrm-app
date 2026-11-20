@@ -181,7 +181,7 @@ export function AanvraagForm({
   }
 
   return (
-    <form onSubmit={onCreate} className="max-w-3xl space-y-8">
+    <form onSubmit={onCreate} className="tilo-frame max-w-3xl space-y-8 p-5">
       {fromBox && <p className="text-sm text-muted-foreground">{t("offertebox.fromBox")}</p>}
       <section className="grid gap-5 lg:grid-cols-2">
         <h2 className="flex items-center gap-2 text-sm font-medium lg:col-span-2">

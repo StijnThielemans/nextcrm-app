@@ -21,7 +21,7 @@ export async function BasicView({ data }: { data: any }) {
   const tax = data.vat_choice && t.has(`vatChoice.${data.vat_choice}`) ? t(`vatChoice.${data.vat_choice}`) : "";
 
   return (
-    <section className="text-sm">
+    <section className="tilo-frame p-5 text-sm">
       <div className="mb-3 flex justify-end">
         <AccountDetailActions account={data} />
       </div>

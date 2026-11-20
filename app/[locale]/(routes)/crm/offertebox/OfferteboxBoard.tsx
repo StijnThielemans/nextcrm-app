@@ -123,7 +123,7 @@ export function OfferteboxBoard({ view }: { view: OfferteboxView }) {
 
   return (
     <div
-      className={`space-y-10 rounded-2xl ${dragOver ? "ring-1 ring-[hsl(var(--tilo))]" : ""}`}
+      className={`space-y-4 ${dragOver ? "rounded-2xl ring-1 ring-[hsl(var(--tilo))]" : ""}`}
       onDragEnter={onDragEnter}
       onDragOver={onDragOver}
       onDragLeave={onDragLeave}
@@ -139,7 +139,7 @@ export function OfferteboxBoard({ view }: { view: OfferteboxView }) {
         </div>
       )}
       <div
-        className={`rounded-2xl border border-dashed border-border px-6 py-12 text-center ${dragOver ? "border-[hsl(var(--tilo))] bg-[hsl(183_42%_97%)]" : ""}`}
+        className={`rounded-xl border border-dashed border-[hsl(215_16%_72%)] bg-white px-6 py-10 text-center ${dragOver ? "border-[hsl(var(--tilo))] bg-[hsl(183_42%_97%)]" : ""}`}
         data-testid="offertebox-drop"
       >
         <p className="font-medium">{t("offertebox.dropTitle")}</p>
@@ -169,7 +169,7 @@ export function OfferteboxBoard({ view }: { view: OfferteboxView }) {
         </Button>
       </div>
       {adding && (
-        <form onSubmit={onAdd} className="grid gap-4 border-y border-border/80 py-6 sm:grid-cols-[1fr_1fr_1.4fr_auto]" data-testid="offertebox-add-form">
+        <form onSubmit={onAdd} className="tilo-frame grid gap-4 p-4 sm:grid-cols-[1fr_1fr_1.4fr_auto]" data-testid="offertebox-add-form">
           <label className="space-y-1 text-sm">
             <span>{t("offertebox.addName")}</span>
             <Input value={fromName} onChange={(event) => setFromName(event.target.value)} data-testid="offertebox-add-name" />
@@ -189,7 +189,7 @@ export function OfferteboxBoard({ view }: { view: OfferteboxView }) {
         </form>
       )}
       {error && <p className="text-sm text-destructive">{error}</p>}
-      <div className="grid items-start gap-6 lg:grid-cols-2">
+      <div className="grid items-start gap-4 lg:grid-cols-2">
         <MailColumn
           title={t("offertebox.toAssign")}
           empty={t("offertebox.emptyAssign")}
@@ -249,7 +249,7 @@ function MailColumn({
 }) {
   const t = useTranslations("Sales");
   return (
-    <section data-testid={testId} className="space-y-2">
+    <section data-testid={testId} className="tilo-frame space-y-2 p-4">
       <div className="flex items-baseline justify-between">
         <h2 className="flex items-center gap-2 text-sm font-medium">
           <span aria-hidden className="size-1.5 rounded-full bg-[hsl(var(--tilo))]" />
@@ -262,13 +262,13 @@ function MailColumn({
       ) : (
         <div>
           {rows.map((row) => (
-            <article key={row.id} data-testid="offertebox-row" className="border-b border-border/70 py-6">
+            <article key={row.id} data-testid="offertebox-row" className="border-b border-[hsl(215_14%_84%)] py-5 last:border-b-0">
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="font-medium">{row.fromName || row.fromEmail || "—"}</p>
                   {row.fromEmail && row.fromName && <p className="text-sm text-muted-foreground">{row.fromEmail}</p>}
                 </div>
-                <time className="shrink-0 text-sm text-muted-foreground">{when.format(new Date(row.receivedAt))}</time>
+                <time className="shrink-0 border-l border-[hsl(215_14%_84%)] pl-3 text-sm text-muted-foreground">{when.format(new Date(row.receivedAt))}</time>
               </div>
               <h3 className="mt-3 font-medium">{row.subject}</h3>
               {(row.html || row.body) && (

@@ -17,8 +17,8 @@ const Container = ({
   children,
 }: ContainerProps) => {
   return (
-    <div className="flex h-full w-full flex-1 flex-col">
-      <div className="flex flex-wrap items-end justify-between gap-4">
+    <div className="flex h-full w-full flex-1 flex-col gap-4">
+      <div className="tilo-frame flex flex-wrap items-end justify-between gap-4 px-5 py-4">
         <Heading
           title={title}
           description={description}
@@ -26,7 +26,7 @@ const Container = ({
         />
         {actions}
       </div>
-      <div className="mt-8 min-h-0 w-full flex-1">
+      <div className="min-h-0 w-full flex-1">
         {children}
       </div>
     </div>
