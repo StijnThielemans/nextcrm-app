@@ -5,8 +5,9 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
+import { bucketPlanPixels } from "@/lib/raamstudio/plan-pixels";
+
 const MAX_BYTES = 40 * 1024 * 1024;
-const LONGEST_SIDE = "1800";
 
 type PdfDocument = {
   numPages: number;
@@ -20,13 +21,32 @@ type PdfPage = {
 };
 
 type CanvasLike = {
+  width: number;
+  height: number;
   getContext: (kind: "2d") => unknown;
   toBuffer: (type: "image/png") => Buffer;
 };
 
-export async function renderPlanPage(bytes: Buffer, pageNumber: number): Promise<{ png: Buffer; pages: number }> {
+export type RenderedPlanPage = {
+  png: Buffer;
+  pages: number;
+  width: number;
+  height: number;
+};
+
+function pngSize(png: Buffer): { width: number; height: number } {
+  if (png.length < 24 || png.readUInt32BE(0) !== 0x89504e47) throw new Error("empty");
+  const width = png.readUInt32BE(16);
+  const height = png.readUInt32BE(20);
+  if (width < 1 || height < 1) throw new Error("empty");
+  return { width, height };
+}
+
+/** Rasterise one PDF page to a PNG whose longest side matches `longestSide` pixels. */
+export async function renderPlanPage(bytes: Buffer, pageNumber: number, longestSide?: number): Promise<RenderedPlanPage> {
   if (!bytes.length || bytes.length > MAX_BYTES) throw new Error("Het plan is te groot om te openen.");
   if (!Number.isInteger(pageNumber) || pageNumber < 1 || pageNumber > 400) throw new Error("Die pagina bestaat niet.");
+  const target = bucketPlanPixels(longestSide ?? 4096);
 
   const dir = await mkdtemp(path.join(tmpdir(), "raamstudio-plan-"));
   const pdfPath = path.join(dir, "plan.pdf");
@@ -35,23 +55,23 @@ export async function renderPlanPage(bytes: Buffer, pageNumber: number): Promise
     const pages = await pageCount(pdfPath);
     if (pages > 0 && pageNumber > pages) throw new Error("Die pagina bestaat niet.");
     try {
-      const png = await renderWithCairo(pdfPath, pageNumber, dir);
-      return { png, pages: pages || pageNumber };
+      const png = await renderWithCairo(pdfPath, pageNumber, dir, target);
+      return { png, pages: pages || pageNumber, ...pngSize(png) };
     } catch {
-      return renderWithPdfjs(bytes, pageNumber);
+      return renderWithPdfjs(bytes, pageNumber, target);
     }
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
 }
 
-function run(command: string, args: string[]): Promise<string> {
+function run(command: string, args: string[], timeoutMs = 30_000): Promise<string> {
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, { stdio: ["ignore", "pipe", "pipe"] });
     const timer = setTimeout(() => {
       child.kill("SIGKILL");
       reject(new Error(`${command} timeout`));
-    }, 30_000);
+    }, timeoutMs);
     let stdout = "";
     let stderr = "";
     child.stdout?.on("data", (chunk: Buffer) => {
@@ -82,7 +102,7 @@ async function pageCount(pdfPath: string): Promise<number> {
   }
 }
 
-async function renderWithCairo(pdfPath: string, pageNumber: number, dir: string): Promise<Buffer> {
+async function renderWithCairo(pdfPath: string, pageNumber: number, dir: string, longestSide: number): Promise<Buffer> {
   const outBase = path.join(dir, "page");
   await run("pdftocairo", [
     "-png",
@@ -91,17 +111,17 @@ async function renderWithCairo(pdfPath: string, pageNumber: number, dir: string)
     "-l",
     String(pageNumber),
     "-scale-to",
-    LONGEST_SIDE,
+    String(longestSide),
     "-singlefile",
     pdfPath,
     outBase,
-  ]);
+  ], 60_000);
   const png = await readFile(`${outBase}.png`);
-  if (png.length < 32 || png.readUInt32BE(0) !== 0x89504e47) throw new Error("empty");
+  pngSize(png);
   return png;
 }
 
-async function renderWithPdfjs(bytes: Buffer, pageNumber: number): Promise<{ png: Buffer; pages: number }> {
+async function renderWithPdfjs(bytes: Buffer, pageNumber: number, longestSide: number): Promise<RenderedPlanPage> {
   const fromApp = createRequire(path.join(process.cwd(), "package.json"));
   const fromPdfParse = createRequire(fromApp.resolve("pdf-parse"));
   const load = new Function("specifier", "return import(specifier)") as (
@@ -122,11 +142,14 @@ async function renderWithPdfjs(bytes: Buffer, pageNumber: number): Promise<{ png
     if (pageNumber > doc.numPages) throw new Error("Die pagina bestaat niet.");
     const page = await doc.getPage(pageNumber);
     const base = page.getViewport({ scale: 1 });
-    const scale = Math.min(2, 1800 / Math.max(base.width, base.height, 1));
+    const scale = longestSide / Math.max(base.width, base.height, 1);
     const viewport = page.getViewport({ scale });
-    const canvas = createCanvas(Math.max(1, Math.ceil(viewport.width)), Math.max(1, Math.ceil(viewport.height)));
+    const width = Math.max(1, Math.ceil(viewport.width));
+    const height = Math.max(1, Math.ceil(viewport.height));
+    const canvas = createCanvas(width, height);
     await page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
-    return { png: canvas.toBuffer("image/png"), pages: doc.numPages };
+    const png = canvas.toBuffer("image/png");
+    return { png, pages: doc.numPages, width: canvas.width || width, height: canvas.height || height };
   } finally {
     await doc.destroy();
   }

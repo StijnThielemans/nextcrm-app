@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode, type RefObject } from "react";
+import { bucketPlanPixels, planBitmapLongest } from "@/lib/raamstudio/plan-pixels";
 import type { NormRect } from "@/lib/raamstudio/workspace-model";
 
 export type SheetMark = {
@@ -98,66 +99,138 @@ export function PlanSheet({
   const [src, setSrc] = useState<string | null>(null);
   const [loadedKey, setLoadedKey] = useState<string | null>(null);
   const [failedKey, setFailedKey] = useState<string | null>(null);
-  const [zoom, setZoom] = useState(1);
+  const zoomIdentity = `${planId}:${page}:${rotation}`;
+  const [zoomFor, setZoomFor] = useState(zoomIdentity);
+  const [zoomState, setZoom] = useState(1);
+  if (zoomFor !== zoomIdentity) {
+    setZoomFor(zoomIdentity);
+    setZoom(1);
+  }
+  const zoom = zoomFor === zoomIdentity ? zoomState : 1;
   const [drag, setDrag] = useState<(Drag & { key: string }) | null>(null);
+  const [viewportWidth, setViewportWidth] = useState(0);
+  const [aspect, setAspect] = useState<{ key: string; w: number; h: number } | null>(null);
+  const [shown, setShown] = useState<ShownPdf | null>(null);
   const reportPages = useRef(onPageCount);
-  const blob = useRef<string | null>(null);
+  const bitmapRef = useRef<ImageBitmap | null>(null);
+  const shownRef = useRef<ShownPdf | null>(null);
+  const attempts = useRef(new Map<string, number>());
   const scrollRef = useRef<HTMLDivElement>(null);
   const sheetRef = useRef<HTMLDivElement>(null);
   const zoomAnchor = useRef<{ fracX: number; fracY: number; clientX: number; clientY: number } | null>(null);
   const requestKey = `${pdf ? "pdf" : "img"}:${planId}:${page}`;
-  const status = loadedKey === requestKey ? "ready" : failedKey === requestKey ? "error" : "loading";
+  const knownAspect = aspect?.key === requestKey ? aspect : null;
+  const pixelRatio = Math.max(2, typeof window === "undefined" ? 2 : window.devicePixelRatio || 1);
+  const wanted = bucketPlanPixels(planBitmapLongest({
+    sheetCssWidth: Math.max(1, viewportWidth) * zoom,
+    pageWidth: knownAspect?.w ?? 1,
+    pageHeight: knownAspect?.h ?? 1.42,
+    rotation,
+    pixelRatio,
+  }));
+  const pdfShown = shown?.pageKey === requestKey ? shown : null;
+  const status = pdf
+    ? (pdfShown ? "ready" : failedKey === requestKey ? "error" : "loading")
+    : (loadedKey === requestKey ? "ready" : failedKey === requestKey ? "error" : "loading");
   const activeDrag = drag?.key === requestKey ? drag : null;
 
   useEffect(() => {
     reportPages.current = onPageCount;
   }, [onPageCount]);
 
+  useLayoutEffect(() => {
+    const node = scrollRef.current;
+    if (!node) return;
+    const measure = () => {
+      const next = node.clientWidth;
+      setViewportWidth((current) => (current === next ? current : next));
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+
   useEffect(() => {
+    if (pdf) return;
     const controller = new AbortController();
     const key = requestKey;
     void (async () => {
       try {
-        if (!pdf) {
-          await Promise.resolve();
-          if (controller.signal.aborted) return;
-          reportPages.current(1);
-          if (blob.current) URL.revokeObjectURL(blob.current);
-          blob.current = null;
-          setSrc(`/api/documents/${planId}/file`);
-          setLoadedKey(key);
-          return;
-        }
-        const response = await fetch(
-          `/api/crm/raamstudio/plan-page?documentId=${encodeURIComponent(planId)}&page=${page + 1}`,
-          { signal: controller.signal },
-        );
-        if (!response.ok) throw new Error("render");
-        const pages = Number(response.headers.get("X-Plan-Pages") || "1");
-        const next = URL.createObjectURL(await response.blob());
-        if (controller.signal.aborted) {
-          URL.revokeObjectURL(next);
-          return;
-        }
-        reportPages.current(Number.isFinite(pages) && pages > 0 ? pages : 1);
-        if (blob.current) URL.revokeObjectURL(blob.current);
-        blob.current = next;
-        setSrc(next);
+        await Promise.resolve();
+        if (controller.signal.aborted) return;
+        reportPages.current(1);
+        setSrc(`/api/documents/${planId}/file`);
         setLoadedKey(key);
       } catch {
         if (!controller.signal.aborted) setFailedKey(key);
       }
     })();
     return () => controller.abort();
-  }, [planId, page, pdf, requestKey]);
-
-  useEffect(() => () => {
-    if (blob.current) URL.revokeObjectURL(blob.current);
-  }, []);
+  }, [planId, pdf, requestKey]);
 
   useEffect(() => {
-    setZoom(1);
-  }, [planId, page, rotation]);
+    if (!pdf || viewportWidth < 32) return;
+    const pageKey = requestKey;
+    const px = wanted;
+    const current = shownRef.current;
+    if (current?.pageKey === pageKey && current.longest + 4 >= px) return;
+    const attemptKey = `${pageKey}:${px}`;
+    if ((attempts.current.get(attemptKey) ?? 0) >= 2) return;
+
+    const controller = new AbortController();
+    const delay = current?.pageKey === pageKey ? 180 : 0;
+    const timer = window.setTimeout(() => {
+      attempts.current.set(attemptKey, (attempts.current.get(attemptKey) ?? 0) + 1);
+      void loadPdf(controller.signal, pageKey, px);
+    }, delay);
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+
+    async function loadPdf(signal: AbortSignal, key: string, pixels: number) {
+      try {
+        const response = await fetch(
+          `/api/crm/raamstudio/plan-page?documentId=${encodeURIComponent(planId)}&page=${page + 1}&px=${pixels}`,
+          { signal },
+        );
+        if (!response.ok) throw new Error("render");
+        const pages = Number(response.headers.get("X-Plan-Pages") || "1");
+        const bitmap = await createImageBitmap(await response.blob());
+        if (signal.aborted) {
+          bitmap.close();
+          return;
+        }
+        const previous = bitmapRef.current;
+        bitmapRef.current = bitmap;
+        previous?.close();
+        const longest = Math.max(bitmap.width, bitmap.height);
+        const next: ShownPdf = {
+          pageKey: key,
+          width: bitmap.width,
+          height: bitmap.height,
+          longest,
+          paintId: (shownRef.current?.paintId ?? 0) + 1,
+        };
+        shownRef.current = next;
+        setShown(next);
+        setAspect((known) => {
+          if (known?.key === key && Math.abs(known.w / known.h - bitmap.width / bitmap.height) < 0.002) return known;
+          return { key, w: bitmap.width, h: bitmap.height };
+        });
+        reportPages.current(Number.isFinite(pages) && pages > 0 ? pages : 1);
+        setFailedKey((failed) => (failed === key ? null : failed));
+      } catch {
+        if (!signal.aborted && shownRef.current?.pageKey !== key) setFailedKey(key);
+      }
+    }
+  }, [pdf, planId, page, requestKey, wanted, viewportWidth]);
+
+  useEffect(() => () => {
+    bitmapRef.current?.close();
+    bitmapRef.current = null;
+  }, []);
 
   useLayoutEffect(() => {
     const anchor = zoomAnchor.current;
@@ -246,12 +319,19 @@ export function PlanSheet({
           </>
         ) : null}
       </div>
-      <div ref={scrollRef} className="min-h-0 flex-1 overflow-auto bg-neutral-200" data-testid="raamstudio-plan-scroll" data-zoom={zoom} data-rotation={rotation}>
+      <div ref={scrollRef} className="min-h-0 flex-1 overflow-auto bg-neutral-200" data-testid="raamstudio-plan-scroll" data-zoom={zoom} data-rotation={rotation} data-render-px={pdfShown?.longest ?? undefined}>
         {status === "loading" ? <p className="p-6 text-sm text-muted-foreground" data-testid="raamstudio-plan-loading">Tekening laden…</p> : null}
         {status === "error" ? <p className="p-6 text-sm text-destructive">De tekening kon niet worden geopend.</p> : null}
-        {status === "ready" && src ? (
+        {status === "ready" && (pdf ? pdfShown : src) ? (
           <div ref={sheetRef} className="relative inline-block align-top" style={{ width: `${zoom * 100}%` }}>
-            <TurnedSheet src={src} alt={planName} rotation={rotation}>
+            <TurnedSheet
+              src={pdf ? null : src}
+              alt={planName}
+              rotation={rotation}
+              pixelSize={pdfShown ? { w: pdfShown.width, h: pdfShown.height } : null}
+              bitmapRef={bitmapRef}
+              paintId={pdfShown?.paintId ?? 0}
+            >
             <div
               className="absolute inset-0 cursor-crosshair touch-none"
               data-testid="raamstudio-plan-surface"
@@ -352,60 +432,103 @@ function TurnedSheet({
   src,
   alt,
   rotation,
+  pixelSize,
+  bitmapRef,
+  paintId,
   children,
 }: {
-  src: string;
+  src: string | null;
   alt: string;
   rotation: number;
+  /** Bitmap pixels of a PDF page. Present only for a rendered plan, not for a plain image. */
+  pixelSize: { w: number; h: number } | null;
+  bitmapRef: RefObject<ImageBitmap | null>;
+  paintId: number;
   children: ReactNode;
 }) {
-  const [natural, setNatural] = useState<{ w: number; h: number } | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [loaded, setLoaded] = useState<{ w: number; h: number } | null>(null);
   const [seenSrc, setSeenSrc] = useState(src);
   if (seenSrc !== src) {
     setSeenSrc(src);
-    setNatural(null);
+    setLoaded(null);
   }
+  const natural = pixelSize ?? loaded;
   const quarter = rotation % 180 !== 0;
   const turned = rotation % 360 !== 0;
   const measured = natural != null && natural.w > 0 && natural.h > 0;
+  const frameClass = [
+    "select-none",
+    quarter && measured ? "absolute max-w-none" : "block h-auto w-full",
+    turned && !measured ? "invisible" : "",
+  ].filter(Boolean).join(" ");
+  const frameStyle = quarter && measured && natural
+    ? {
+        left: "50%",
+        top: "50%",
+        width: `${(natural.w / natural.h) * 100}%`,
+        height: `${(natural.h / natural.w) * 100}%`,
+        transform: `translate(-50%, -50%) rotate(${rotation}deg)`,
+      }
+    : rotation % 360 === 180 && natural
+      ? { transform: "rotate(180deg)", aspectRatio: `${natural.w} / ${natural.h}` }
+      : natural
+        ? { aspectRatio: `${natural.w} / ${natural.h}` }
+        : undefined;
+
+  useLayoutEffect(() => {
+    const canvas = canvasRef.current;
+    const bitmap = bitmapRef.current;
+    if (!canvas || !bitmap) return;
+    canvas.width = bitmap.width;
+    canvas.height = bitmap.height;
+    const context = canvas.getContext("2d");
+    if (!context) return;
+    context.drawImage(bitmap, 0, 0);
+    canvas.dataset.bitmapWidth = String(bitmap.width);
+    canvas.dataset.bitmapHeight = String(bitmap.height);
+  }, [bitmapRef, paintId]);
+
   return (
     <div
       className="relative w-full"
-      style={quarter && measured ? { aspectRatio: `${natural.h} / ${natural.w}` } : undefined}
+      style={quarter && measured && natural ? { aspectRatio: `${natural.h} / ${natural.w}` } : undefined}
     >
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src={src}
-        alt={alt}
-        draggable={false}
-        onLoad={(event) => {
-          const width = event.currentTarget.naturalWidth;
-          const height = event.currentTarget.naturalHeight;
-          if (width > 0 && height > 0) setNatural({ w: width, h: height });
-        }}
-        className={[
-          "select-none",
-          quarter && measured ? "absolute max-w-none" : "block w-full",
-          turned && !measured ? "invisible" : "",
-        ].filter(Boolean).join(" ")}
-        style={
-          quarter && measured
-            ? {
-                left: "50%",
-                top: "50%",
-                width: `${(natural.w / natural.h) * 100}%`,
-                height: `${(natural.h / natural.w) * 100}%`,
-                transform: `translate(-50%, -50%) rotate(${rotation}deg)`,
-              }
-            : rotation % 360 === 180
-              ? { transform: "rotate(180deg)" }
-              : undefined
-        }
-      />
+      {pixelSize ? (
+        <canvas
+          ref={canvasRef}
+          aria-label={alt}
+          data-testid="raamstudio-plan-canvas"
+          className={frameClass}
+          style={frameStyle}
+        />
+      ) : src ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={src}
+          alt={alt}
+          draggable={false}
+          onLoad={(event) => {
+            const width = event.currentTarget.naturalWidth;
+            const height = event.currentTarget.naturalHeight;
+            if (width > 0 && height > 0) setLoaded({ w: width, h: height });
+          }}
+          className={frameClass}
+          style={frameStyle}
+        />
+      ) : null}
       {!turned || measured ? children : null}
     </div>
   );
 }
+
+type ShownPdf = {
+  pageKey: string;
+  width: number;
+  height: number;
+  longest: number;
+  paintId: number;
+};
 
 function MarkView({ mark, selected }: { mark: SheetMark; selected: boolean }) {
   if (mark.w && mark.h) {
