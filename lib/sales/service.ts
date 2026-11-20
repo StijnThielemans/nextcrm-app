@@ -3,6 +3,7 @@ import { prismadb } from "@/lib/prisma";
 import { allocateNumber } from "@/lib/orders/numbering";
 import { OrderError } from "@/lib/orders/types";
 import { diffObjects, writeAuditLog } from "@/lib/audit-log";
+import { isDocumentKey } from "@/lib/documents/file-key";
 import { newDocumentFile } from "@/lib/documents/new-document-file";
 import { inngest } from "@/inngest/client";
 import type { AuthzUser } from "@/lib/authz/session";
@@ -1212,6 +1213,143 @@ export async function deleteOfferte(user: AuthzUser, dossierId: string, quoteId:
     entityId: removed.id,
     action: "deleted",
     changes: [{ field: "quote_number", old: removed.number, new: null }],
+    userId: user.id,
+  });
+}
+
+type DossierFileLinks = {
+  opportunities: { opportunity_id: string }[];
+  accounts: { account_id: string }[];
+  contacts: { contact_id: string }[];
+  tasks: { task_id: string }[];
+  leads: { lead_id: string }[];
+  crm_accounts_tasks: { crm_accounts_task_id: string }[];
+};
+
+function documentOnlyOnDossier(dossierId: string, document: DossierFileLinks) {
+  const onlyThisDossier = document.opportunities.length > 0
+    && document.opportunities.every((link) => link.opportunity_id === dossierId);
+  const sharedElsewhere = document.accounts.length > 0
+    || document.contacts.length > 0
+    || document.tasks.length > 0
+    || document.leads.length > 0
+    || document.crm_accounts_tasks.length > 0;
+  return onlyThisDossier && !sharedElsewhere;
+}
+
+async function removeDossierObject(key: string) {
+  if (!isDocumentKey(key)) return;
+  const { DeleteObjectCommand } = await import("@aws-sdk/client-s3");
+  const { MINIO_BUCKET, minioClient } = await import("@/lib/minio");
+  if (!MINIO_BUCKET) throw new Error("MINIO_BUCKET is not defined");
+  try {
+    await minioClient.send(new DeleteObjectCommand({ Bucket: MINIO_BUCKET, Key: key }));
+  } catch (error) {
+    const name = error && typeof error === "object" && "name" in error ? String(error.name) : "";
+    if (name === "NotFound" || name === "NoSuchKey") return;
+    throw error;
+  }
+}
+
+/** Removes one file from the dossier folder and, when this dossier owns it, from storage. */
+export async function deleteDossierDocument(user: AuthzUser, dossierId: string, documentId: string) {
+  const dossier = await loadWritableDossier(user, dossierId);
+  assertOpen(dossier.dossier_status);
+  const id = documentId.trim();
+  if (!id) throw new SalesError("notFound");
+
+  const document = await prismadb.documents.findFirst({
+    where: {
+      id,
+      deletedAt: null,
+      opportunities: { some: { opportunity_id: dossierId } },
+    },
+    select: {
+      id: true,
+      document_name: true,
+      key: true,
+      opportunities: { select: { opportunity_id: true } },
+      accounts: { select: { account_id: true }, take: 1 },
+      contacts: { select: { contact_id: true }, take: 1 },
+      tasks: { select: { task_id: true }, take: 1 },
+      leads: { select: { lead_id: true }, take: 1 },
+      crm_accounts_tasks: { select: { crm_accounts_task_id: true }, take: 1 },
+    },
+  });
+  if (!document) throw new SalesError("notFound");
+
+  if (!documentOnlyOnDossier(dossierId, document)) {
+    await prismadb.documentsToOpportunities.delete({
+      where: { document_id_opportunity_id: { document_id: document.id, opportunity_id: dossierId } },
+    });
+    await writeAuditLog({
+      entityType: "opportunity",
+      entityId: dossierId,
+      action: "relation_removed",
+      changes: [{ field: "document", old: document.id, new: null }],
+      userId: user.id,
+    });
+    return;
+  }
+
+  await prismadb.documents.update({
+    where: { id: document.id },
+    data: { deletedAt: new Date(), deletedBy: user.id },
+  });
+  if (document.key) {
+    try {
+      await removeDossierObject(document.key);
+    } catch (error) {
+      await prismadb.documents.update({
+        where: { id: document.id },
+        data: { deletedAt: null, deletedBy: null },
+      });
+      throw error;
+    }
+  }
+  await writeAuditLog({
+    entityType: "opportunity",
+    entityId: dossierId,
+    action: "relation_removed",
+    changes: [{ field: "document", old: document.document_name, new: null }],
+    userId: user.id,
+  });
+}
+
+/** Moves a file to another Documentbeheer category. The file name stays. */
+export async function changeDossierDocumentCategory(
+  user: AuthzUser,
+  dossierId: string,
+  documentId: string,
+  category: DossierDocumentCategory,
+) {
+  const dossier = await loadWritableDossier(user, dossierId);
+  assertOpen(dossier.dossier_status);
+  if (!(DOSSIER_DOCUMENT_CATEGORIES as readonly string[]).includes(category)) {
+    throw new SalesError("categoryRequired");
+  }
+  const id = documentId.trim();
+  if (!id) throw new SalesError("notFound");
+  const document = await prismadb.documents.findFirst({
+    where: {
+      id,
+      deletedAt: null,
+      opportunities: { some: { opportunity_id: dossierId } },
+    },
+    select: { id: true, filing_category: true },
+  });
+  if (!document) throw new SalesError("notFound");
+  if (document.filing_category === category) return;
+
+  await prismadb.documents.update({
+    where: { id: document.id },
+    data: { filing_category: category },
+  });
+  await writeAuditLog({
+    entityType: "opportunity",
+    entityId: dossierId,
+    action: "updated",
+    changes: [{ field: "filing_category", old: document.filing_category, new: category }],
     userId: user.id,
   });
 }

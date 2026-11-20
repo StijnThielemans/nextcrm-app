@@ -32,7 +32,9 @@ import {
   addChannelAction,
   attachDossierDocumentAction,
   attachOffertePdfAction,
+  changeDossierDocumentCategoryAction,
   changeStatusAction,
+  deleteDossierDocumentAction,
   deleteOfferteAction,
   markSentAction,
 } from "@/actions/crm/sales/actions";
@@ -122,7 +124,25 @@ function isRaamstudioProject(name: string) {
   return name.toLowerCase().endsWith(".tc-raam");
 }
 
-function DocumentFolderRow({ folder, dossierId }: { folder: DocumentFolder; dossierId: string }) {
+function isFilingCategory(value: string | null | undefined): value is DossierDocumentCategory {
+  return !!value && (DOSSIER_DOCUMENT_CATEGORIES as readonly string[]).includes(value);
+}
+
+function DocumentFolderRow({
+  folder,
+  dossierId,
+  locked,
+  busy,
+  onDelete,
+  onCategory,
+}: {
+  folder: DocumentFolder;
+  dossierId: string;
+  locked: boolean;
+  busy: boolean;
+  onDelete: (file: { id: string; name: string }) => void;
+  onCategory: (documentId: string, category: DossierDocumentCategory) => void;
+}) {
   const t = useTranslations("Sales");
   const title = folderTitle(folder.label, folder.files[0]?.category, t);
   const [open, setOpen] = useState(true);
@@ -146,16 +166,50 @@ function DocumentFolderRow({ folder, dossierId }: { folder: DocumentFolder; doss
           <Folder className="size-4 shrink-0 text-amber-700" aria-hidden />
           <span>{title}</span>
         </summary>
-        <ul className="ml-6 space-y-1 border-l py-1 pl-3">
+        <ul className="ml-6 space-y-2 border-l py-1 pl-3">
           {folder.files.map((doc) => (
-            <li key={doc.id} data-file={doc.name} className="flex items-start gap-2">
-              <FileText className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" aria-hidden />
-              {isRaamstudioProject(doc.name) ? (
-                <Link href={`/crm/raamstudio?dossier=${dossierId}`} className="underline break-all" data-testid="open-raamstudio">
-                  {doc.name}
-                </Link>
-              ) : (
-                <OpenStoredFile kind="document" id={doc.id} name={doc.name} className="underline break-all">{doc.name}</OpenStoredFile>
+            <li key={doc.id} data-file={doc.name} className="space-y-1">
+              <div className="flex items-start gap-2">
+                <FileText className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" aria-hidden />
+                {isRaamstudioProject(doc.name) ? (
+                  <Link href={`/crm/raamstudio?dossier=${dossierId}`} className="underline break-all" data-testid="open-raamstudio">
+                    {doc.name}
+                  </Link>
+                ) : (
+                  <OpenStoredFile kind="document" id={doc.id} name={doc.name} className="underline break-all">{doc.name}</OpenStoredFile>
+                )}
+              </div>
+              {!locked && (
+                <div className="flex flex-wrap items-center gap-2 pl-5">
+                  <select
+                    aria-label={t("category")}
+                    data-document-category={doc.name}
+                    className="h-8 max-w-44 rounded-md border bg-transparent px-2 text-xs"
+                    value={isFilingCategory(doc.category) ? doc.category : ""}
+                    disabled={busy}
+                    onChange={(event) => {
+                      const next = event.target.value as DossierDocumentCategory;
+                      if (!isFilingCategory(next) || next === doc.category) return;
+                      onCategory(doc.id, next);
+                    }}
+                  >
+                    {!isFilingCategory(doc.category) && <option value="">{t("chooseCategory")}</option>}
+                    {DOSSIER_DOCUMENT_CATEGORIES.map((item) => (
+                      <option key={item} value={item}>{t(`folders.${item}`)}</option>
+                    ))}
+                  </select>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="h-8 px-2 text-xs"
+                    disabled={busy}
+                    data-delete-document={doc.name}
+                    onClick={() => onDelete({ id: doc.id, name: doc.name })}
+                  >
+                    {t("deleteDocument")}
+                  </Button>
+                </div>
               )}
             </li>
           ))}
@@ -207,19 +261,76 @@ function WinningQuoteChoices({ quotes }: { quotes: DossierDetail["families"][num
   );
 }
 
-function DocumentFolders({ documents, dossierId }: { documents: DossierDetail["documents"]; dossierId: string }) {
+function DocumentFolders({
+  documents,
+  dossierId,
+  locked,
+  busy,
+  run,
+}: {
+  documents: DossierDetail["documents"];
+  dossierId: string;
+  locked: boolean;
+  busy: boolean;
+  run: (work: () => Promise<{ error?: string; ok?: boolean; id?: string }>) => Promise<void>;
+}) {
   const t = useTranslations("Sales");
+  const [fileToDelete, setFileToDelete] = useState<{ id: string; name: string } | null>(null);
   const folders = groupDocumentsIntoFolders(documents);
   if (folders.length === 0) {
     return <p className="text-muted-foreground">{t("noDocuments")}</p>;
   }
 
   return (
-    <ul className="space-y-1">
-      {folders.map((folder) => (
-        <DocumentFolderRow key={folder.key} folder={folder} dossierId={dossierId} />
-      ))}
-    </ul>
+    <>
+      <ul className="space-y-1">
+        {folders.map((folder) => (
+          <DocumentFolderRow
+            key={folder.key}
+            folder={folder}
+            dossierId={dossierId}
+            locked={locked}
+            busy={busy}
+            onDelete={setFileToDelete}
+            onCategory={(documentId, category) => {
+              void run(() => changeDossierDocumentCategoryAction(dossierId, documentId, category));
+            }}
+          />
+        ))}
+      </ul>
+      <Dialog open={fileToDelete != null} onOpenChange={(open) => { if (!open) setFileToDelete(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t("deleteDocumentTitle")}</DialogTitle>
+            <DialogDescription>
+              {t("deleteDocumentPrompt", { name: fileToDelete?.name ?? "" })}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button type="button" variant="outline" data-cancel-delete-document onClick={() => setFileToDelete(null)}>
+              {t("deleteDocumentNo")}
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={busy}
+              data-confirm-delete-document
+              onClick={() => {
+                const target = fileToDelete;
+                if (!target) return;
+                void run(async () => {
+                  const saved = await deleteDossierDocumentAction(dossierId, target.id);
+                  if (!saved.error) setFileToDelete(null);
+                  return saved;
+                });
+              }}
+            >
+              {t("deleteDocumentYes")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 
@@ -711,7 +822,13 @@ export function DossierPanel({
               </DialogFooter>
             </DialogContent>
           </Dialog>
-          <DocumentFolders documents={dossier.documents} dossierId={dossier.id} />
+          <DocumentFolders
+            documents={dossier.documents}
+            dossierId={dossier.id}
+            locked={dossier.terminal}
+            busy={busy}
+            run={run}
+          />
           <FileAttachmentsDialog
             dossierId={dossier.id}
             attachments={pendingAttachments}

@@ -26,6 +26,8 @@ import {
   updateDossierProject,
   attachDossierDocument,
   attachOffertePdf,
+  changeDossierDocumentCategory,
+  deleteDossierDocument,
   deleteOfferte,
   uploadCustomerQuote,
   type AanvraagInput,
@@ -262,6 +264,34 @@ export async function attachOffertePdfAction(dossierId: string, file: QuoteFile 
     const id = await attachOffertePdf(auth.user, dossierId, file);
     refresh();
     return { id };
+  } catch (error) {
+    return await fail(error);
+  }
+}
+
+export async function deleteDossierDocumentAction(dossierId: string, documentId: string) {
+  const auth = await userOrError();
+  if ("error" in auth) return { error: auth.error };
+  try {
+    await deleteDossierDocument(auth.user, dossierId, documentId);
+    refresh();
+    return { ok: true as const };
+  } catch (error) {
+    return await fail(error);
+  }
+}
+
+export async function changeDossierDocumentCategoryAction(
+  dossierId: string,
+  documentId: string,
+  category: DossierDocumentCategory,
+) {
+  const auth = await userOrError();
+  if ("error" in auth) return { error: auth.error };
+  try {
+    await changeDossierDocumentCategory(auth.user, dossierId, documentId, category);
+    refresh();
+    return { ok: true as const };
   } catch (error) {
     return await fail(error);
   }
