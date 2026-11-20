@@ -13,6 +13,9 @@ import { OpenStoredFile } from "@/components/files/OpenStoredFile";
 
 const IMAGE_PREVIEW_BYTES = 200_000;
 
+const frame = "rounded-[0.9rem] border border-[hsl(215_16%_76%)] bg-white dark:border-[hsl(210_8%_26%)] dark:bg-card";
+const hairline = "border-[hsl(215_14%_84%)] dark:border-[hsl(210_8%_24%)]";
+
 export function OfferteboxBoard({ view }: { view: OfferteboxView }) {
   const t = useTranslations("Sales");
   const locale = useLocale();
@@ -121,9 +124,11 @@ export function OfferteboxBoard({ view }: { view: OfferteboxView }) {
     router.refresh();
   }
 
+  const mailboxMissing = t("offertebox.mailboxMissing");
+
   return (
     <div
-      className={`space-y-4 ${dragOver ? "rounded-2xl ring-1 ring-[hsl(var(--tilo))]" : ""}`}
+      className={`flex min-h-0 flex-1 flex-col gap-2 ${dragOver ? "rounded-[0.9rem] ring-1 ring-[hsl(var(--tilo))]" : ""}`}
       onDragEnter={onDragEnter}
       onDragOver={onDragOver}
       onDragLeave={onDragLeave}
@@ -131,65 +136,70 @@ export function OfferteboxBoard({ view }: { view: OfferteboxView }) {
       data-testid="offertebox-list"
     >
       {!view.mailboxLinked && (
-        <div className="rounded-2xl border border-dashed border-border px-4 py-3 text-sm">
-          <p>{t("offertebox.mailboxMissing")}</p>
-          <Link href="/emails" className="mt-1 inline-block underline">
+        <p
+          className="flex shrink-0 items-center gap-2 rounded-[0.9rem] border border-dashed border-[hsl(215_16%_72%)] bg-white px-3 py-1 text-xs leading-tight dark:bg-card"
+          title={mailboxMissing}
+        >
+          <span className="min-w-0 truncate">{mailboxMissing}</span>
+          <Link href="/emails" className="shrink-0 underline">
             {t("offertebox.openEmails")}
           </Link>
-        </div>
+        </p>
       )}
-      <div
-        className={`rounded-xl border border-dashed border-[hsl(215_16%_72%)] bg-white px-6 py-10 text-center ${dragOver ? "border-[hsl(var(--tilo))] bg-[hsl(183_42%_97%)]" : ""}`}
-        data-testid="offertebox-drop"
-      >
-        <p className="font-medium">{t("offertebox.dropTitle")}</p>
-        <p className="mt-1 text-sm text-muted-foreground">{t("offertebox.dropHint")}</p>
-        <label className="mt-3 inline-block cursor-pointer text-sm underline">
-          {uploading ? t("offertebox.dropping") : t("offertebox.dropBrowse")}
-          <input
-            type="file"
-            accept=".eml,.emlx,.msg,message/rfc822,application/vnd.ms-outlook"
-            multiple
-            className="hidden"
-            disabled={uploading}
-            data-testid="offertebox-file"
-            onChange={(event) => {
-              const files = event.target.files ? [...event.target.files] : [];
-              event.target.value = "";
-              void Promise.all(files.map(materializeDroppedFile)).then((ready) =>
-                uploadFiles(ready.filter((file) => file.size > 0)),
-              );
-            }}
-          />
-        </label>
-      </div>
-      <div className="flex justify-end">
-        <Button type="button" size="sm" className="h-9 rounded-full px-4" data-testid="offertebox-add" onClick={() => setAdding((open) => !open)}>
+      <div className="flex shrink-0 items-center gap-2">
+        <div
+          className={`flex min-w-0 flex-1 items-center gap-2 rounded-[0.9rem] border border-dashed border-[hsl(215_16%_72%)] bg-white px-3 py-1.5 ${dragOver ? "border-[hsl(var(--tilo))] bg-[hsl(183_42%_97%)]" : ""}`}
+          data-testid="offertebox-drop"
+        >
+          <p className="min-w-0 truncate text-sm leading-tight" title={t("offertebox.dropHint")}>
+            <span className="font-medium">{t("offertebox.dropTitle")}</span>
+            <span className="text-muted-foreground"> · {t("offertebox.dropHint")}</span>
+          </p>
+          <label className="shrink-0 cursor-pointer text-xs underline">
+            {uploading ? t("offertebox.dropping") : t("offertebox.dropBrowse")}
+            <input
+              type="file"
+              accept=".eml,.emlx,.msg,message/rfc822,application/vnd.ms-outlook"
+              multiple
+              className="hidden"
+              disabled={uploading}
+              data-testid="offertebox-file"
+              onChange={(event) => {
+                const files = event.target.files ? [...event.target.files] : [];
+                event.target.value = "";
+                void Promise.all(files.map(materializeDroppedFile)).then((ready) =>
+                  uploadFiles(ready.filter((file) => file.size > 0)),
+                );
+              }}
+            />
+          </label>
+        </div>
+        <Button type="button" size="sm" className="h-8 shrink-0 rounded-full px-3 text-xs" data-testid="offertebox-add" onClick={() => setAdding((open) => !open)}>
           {t("offertebox.addRequest")}
         </Button>
       </div>
       {adding && (
-        <form onSubmit={onAdd} className="tilo-frame grid gap-4 p-4 sm:grid-cols-[1fr_1fr_1.4fr_auto]" data-testid="offertebox-add-form">
-          <label className="space-y-1 text-sm">
+        <form onSubmit={onAdd} className={`${frame} grid shrink-0 gap-2 p-3 sm:grid-cols-[1fr_1fr_1.4fr_auto]`} data-testid="offertebox-add-form">
+          <label className="space-y-1 text-xs">
             <span>{t("offertebox.addName")}</span>
-            <Input value={fromName} onChange={(event) => setFromName(event.target.value)} data-testid="offertebox-add-name" />
+            <Input className="h-8" value={fromName} onChange={(event) => setFromName(event.target.value)} data-testid="offertebox-add-name" />
           </label>
-          <label className="space-y-1 text-sm">
+          <label className="space-y-1 text-xs">
             <span>{t("offertebox.addEmail")}</span>
-            <Input type="email" value={fromEmail} onChange={(event) => setFromEmail(event.target.value)} data-testid="offertebox-add-email" />
+            <Input className="h-8" type="email" value={fromEmail} onChange={(event) => setFromEmail(event.target.value)} data-testid="offertebox-add-email" />
           </label>
-          <label className="space-y-1 text-sm">
+          <label className="space-y-1 text-xs">
             <span>{t("offertebox.addSubject")}</span>
-            <Input value={subject} onChange={(event) => setSubject(event.target.value)} required data-testid="offertebox-add-subject" />
+            <Input className="h-8" value={subject} onChange={(event) => setSubject(event.target.value)} required data-testid="offertebox-add-subject" />
           </label>
           <div className="flex items-end gap-2">
-            <Button type="submit" size="sm" className="h-10 rounded-full px-4" disabled={saving}>{t("offertebox.addSave")}</Button>
-            <Button type="button" size="sm" variant="outline" className="h-10 rounded-full px-4" onClick={() => setAdding(false)}>{t("offertebox.addCancel")}</Button>
+            <Button type="submit" size="sm" className="h-8 rounded-full px-3" disabled={saving}>{t("offertebox.addSave")}</Button>
+            <Button type="button" size="sm" variant="outline" className="h-8 rounded-full px-3" onClick={() => setAdding(false)}>{t("offertebox.addCancel")}</Button>
           </div>
         </form>
       )}
-      {error && <p className="text-sm text-destructive">{error}</p>}
-      <div className="grid items-start gap-4 lg:grid-cols-2">
+      {error && <p className="shrink-0 text-sm text-destructive">{error}</p>}
+      <div className="grid min-h-0 flex-1 items-stretch gap-2 lg:grid-cols-2">
         <MailColumn
           title={t("offertebox.toAssign")}
           empty={t("offertebox.emptyAssign")}
@@ -249,104 +259,177 @@ function MailColumn({
 }) {
   const t = useTranslations("Sales");
   return (
-    <section data-testid={testId} className="tilo-frame space-y-2 p-4">
-      <div className="flex items-baseline justify-between">
+    <section data-testid={testId} className={`${frame} flex min-h-0 flex-col p-2 lg:h-full`}>
+      <div className="flex shrink-0 items-baseline justify-between px-1 pb-1">
         <h2 className="flex items-center gap-2 text-sm font-medium">
           <span aria-hidden className="size-1.5 rounded-full bg-[hsl(var(--tilo))]" />
           {title}
         </h2>
-        <span className="text-sm tabular-nums text-muted-foreground">{rows.length}</span>
+        <span className="text-xs tabular-nums text-muted-foreground">{rows.length}</span>
       </div>
       {rows.length === 0 ? (
-        <p className="py-6 text-sm text-muted-foreground">{empty}</p>
+        <p className="px-1 py-2 text-xs text-muted-foreground">{empty}</p>
       ) : (
-        <div>
+        <div className="min-h-0 flex-1 overflow-y-auto">
           {rows.map((row) => (
-            <article key={row.id} data-testid="offertebox-row" className="border-b border-[hsl(215_14%_84%)] py-5 last:border-b-0">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="font-medium">{row.fromName || row.fromEmail || "—"}</p>
-                  {row.fromEmail && row.fromName && <p className="text-sm text-muted-foreground">{row.fromEmail}</p>}
-                </div>
-                <time className="shrink-0 border-l border-[hsl(215_14%_84%)] pl-3 text-sm text-muted-foreground">{when.format(new Date(row.receivedAt))}</time>
-              </div>
-              <h3 className="mt-3 font-medium">{row.subject}</h3>
-              {(row.html || row.body) && (
-                <div data-testid="offertebox-body">
-                  <p className="mt-2 text-xs font-medium text-muted-foreground">{t("offertebox.body")}</p>
-                  {row.html ? (
-                    <MailHtml html={row.html} showAll={t("offertebox.showAll")} showLess={t("offertebox.showLess")} />
-                  ) : (
-                    <MailText text={row.body} showAll={t("offertebox.showAll")} showLess={t("offertebox.showLess")} />
-                  )}
-                </div>
-              )}
-              {row.attachments.length > 0 && (
-                <div className="mt-3">
-                  <p className="text-xs font-medium text-muted-foreground">{t("offertebox.attachments")}</p>
-                  <ul className="mt-1 space-y-2">
-                    {row.attachments.map((attachment) => (
-                      <li key={attachment.id} className="flex items-center gap-2">
-                        {attachment.isImage && attachment.size <= IMAGE_PREVIEW_BYTES && (
-                          <img
-                            src={`/api/crm/offertebox/attachments/${attachment.id}`}
-                            alt={attachment.fileName}
-                            className="h-14 w-14 rounded border object-cover"
-                          />
-                        )}
-                        <OpenStoredFile
-                          kind="attachment"
-                          id={attachment.id}
-                          name={attachment.fileName}
-                          mimeType={attachment.contentType}
-                          image={attachment.isImage}
-                          className="underline"
-                          testId="offertebox-attachment"
-                        >
-                          {attachment.fileName}
-                        </OpenStoredFile>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-              <div className="mt-4 flex flex-wrap items-center gap-3">
-                <select
-                  className="h-10 w-48 rounded-full border border-input bg-transparent px-3 text-sm"
-                  value={row.sellerName ?? ""}
-                  disabled={pendingId === row.id}
-                  aria-label={t("offertebox.seller")}
-                  data-testid="offertebox-seller"
-                  onChange={(event) => void onSeller(row.id, event.target.value)}
-                >
-                  <option value="">{t("offertebox.divide")}</option>
-                  {SELLERS.map((name) => (
-                    <option key={name} value={name}>{name}</option>
-                  ))}
-                </select>
-                {showDossier && (
-                  row.dossierId ? (
-                    <Link className="underline" href={`/crm/dossiers/${row.dossierId}`}>
-                      {row.dossierNumber}
-                      {row.step ? ` · ${t(`steps.${row.step}`)}` : ""}
-                    </Link>
-                  ) : (
-                    <Link className="underline" href={`/crm/aanvraag?offertebox=${row.id}`}>
-                      {t("newRequest")}
-                    </Link>
-                  )
-                )}
-                {showDossier && row.dossierId && onFile && row.attachments.some((attachment) => !attachment.filed) && (
-                  <button type="button" className="underline" data-testid="file-attachments" onClick={() => onFile(row)}>
-                    {t("offertebox.fileAttachments")}
-                  </button>
-                )}
-              </div>
-            </article>
+            <MailRow
+              key={row.id}
+              row={row}
+              showDossier={showDossier}
+              pending={pendingId === row.id}
+              when={when}
+              onSeller={onSeller}
+              onFile={onFile}
+              sellerLabel={t("offertebox.seller")}
+              divideLabel={t("offertebox.divide")}
+              newRequestLabel={t("newRequest")}
+              stepLabel={row.step ? t(`steps.${row.step}`) : ""}
+              bodyLabel={t("offertebox.body")}
+              attachmentsLabel={t("offertebox.attachments")}
+              showAll={t("offertebox.showAll")}
+              showLess={t("offertebox.showLess")}
+              fileLabel={t("offertebox.fileAttachments")}
+            />
           ))}
         </div>
       )}
     </section>
+  );
+}
+
+function MailRow({
+  row,
+  showDossier,
+  pending,
+  when,
+  onSeller,
+  onFile,
+  sellerLabel,
+  divideLabel,
+  newRequestLabel,
+  stepLabel,
+  bodyLabel,
+  attachmentsLabel,
+  showAll,
+  showLess,
+  fileLabel,
+}: {
+  row: OfferteboxRow;
+  showDossier: boolean;
+  pending: boolean;
+  when: Intl.DateTimeFormat;
+  onSeller: (id: string, sellerName: string) => Promise<void>;
+  onFile?: (row: OfferteboxRow) => void;
+  sellerLabel: string;
+  divideLabel: string;
+  newRequestLabel: string;
+  stepLabel: string;
+  bodyLabel: string;
+  attachmentsLabel: string;
+  showAll: string;
+  showLess: string;
+  fileLabel: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const name = row.fromName || row.fromEmail || "—";
+  const email = row.fromEmail && row.fromName ? row.fromEmail : "";
+  const dossierText = `${row.dossierNumber ?? ""}${stepLabel ? ` · ${stepLabel}` : ""}`;
+  const unfiled = row.attachments.some((attachment) => !attachment.filed);
+
+  return (
+    <article data-testid="offertebox-row" className={`border-b ${hairline} last:border-b-0 ${open ? "bg-[hsl(210_20%_98%)] dark:bg-[hsl(210_8%_14%)]" : ""}`}>
+      <div className="px-1 py-1">
+        <div className="flex items-baseline gap-2">
+          <button
+            type="button"
+            className="flex min-w-0 flex-1 items-baseline gap-2 text-left"
+            aria-expanded={open}
+            data-testid="offertebox-toggle"
+            title={[name, email, row.subject].filter(Boolean).join(" · ")}
+            onClick={() => setOpen((value) => !value)}
+          >
+            <span className="max-w-[62%] shrink truncate text-sm font-medium leading-5">{name}</span>
+            {email ? <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">{email}</span> : null}
+          </button>
+          <time className="shrink-0 whitespace-nowrap text-xs text-muted-foreground">{when.format(new Date(row.receivedAt))}</time>
+        </div>
+        <div className="mt-0.5 flex items-center gap-2">
+          <select
+            className="h-7 w-[8.75rem] shrink-0 rounded-full border border-input bg-transparent px-2 text-xs"
+            value={row.sellerName ?? ""}
+            disabled={pending}
+            aria-label={sellerLabel}
+            data-testid="offertebox-seller"
+            onChange={(event) => void onSeller(row.id, event.target.value)}
+          >
+            <option value="">{divideLabel}</option>
+            {SELLERS.map((seller) => (
+              <option key={seller} value={seller}>{seller}</option>
+            ))}
+          </select>
+          {showDossier && (
+            row.dossierId ? (
+              <Link className="min-w-0 truncate text-xs underline" href={`/crm/dossiers/${row.dossierId}`} title={dossierText}>
+                {dossierText}
+              </Link>
+            ) : (
+              <Link className="min-w-0 truncate text-xs underline" href={`/crm/aanvraag?offertebox=${row.id}`}>
+                {newRequestLabel}
+              </Link>
+            )
+          )}
+        </div>
+      </div>
+      {open && (
+        <div className="space-y-2 px-2 pb-2" data-testid="offertebox-detail">
+          {row.subject && <p className="text-sm font-medium">{row.subject}</p>}
+          {(row.html || row.body) && (
+            <div data-testid="offertebox-body">
+              <p className="text-xs font-medium text-muted-foreground">{bodyLabel}</p>
+              {row.html ? (
+                <MailHtml html={row.html} showAll={showAll} showLess={showLess} />
+              ) : (
+                <MailText text={row.body} showAll={showAll} showLess={showLess} />
+              )}
+            </div>
+          )}
+          {row.attachments.length > 0 && (
+            <div>
+              <p className="text-xs font-medium text-muted-foreground">{attachmentsLabel}</p>
+              <ul className="mt-1 space-y-1">
+                {row.attachments.map((attachment) => (
+                  <li key={attachment.id} className="flex items-center gap-2">
+                    {attachment.isImage && attachment.size <= IMAGE_PREVIEW_BYTES && (
+                      <img
+                        src={`/api/crm/offertebox/attachments/${attachment.id}`}
+                        alt={attachment.fileName}
+                        className="h-10 w-10 rounded border object-cover"
+                      />
+                    )}
+                    <OpenStoredFile
+                      kind="attachment"
+                      id={attachment.id}
+                      name={attachment.fileName}
+                      mimeType={attachment.contentType}
+                      image={attachment.isImage}
+                      className="truncate text-xs underline"
+                      testId="offertebox-attachment"
+                    >
+                      {attachment.fileName}
+                    </OpenStoredFile>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {showDossier && row.dossierId && onFile && unfiled && (
+            <button type="button" className="text-xs underline" data-testid="file-attachments" onClick={() => onFile(row)}>
+              {fileLabel}
+            </button>
+          )}
+        </div>
+      )}
+    </article>
   );
 }
 
@@ -397,11 +480,11 @@ function MailHtml({ html, showAll, showLess }: { html: string; showAll: string; 
     <>
       <div
         data-testid="offertebox-html"
-        className={`${open ? "mt-1" : "mt-1 max-h-96"} overflow-auto rounded border bg-white p-3 text-sm text-black break-words [&_a]:underline [&_img]:h-auto [&_img]:max-w-full [&_table]:max-w-full`}
+        className={`${open ? "mt-1" : "mt-1 max-h-48"} overflow-auto rounded border bg-white p-2 text-sm text-black break-words [&_a]:underline [&_img]:h-auto [&_img]:max-w-full [&_table]:max-w-full`}
         dangerouslySetInnerHTML={{ __html: html }}
       />
       {long && (
-        <button type="button" className="mt-1 underline" onClick={() => setOpen((value) => !value)}>
+        <button type="button" className="mt-1 text-xs underline" onClick={() => setOpen((value) => !value)}>
           {open ? showLess : showAll}
         </button>
       )}
@@ -414,11 +497,11 @@ function MailText({ text, showAll, showLess }: { text: string; showAll: string; 
   const long = text.length > 420 || text.split("\n").length > 6;
   return (
     <>
-      <div className={open ? "mt-1 whitespace-pre-wrap break-words" : "mt-1 max-h-40 overflow-y-auto whitespace-pre-wrap break-words"}>
+      <div className={open ? "mt-1 whitespace-pre-wrap break-words text-sm" : "mt-1 max-h-32 overflow-y-auto whitespace-pre-wrap break-words text-sm"}>
         {text}
       </div>
       {long && (
-        <button type="button" className="mt-1 underline" onClick={() => setOpen((value) => !value)}>
+        <button type="button" className="mt-1 text-xs underline" onClick={() => setOpen((value) => !value)}>
           {open ? showLess : showAll}
         </button>
       )}
