@@ -53,7 +53,7 @@ export function QuotePositionsSection({ dossierId, quotes }: { dossierId: string
   }, [dossierId, pdfId]);
 
   return (
-    <section className="tilo-frame space-y-4 p-5" aria-label={t("positions.title")} data-quote-positions="">
+    <section className="tilo-frame space-y-3 p-4" aria-label={t("positions.title")} data-quote-positions="">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div className="min-w-0">
           <h2 className="flex items-center gap-2 text-sm font-medium">
@@ -86,12 +86,12 @@ export function QuotePositionsSection({ dossierId, quotes }: { dossierId: string
       {status === "empty" && <p className="text-sm" data-quote-positions-none="">{t("positions.noPositions")}</p>}
       {status === "error" && <p className="text-sm text-destructive" role="status">{t("positions.loadFailed")}</p>}
       {status === "ready" && (
-        <ul className="grid items-start gap-4 xl:grid-cols-2">
+        <ul className="grid w-full grid-cols-1 items-start gap-2">
           {positions.map((position) => {
             const title = position.title !== position.number ? position.title : "";
             return (
-              <li key={position.id} className="space-y-2 rounded-lg border border-[hsl(215_14%_84%)] p-4" data-quote-position={position.number}>
-                <p className="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-sm">
+              <li key={position.id} className="w-full space-y-1 rounded-lg border border-[hsl(215_14%_84%)] px-2.5 py-2" data-quote-position={position.number}>
+                <p className="flex flex-wrap items-baseline gap-x-2.5 gap-y-0.5 text-xs leading-tight">
                   <span className="font-semibold">{t("positions.position")} {position.number}</span>
                   {position.quantity && (
                     <span><span className="text-muted-foreground">{t("positions.quantity")} </span>{position.quantity}</span>
@@ -102,14 +102,14 @@ export function QuotePositionsSection({ dossierId, quotes }: { dossierId: string
                   )}
                 </p>
                 {broken[position.id] ? (
-                  <p className="whitespace-pre-wrap text-sm">{position.text}</p>
+                  <p className="whitespace-pre-wrap text-xs leading-snug">{position.text}</p>
                 ) : (
                   // The crop is a rendered slice of the uploaded quote, not a remote image.
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={`/api/crm/dossiers/${dossierId}/quotes/${pdfId}/positions/${position.id}/image`}
                     alt={t("positions.drawing", { name: position.number })}
-                    className="h-auto w-full rounded border bg-white"
+                    className="h-auto w-auto max-w-full rounded border bg-white sm:max-w-[26rem]"
                     onError={() => setBroken((current) => ({ ...current, [position.id]: true }))}
                   />
                 )}
