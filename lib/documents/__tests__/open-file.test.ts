@@ -1,4 +1,4 @@
-import { fileLaunch, fileOpenDestination, fileOpenUrl, officeProtocol, openFileSegment, publicRequestOrigin, desktopOpenHeaders } from "../open-file";
+import { fileLaunch, fileOpenDestination, fileOpenUrl, fileUrlOnPage, officeProtocol, openFileSegment, publicRequestOrigin, desktopOpenHeaders } from "../open-file";
 import { OPEN_TOKEN_TTL_MS, signOpenToken, verifyOpenToken } from "../open-token";
 
 describe("file open target", () => {
@@ -51,23 +51,40 @@ describe("file open target", () => {
     );
   });
 
-  it("uses the browser origin when it is the app, and never an arbitrary host", () => {
-    const tunnel = "https://consequences-relationship-auditor-fundamental.trycloudflare.com";
+  it("uses the page origin, including a newer tunnel, and never an arbitrary host", () => {
+    const stale = "https://consequences-relationship-auditor-fundamental.trycloudflare.com";
+    const current = "https://wishlist-silicon-delivering-broad.trycloudflare.com";
+    const file = `${stale}/api/documents/d1/file/plan.pdf?open=tok`;
     expect(publicRequestOrigin({
-      originHeader: tunnel,
+      originHeader: stale,
       nextOrigin: "http://localhost:3000",
-      configuredOrigin: tunnel,
-    })).toBe(tunnel);
+      configuredOrigin: stale,
+    })).toBe(stale);
+    expect(publicRequestOrigin({
+      originHeader: current,
+      nextOrigin: "http://localhost:3000",
+      configuredOrigin: stale,
+      trustBrowserHost: true,
+    })).toBe(current);
+    expect(publicRequestOrigin({
+      originHeader: current,
+      nextOrigin: "http://localhost:3000",
+      configuredOrigin: stale,
+    })).toBe(stale);
     expect(publicRequestOrigin({
       originHeader: "http://127.0.0.1:3000",
       nextOrigin: "http://localhost:3000",
-      configuredOrigin: tunnel,
+      configuredOrigin: stale,
     })).toBe("http://127.0.0.1:3000");
     expect(publicRequestOrigin({
       originHeader: "https://evil.example",
       nextOrigin: "http://localhost:3000",
-      configuredOrigin: tunnel,
-    })).toBe(tunnel);
+      configuredOrigin: stale,
+      trustBrowserHost: true,
+    })).toBe(stale);
+    expect(fileUrlOnPage(file, current)).toBe(`${current}/api/documents/d1/file/plan.pdf?open=tok`);
+    expect(fileUrlOnPage("/api/documents/d1/file", current)).toBe(`${current}/api/documents/d1/file`);
+    expect(fileUrlOnPage("https://evil.example/elsewhere", current)).toBe("https://evil.example/elsewhere");
   });
 
   it("serves a PDF inline and does not force a Word file to download on the open path", () => {

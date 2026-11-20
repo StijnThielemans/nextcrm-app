@@ -202,21 +202,49 @@ function isLoopbackOrigin(origin: string): boolean {
   }
 }
 
+function isTunnelOrigin(origin: string): boolean {
+  try {
+    return new URL(origin).hostname.endsWith(".trycloudflare.com");
+  } catch {
+    return false;
+  }
+}
+
 /**
- * Origin the user's PC can fetch. The browser's Origin wins when it is this
- * app (the public tunnel) or the local dev server. Anything else is ignored.
+ * Origin the user's PC can fetch. The page the browser is on wins: the
+ * configured app, the local dev server, or (on a dev server) whichever
+ * trycloudflare tunnel that page is using. A stored BETTER_AUTH_URL can name
+ * a tunnel that is already gone. An unrelated host is ignored.
  */
 export function publicRequestOrigin(input: {
   originHeader: string | null;
   nextOrigin: string;
   configuredOrigin: string | null;
+  /** Dev server: follow a trycloudflare page even when BETTER_AUTH_URL is older. */
+  trustBrowserHost?: boolean;
 }): string {
   const configured = httpOrigin(input.configuredOrigin);
   const sent = httpOrigin(input.originHeader);
   if (sent && configured && sent === configured) return sent;
   if (sent && isLoopbackOrigin(sent)) return sent;
+  if (sent && input.trustBrowserHost && isTunnelOrigin(sent)) return sent;
   if (configured) return configured;
   return httpOrigin(input.nextOrigin) ?? "http://127.0.0.1:3000";
+}
+
+/** Same file path and token, on the host of the page the user is looking at. */
+export function fileUrlOnPage(fileUrl: string, pageOrigin: string): string {
+  const page = httpOrigin(pageOrigin);
+  if (!page) return fileUrl;
+  let parsed: URL;
+  try {
+    parsed = new URL(fileUrl, page);
+  } catch {
+    return fileUrl;
+  }
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return fileUrl;
+  if (!parsed.pathname.startsWith("/api/")) return fileUrl;
+  return `${page}${parsed.pathname}${parsed.search}`;
 }
 
 export function fileOpenUrl(

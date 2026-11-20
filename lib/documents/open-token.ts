@@ -1,4 +1,5 @@
 import { createHmac, timingSafeEqual } from "crypto";
+import { isDevPasswordSignIn } from "@/lib/dev-password-sign-in";
 import { fileLaunch, fileOpenUrl, publicRequestOrigin, type FileLaunch } from "@/lib/documents/open-file";
 
 export type OpenTarget = "document" | "attachment";
@@ -60,6 +61,7 @@ export function mintOpenUrl(
     originHeader: request.headers.get("origin"),
     nextOrigin: request.nextUrl.origin,
     configuredOrigin: process.env.BETTER_AUTH_URL ?? null,
+    trustBrowserHost: isDevPasswordSignIn(),
   });
   return { launch, url: fileOpenUrl(origin, path, fileName, launch, signOpenToken(kind, id)) };
 }

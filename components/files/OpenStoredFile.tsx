@@ -2,7 +2,7 @@
 
 import { useState, type MouseEvent, type ReactNode } from "react";
 import { documentFileRoute } from "@/lib/documents/file-key";
-import { fileLaunch, fileOpenDestination, isFileLaunch, isHttpUrl } from "@/lib/documents/open-file";
+import { fileLaunch, fileOpenDestination, fileUrlOnPage, isFileLaunch, isHttpUrl } from "@/lib/documents/open-file";
 
 type OpenKind = "document" | "attachment";
 
@@ -76,9 +76,10 @@ export function OpenStoredFile({
       if (typeof body.url !== "string" || !isHttpUrl(body.url) || !isFileLaunch(body.launch)) {
         throw new Error("open failed");
       }
-      showInNewTab(fileOpenDestination(body.launch, body.url), tab);
+      const onPage = fileUrlOnPage(body.url, window.location.origin);
+      showInNewTab(fileOpenDestination(body.launch, onPage), tab);
     } catch {
-      showInNewTab(href, tab);
+      showInNewTab(fileUrlOnPage(href, window.location.origin), tab);
     } finally {
       setPending(false);
     }

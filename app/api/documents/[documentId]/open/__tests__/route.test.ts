@@ -87,6 +87,26 @@ describe("POST /api/documents/[documentId]/open", () => {
     expect(body.url.startsWith(`${TUNNEL}/`)).toBe(true);
   });
 
+  it("follows the tunnel the page is on when the stored app URL is an older tunnel", async () => {
+    const current = "https://wishlist-silicon-delivering-broad.trycloudflare.com";
+    const previous = process.env.BETTER_AUTH_URL;
+    const previousEnv = process.env.NODE_ENV;
+    process.env.BETTER_AUTH_URL = TUNNEL;
+    process.env.NODE_ENV = "development";
+    gs.mockResolvedValue({ user: { id: "u" } } as any);
+    fu.mockResolvedValue({ id: "u", role: "user" } as any);
+    scopeCheck.mockResolvedValue({ id: "d1" } as any);
+    fd.mockResolvedValue({ document_name: "plan.pdf", document_file_mimeType: "application/pdf" } as any);
+    try {
+      const res = await post(current);
+      const body = await res.json();
+      expect(body.url.startsWith(`${current}/api/documents/d1/file/`)).toBe(true);
+    } finally {
+      process.env.BETTER_AUTH_URL = previous;
+      process.env.NODE_ENV = previousEnv;
+    }
+  });
+
   it("uses the local dev origin when the page is on the dev server", async () => {
     gs.mockResolvedValue({ user: { id: "u" } } as any);
     fu.mockResolvedValue({ id: "u", role: "user" } as any);
