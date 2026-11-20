@@ -93,9 +93,9 @@ function Fact({
   status?: string;
 }) {
   return (
-    <p className="flex flex-col gap-0.5" data-testid={testId} data-dossier-status={status}>
-      <span className="text-[0.72rem] text-muted-foreground">{label}</span>
-      <span className="text-[0.95rem]">{children}</span>
+    <p className="flex flex-col gap-px leading-tight" data-testid={testId} data-dossier-status={status}>
+      <span className="text-[0.72rem] leading-tight text-muted-foreground">{label}</span>
+      <span className="text-[0.95rem] leading-tight">{children}</span>
     </p>
   );
 }
@@ -416,8 +416,8 @@ export function DossierPanel({
         </DialogContent>
       </Dialog>
       <section className="grid items-start gap-4 xl:grid-cols-2">
-        <div className="tilo-frame p-5 text-sm xl:col-span-2">
-          <div className="mb-6 flex items-center justify-between gap-2">
+        <div className="tilo-frame p-3 text-sm xl:col-span-2">
+          <div className="mb-2 flex items-center justify-between gap-2">
             <SectionTitle>{t("customerAndDossier")}</SectionTitle>
             {!dossier.terminal && (
               <Button
@@ -432,8 +432,8 @@ export function DossierPanel({
               </Button>
             )}
           </div>
-          <div className="grid gap-x-12 gap-y-5 lg:grid-cols-2">
-          <div className="space-y-5">
+          <div className="grid gap-x-12 gap-y-1 lg:grid-cols-2">
+          <div className="space-y-1">
           <Fact label={t("customer")}><Link className="underline-offset-4 hover:underline" href={`/crm/accounts/${dossier.customer.id}`}>{dossier.customer.name}</Link></Fact>
           <Fact label={t("contactType")}>{dossier.customer.role && t.has(`roles.${dossier.customer.role}`) ? t(`roles.${dossier.customer.role}`) : "—"}</Fact>
           <Fact label={t("email")}>{dossier.customer.email ?? "—"}</Fact>
@@ -442,7 +442,7 @@ export function DossierPanel({
           <Fact label={t("vat")}>{dossier.customer.vat ?? "—"}</Fact>
           <Fact label={t("address")}><AddressLink address={dossier.customer.address} /></Fact>
           </div>
-          <div className="space-y-5">
+          <div className="space-y-1">
           <Fact label={t("projectNumber")}>{dossier.number ?? "—"}</Fact>
           <Fact label={t("projectDescription")} testId="dossier-project-description">{dossier.name ?? "—"}</Fact>
           <Fact label={t("seller")} testId="dossier-seller">{dossier.seller ?? "—"}</Fact>
