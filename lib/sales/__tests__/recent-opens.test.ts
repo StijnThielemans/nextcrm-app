@@ -12,9 +12,14 @@ describe("dossierOpenLabel", () => {
 });
 
 describe("keepOpenOrder", () => {
-  it("keeps newest-first order, skips missing records, and stops at ten", () => {
+  it("keeps newest-first order, skips missing records, and stops at five", () => {
     const ids = ["a", "gone", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k"];
     const rows = ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k"].map((id) => ({ id, name: id }));
-    expect(keepOpenOrder(ids, rows).map((row) => row.id)).toEqual(["a", "b", "c", "d", "e", "f", "g", "h", "i", "j"]);
+    expect(keepOpenOrder(ids, rows).map((row) => row.id)).toEqual(["a", "b", "c", "d", "e"]);
+  });
+
+  it("returns the opened records when fewer than five exist", () => {
+    const rows = ["a", "b"].map((id) => ({ id, name: id }));
+    expect(keepOpenOrder(["b", "a"], rows).map((row) => row.id)).toEqual(["b", "a"]);
   });
 });

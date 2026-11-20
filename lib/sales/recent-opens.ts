@@ -2,7 +2,7 @@ import { Prisma } from "@prisma/client";
 import { prismadb } from "@/lib/prisma";
 import type { AuthzUser } from "@/lib/authz/session";
 
-export const RECENT_OPEN_LIMIT = 10;
+export const RECENT_OPEN_LIMIT = 5;
 
 export type RecentOpenKind = "ACCOUNT" | "DOSSIER";
 
