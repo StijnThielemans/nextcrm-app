@@ -27,7 +27,7 @@ import {
 import { OpenStoredFile } from "@/components/files/OpenStoredFile";
 import { groupDocumentsIntoFolders, type DocumentFolder } from "@/lib/sales/document-folders";
 import { DOSSIER_FOLLOW_UP_AFTER_DAYS, stepperForDossier } from "@/lib/sales/dossier-step";
-import { MISSING_QUOTE_PRICE, quoteCanWin, quotePriceLabel } from "@/lib/sales/quote-choice";
+import { MISSING_QUOTE_PRICE, quoteCanWin, quotePriceLabel, wonQuotesTotal } from "@/lib/sales/quote-choice";
 import type { DossierDetail } from "@/lib/sales/service";
 import {
   addChannelAction,
@@ -524,9 +524,10 @@ export function DossierPanel({
     won: quote.won,
   })));
   const stepper = stepperForDossier(dossier);
-  const acceptedPrice = dossier.status === "GEWONNEN" && dossier.acceptedQuote
-    ? shownPrice(dossier.acceptedQuote.gross, t("noPrice"))
-    : null;
+  const wonGrosses = (dossier.wonQuotes.length > 0 ? dossier.wonQuotes : dossier.acceptedQuote ? [dossier.acceptedQuote] : [])
+    .map((quote) => quote.gross);
+  const wonTotal = wonQuotesTotal(wonGrosses);
+  const acceptedPrice = wonTotal == null ? null : shownPrice(wonTotal, t("noPrice"));
 
   return (
     <div className="space-y-4">

@@ -12,3 +12,13 @@ export function quotePriceLabel(gross: number | null): string {
 export function quoteCanWin(gross: number | null): boolean {
   return gross != null && Number.isFinite(gross);
 }
+
+/** Header amount: the stored totaal bruto of every won quote, added up. No won price means no total. */
+export function wonQuotesTotal(grosses: readonly (number | null | undefined)[]): number | null {
+  const cents = grosses.reduce((sum, gross) => {
+    if (gross == null || !Number.isFinite(gross)) return sum;
+    return sum + Math.round(gross * 100);
+  }, 0);
+  const priced = grosses.some((gross) => gross != null && Number.isFinite(gross));
+  return priced ? cents / 100 : null;
+}
