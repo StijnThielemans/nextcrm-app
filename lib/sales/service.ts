@@ -588,6 +588,7 @@ export type DossierDetail = {
     phone: string | null;
     mobile: string | null;
     vat: string | null;
+    vatChoice: string | null;
     address: string;
     role: string | null;
   };
@@ -620,6 +621,7 @@ export async function getDossier(user: AuthzUser, dossierId: string): Promise<Do
           office_phone: true,
           mobile_phone: true,
           vat: true,
+          vat_choice: true,
           billing_street: true,
           billing_postal_code: true,
           billing_city: true,
@@ -716,6 +718,7 @@ export async function getDossier(user: AuthzUser, dossierId: string): Promise<Do
       phone: row.assigned_account.office_phone,
       mobile: row.assigned_account.mobile_phone,
       vat: row.assigned_account.vat,
+      vatChoice: row.assigned_account.vat_choice,
       address: [row.assigned_account.billing_street, row.assigned_account.billing_postal_code, row.assigned_account.billing_city].filter(Boolean).join(", "),
       role: row.assigned_account.account_role,
     },

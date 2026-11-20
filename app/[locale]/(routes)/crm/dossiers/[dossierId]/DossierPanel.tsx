@@ -650,7 +650,8 @@ export function DossierPanel({
           <Fact label={t("email")}>{dossier.customer.email ?? "—"}</Fact>
           <Fact label={t("phone")}>{dossier.customer.phone ?? "—"}</Fact>
           <Fact label={t("gsm")}>{dossier.customer.mobile ?? "—"}</Fact>
-          <Fact label={t("vat")}>{dossier.customer.vat ?? "—"}</Fact>
+          <Fact label={t("vatNumber")} testId="dossier-vat-number">{dossier.customer.vat?.trim() ? dossier.customer.vat : "—"}</Fact>
+          <Fact label={t("vat")} testId="dossier-vat-choice">{dossier.customer.vatChoice && t.has(`vatChoice.${dossier.customer.vatChoice}`) ? t(`vatChoice.${dossier.customer.vatChoice}`) : "—"}</Fact>
           <Fact label={t("address")}><AddressLink address={dossier.customer.address} /></Fact>
           </div>
           <div className="space-y-1">
