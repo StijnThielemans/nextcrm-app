@@ -264,7 +264,7 @@ export function AanvraagForm({
             autoComplete="off"
           />
           {architectHits.length > 0 && !architect && (
-            <ul className="rounded-md border" role="listbox">
+            <ul className="max-h-60 overflow-y-auto rounded-md border" role="listbox">
               {architectHits.map((hit) => (
                 <li key={hit.id}>
                   <button type="button" className="w-full px-3 py-2 text-left text-sm hover:bg-muted" onClick={() => chooseArchitect(hit)}>

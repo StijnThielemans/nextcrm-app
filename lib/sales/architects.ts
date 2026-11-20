@@ -58,21 +58,129 @@ export function parseArchitectSuggestions(body: unknown): ArchitectHit[] {
       postalCode: postalCode || null,
       kind: typeof record.type === "string" ? record.type : null,
     });
-    if (hits.length >= 20) break;
   }
   return hits;
 }
 
-export async function queryArchitectDirectory(rawQuery: string): Promise<ArchitectHit[]> {
+const SEARCH_PAGE = "https://vind.architect.be/zoek";
+const MAX_RESULT_PAGES = 50;
+
+function decodeHtml(value: string): string {
+  return value
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#0*39;/g, "'")
+    .replace(/&apos;/g, "'")
+    .replace(/&#(\d+);/g, (_, digits: string) => String.fromCodePoint(Number(digits)))
+    .replace(/&#x([0-9a-f]+);/gi, (_, digits: string) => String.fromCodePoint(parseInt(digits, 16)))
+    .replace(/&middot;/g, "·")
+    .replace(/&amp;/g, "&");
+}
+
+function visibleText(value: string): string {
+  return decodeHtml(value.replace(/<[^>]+>/g, " ")).replace(/\s+/g, " ").trim();
+}
+
+function htmlAttribute(html: string, name: string): string | null {
+  const match = html.match(new RegExp(`${name}="([^"]*)"`));
+  return match ? decodeHtml(match[1]) : null;
+}
+
+/** Every architect card on a vind.architect.be search page, including the extra basic rows. */
+export function parseArchitectSearchHtml(html: string): ArchitectHit[] {
+  const hits: ArchitectHit[] = [];
+  const seen = new Set<string>();
+  const add = (id: string, name: string, city: string, kind: string | null) => {
+    const cleanName = visibleText(name);
+    const cleanCity = visibleText(city);
+    if (!STAMNUMMER.test(id) || !cleanName || cleanName.length > 200 || seen.has(id)) return;
+    seen.add(id);
+    hits.push({
+      id,
+      name: cleanName,
+      city: cleanCity || null,
+      postalCode: null,
+      kind,
+    });
+  };
+
+  const primary = /data-member-stamnummer="([AB]\d{6})"[\s\S]*?<h2[^>]*>([\s\S]*?)<\/h2>\s*<p[^>]*>([\s\S]*?)<\/p>/g;
+  for (const match of html.matchAll(primary)) {
+    const type = html.slice(Math.max(0, match.index ?? 0), (match.index ?? 0) + 180).match(/data-member-type="([^"]*)"/);
+    add(match[1], match[2], match[3], type ? decodeHtml(type[1]) : null);
+  }
+
+  const secondary = /<a href="\/[^"]+\/([AB]\d{6})"[^>]*>\s*<span class="font-medium[^"]*">([\s\S]*?)<\/span>[\s\S]*?<span class="text-gray-500">([\s\S]*?)<\/span>/g;
+  for (const match of html.matchAll(secondary)) add(match[1], match[2], match[3], null);
+  return hits;
+}
+
+function secondaryIsCollapsed(html: string): boolean {
+  return /wire:click="expandSecondary"[\s\S]{0,800}?Toon\s+<strong>/.test(html);
+}
+
+function hasNextPage(html: string): boolean {
+  const match = html.match(/Pagina\s+(\d+)\s+van\s+(\d+)/);
+  return Boolean(match && Number(match[1]) < Number(match[2]));
+}
+
+type DirectorySession = { cookie: string; csrf: string; updateUri: string };
+
+function storeCookies(session: DirectorySession, response: Response) {
+  const lines = typeof response.headers.getSetCookie === "function" ? response.headers.getSetCookie() : [];
+  if (lines.length === 0) return;
+  const jar = new Map<string, string>();
+  for (const part of session.cookie.split(";")) {
+    const pair = part.trim();
+    const eq = pair.indexOf("=");
+    if (eq > 0) jar.set(pair.slice(0, eq), pair.slice(eq + 1));
+  }
+  for (const line of lines) {
+    const pair = line.split(";")[0]?.trim() ?? "";
+    const eq = pair.indexOf("=");
+    if (eq > 0) jar.set(pair.slice(0, eq), pair.slice(eq + 1));
+  }
+  session.cookie = [...jar.entries()].map(([key, value]) => `${key}=${value}`).join("; ");
+}
+
+async function livewireCall(
+  session: DirectorySession,
+  snapshot: string,
+  method: string,
+  params: string[],
+): Promise<{ html: string; snapshot: string }> {
+  const response = await fetch(session.updateUri, {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      "User-Agent": USER_AGENT,
+      Referer: SEARCH_PAGE,
+      "X-Livewire": "true",
+      "X-CSRF-TOKEN": session.csrf,
+      Cookie: session.cookie,
+    },
+    body: JSON.stringify({
+      _token: session.csrf,
+      components: [{ snapshot, updates: {}, calls: [{ method, params, metadata: {} }] }],
+    }),
+    signal: AbortSignal.timeout(8000),
+    cache: "no-store",
+  });
+  storeCookies(session, response);
+  if (!response.ok) throw new ArchitectDirectoryError();
+  const body = await response.json() as { components?: { snapshot?: unknown; effects?: { html?: unknown } }[] };
+  const component = body.components?.[0];
+  const html = component?.effects?.html;
+  const nextSnapshot = component?.snapshot;
+  if (typeof html !== "string" || typeof nextSnapshot !== "string") throw new ArchitectDirectoryError();
+  return { html, snapshot: nextSnapshot };
+}
+
+async function suggestArchitects(rawQuery: string): Promise<ArchitectHit[]> {
   const query = rawQuery.trim();
   if (query.length < 2 || query.length > 80) return [];
-  const key = query.toLocaleLowerCase("nl");
-  const cached = cache.get(key);
-  if (cached && Date.now() - cached.at < CACHE_MS) {
-    cache.delete(key);
-    cache.set(key, cached);
-    return cached.hits;
-  }
   let response: Response;
   try {
     response = await fetch(`${DIRECTORY}?q=${encodeURIComponent(query)}`, {
@@ -88,13 +196,75 @@ export async function queryArchitectDirectory(rawQuery: string): Promise<Archite
     throw new ArchitectDirectoryError();
   }
   if (!response.ok) throw new ArchitectDirectoryError();
-  let body: unknown;
   try {
-    body = await response.json();
+    return parseArchitectSuggestions(await response.json());
+  } catch (error) {
+    if (error instanceof ArchitectDirectoryError) throw error;
+    throw new ArchitectDirectoryError();
+  }
+}
+
+async function searchArchitectPages(query: string): Promise<ArchitectHit[]> {
+  let response: Response;
+  try {
+    response = await fetch(`${SEARCH_PAGE}?term=${encodeURIComponent(query)}`, {
+      headers: {
+        Accept: "text/html",
+        "User-Agent": USER_AGENT,
+        Referer: "https://vind.architect.be/",
+      },
+      signal: AbortSignal.timeout(8000),
+      cache: "no-store",
+    });
   } catch {
     throw new ArchitectDirectoryError();
   }
-  const hits = parseArchitectSuggestions(body);
+  if (!response.ok) throw new ArchitectDirectoryError();
+  let html: string;
+  try {
+    html = await response.text();
+  } catch {
+    throw new ArchitectDirectoryError();
+  }
+  const session: DirectorySession = {
+    cookie: "",
+    csrf: htmlAttribute(html, "data-csrf") ?? "",
+    updateUri: htmlAttribute(html, "data-update-uri") ?? "",
+  };
+  storeCookies(session, response);
+  let snapshot = htmlAttribute(html, "wire:snapshot");
+  const collected = new Map<string, ArchitectHit>();
+  const addAll = (page: string) => {
+    for (const hit of parseArchitectSearchHtml(page)) collected.set(hit.id, collected.get(hit.id) ?? hit);
+  };
+  addAll(html);
+
+  const call = async (method: string, params: string[]) => {
+    if (!session.csrf || !session.updateUri || !snapshot) throw new ArchitectDirectoryError();
+    const next = await livewireCall(session, snapshot, method, params);
+    html = next.html;
+    snapshot = next.snapshot;
+    addAll(html);
+  };
+
+  if (secondaryIsCollapsed(html)) await call("expandSecondary", []);
+  for (let page = 1; hasNextPage(html) && page < MAX_RESULT_PAGES; page += 1) {
+    await call("nextPage", ["pagina"]);
+  }
+  return [...collected.values()];
+}
+
+export async function queryArchitectDirectory(rawQuery: string): Promise<ArchitectHit[]> {
+  const query = rawQuery.trim();
+  if (query.length < 2 || query.length > 80) return [];
+  const key = query.toLocaleLowerCase("nl");
+  const cached = cache.get(key);
+  if (cached && Date.now() - cached.at < CACHE_MS) {
+    cache.delete(key);
+    cache.set(key, cached);
+    return cached.hits;
+  }
+  const hits = STAMNUMMER.test(query) ? await suggestArchitects(query) : await searchArchitectPages(query);
   cache.set(key, { at: Date.now(), hits });
   while (cache.size > CACHE_MAX) {
     const oldest = cache.keys().next().value;
@@ -114,10 +284,10 @@ export async function resolveArchitect(
   if (!cleanName || !STAMNUMMER.test(cleanId) || cleanName.length > 200) {
     throw new ArchitectSelectionError();
   }
-  const byNumber = await queryArchitectDirectory(cleanId);
+  const byNumber = await suggestArchitects(cleanId);
   const found =
     byNumber.find((hit) => hit.id === cleanId && hit.name === cleanName) ??
-    (await queryArchitectDirectory(cleanName)).find((hit) => hit.id === cleanId && hit.name === cleanName);
+    (await suggestArchitects(cleanName)).find((hit) => hit.id === cleanId && hit.name === cleanName);
   if (!found) throw new ArchitectSelectionError();
   return { name: found.name, externalId: found.id };
 }
