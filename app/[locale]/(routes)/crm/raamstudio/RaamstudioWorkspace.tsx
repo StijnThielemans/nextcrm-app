@@ -18,6 +18,7 @@ import {
   nextWindowNumber,
   openingStep,
   pageRotationOf,
+  stepFromActiveStep,
   planForStep,
   rotateNormalizedRect,
   rotatePlanPage,
@@ -65,6 +66,7 @@ export function RaamstudioWorkspace({
     ?? dossier.plans.find((plan) => plan.kind === "tc-raam")
     ?? null;
   const [step, setStep] = useState<WorkspaceStepId>(() => openingStep(dossier.plans));
+  const stepRef = useRef(step);
   const [activeId, setActiveId] = useState<string | null>(() => planForStep(dossier.plans, openingStep(dossier.plans))?.id ?? null);
   const [page, setPage] = useState(0);
   const [pageCount, setPageCount] = useState(1);
@@ -124,6 +126,9 @@ export function RaamstudioWorkspace({
         const payload = await readRaamstudioPayload(new Uint8Array(await response.arrayBuffer()));
         if (controller.signal.aborted || !pristine.current) return;
         const restored = workspaceFromPayload(payload, names);
+        const savedStep = stepFromActiveStep(payload.active_step) ?? openingStep([]);
+        stepRef.current = savedStep;
+        setStep(savedStep);
         setDraft(restored);
         const level = restored.openings.at(-1)?.floor;
         if (level) setFloor(level);
@@ -153,8 +158,16 @@ export function RaamstudioWorkspace({
   }
 
   function go(next: WorkspaceStepId) {
+    const changed = stepRef.current !== next;
+    stepRef.current = next;
     setStep(next);
     setPending(null);
+    if (changed) {
+      pristine.current = false;
+      onDirtyChange?.(true);
+      setStatus("Niet opgeslagen");
+      setError(null);
+    }
     if (next !== "gevels" && next !== "grondplan") return;
     const preferred = next === "gevels"
       ? draft.drawings.find((item) => item.kind === "Gevel" || item.kind === "Snede")
@@ -393,7 +406,7 @@ export function RaamstudioWorkspace({
       setSaving(true);
       setError(null);
       try {
-        const result = await saveRaamstudioProjectAction(dossier.id, next);
+        const result = await saveRaamstudioProjectAction(dossier.id, next, stepRef.current);
         setSaving(false);
         if ("error" in result) {
           setError(result.error);

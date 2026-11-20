@@ -278,6 +278,27 @@ export function openingStep(_plans: { name: string; kind: string }[]): Workspace
   return "tekeningen";
 }
 
+/** Desktop workflow numbers. 1 and 2 are project data and PDFs, which this screen skips. */
+const DESKTOP_STEP: Record<WorkspaceStepId, number> = {
+  tekeningen: 3,
+  grondplan: 4,
+  gevels: 5,
+  maten: 6,
+  raaminfo: 7,
+};
+
+export function desktopStepIndex(step: WorkspaceStepId): number {
+  return DESKTOP_STEP[step];
+}
+
+/** A saved desktop step, or null when the file has none this screen can open. */
+export function stepFromActiveStep(value: unknown): WorkspaceStepId | null {
+  const index = typeof value === "number" ? value : typeof value === "string" && value.trim() ? Number(value) : Number.NaN;
+  if (!Number.isInteger(index)) return null;
+  const found = (Object.entries(DESKTOP_STEP) as [WorkspaceStepId, number][]).find(([, desktop]) => desktop === index);
+  return found?.[0] ?? null;
+}
+
 export function planForStep<T extends { name: string; kind: string }>(
   plans: T[],
   step: WorkspaceStepId,
@@ -434,6 +455,7 @@ export function buildRaamstudioPayload(
   prefill: DossierPrefill,
   draft: WorkspaceDraft,
   planNames: readonly string[],
+  step: WorkspaceStepId = "tekeningen",
 ): Record<string, unknown> {
   const work = normalizeDraft(draft, planNames);
   const details = {
@@ -517,7 +539,7 @@ export function buildRaamstudioPayload(
       .filter((item) => item.category === "Eigen tekst")
       .map((item) => item.text),
     active_floor: work.openings.at(-1)?.floor ?? "0",
-    active_step: 3,
+    active_step: desktopStepIndex(step),
   };
   const type = projectType(prefill.projectGroup);
   if (type) payload.project_type = type;

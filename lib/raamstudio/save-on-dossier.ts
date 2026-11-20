@@ -15,6 +15,7 @@ import {
   RAAMSTUDIO_DOCUMENT_DESCRIPTION,
   raamstudioDocumentName,
   type WorkspaceDraft,
+  type WorkspaceStepId,
 } from "./workspace-model";
 import { raamstudioPlansForDossier } from "./dossier-plans";
 
@@ -24,6 +25,7 @@ export async function saveRaamstudioOnDossier(
   user: AuthzUser,
   dossierId: string,
   draft: WorkspaceDraft,
+  step?: WorkspaceStepId,
 ): Promise<{ id: string; fileName: string }> {
   await assertCanWriteOpportunity(user, dossierId);
   const dossier = await raamstudioPlansForDossier(user, dossierId);
@@ -44,6 +46,7 @@ export async function saveRaamstudioOnDossier(
     },
     draft,
     planNames,
+    step,
   );
   const fileName = raamstudioDocumentName(dossier.number);
   const key = `documents/${randomUUID()}.tc-raam`;

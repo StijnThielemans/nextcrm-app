@@ -4,6 +4,7 @@ import {
   buildRaamstudioPayload,
   type DossierPrefill,
   type WorkspaceDraft,
+  type WorkspaceStepId,
 } from "./workspace-model";
 
 /** A .tc-raam zip with one stored entry: project.json. Method 8, same as a desktop save. */
@@ -42,6 +43,7 @@ export function raamstudioArchive(
   prefill: DossierPrefill,
   draft: WorkspaceDraft,
   planNames: readonly string[],
+  step?: WorkspaceStepId,
 ): Buffer {
-  return zipProjectJson(buildRaamstudioPayload(prefill, draft, planNames));
+  return zipProjectJson(buildRaamstudioPayload(prefill, draft, planNames, step));
 }

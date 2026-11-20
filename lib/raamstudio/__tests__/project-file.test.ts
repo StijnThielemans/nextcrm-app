@@ -9,6 +9,7 @@ import {
   normalizeDraft,
   openingStep,
   raamstudioDocumentName,
+  stepFromActiveStep,
   rotatePlanPage,
   suggestedDrawingKind,
   suggestedDrawingName,
@@ -52,6 +53,17 @@ describe("RaamStudio workspace file", () => {
     expect(suggestedDrawingKind("BA_herbouwen_S_N_AA_Boutens.pdf")).toBe("Snede");
     expect(suggestedDrawingName("BA_herbouwen_G_N_VG_Boutens.pdf")).toBe("Voorgevel");
     expect(suggestedDrawingName("BA_herbouwen_S_N_AA_Boutens.pdf")).toBe("Snede AA");
+  });
+
+  it("remembers the last workspace step and ignores a step this screen does not have", () => {
+    expect(buildRaamstudioPayload(prefill, draft, plans, "gevels").active_step).toBe(5);
+    expect(buildRaamstudioPayload(prefill, draft, plans, "grondplan").active_step).toBe(4);
+    expect(buildRaamstudioPayload(prefill, draft, plans).active_step).toBe(3);
+    expect(stepFromActiveStep(5)).toBe("gevels");
+    expect(stepFromActiveStep(4)).toBe("grondplan");
+    expect(stepFromActiveStep(3)).toBe("tekeningen");
+    expect(stepFromActiveStep(1)).toBeNull();
+    expect(stepFromActiveStep(undefined)).toBeNull();
   });
 
   it("names the dossier file as a RaamStudio project", () => {
