@@ -9,6 +9,7 @@ import {
   normalizeDraft,
   openingStep,
   raamstudioDocumentName,
+  rotatePlanPage,
   suggestedDrawingKind,
   suggestedDrawingName,
   workspaceFromPayload,
@@ -34,6 +35,7 @@ const draft: WorkspaceDraft = {
   facades: [{ planName: plans[1], number: "0.1" }],
   sizes: [{ number: "0.1", orientation: "width", valueMm: "1200" }],
   raaminfo: [{ number: "0.1", category: "Onderaansluiting", text: "Rubber" }],
+  pageRotations: [],
 };
 
 describe("RaamStudio workspace file", () => {
@@ -99,6 +101,7 @@ describe("RaamStudio workspace file", () => {
       facades: [{ planName: plans[1], number: "0.1", x: 0.22, y: 0.33 }],
       sizes: [],
       raaminfo: [],
+      pageRotations: [],
     };
     const dropped = normalizeDraft({
       ...marked,
@@ -148,6 +151,46 @@ describe("RaamStudio workspace file", () => {
       },
     ]);
     expect(workspaceFromPayload(payload, plans)).toEqual(normalizeDraft(marked, plans));
+  });
+
+  it("turns one PDF page and keeps the kader and the number on that sheet", () => {
+    const marked: WorkspaceDraft = {
+      drawings: [
+        { planName: plans[1], kind: "Gevel", name: "Voorgevel", rect: { x: 0.1, y: 0.2, w: 0.3, h: 0.4 } },
+        { planName: plans[1], kind: "Snede", name: "Snede A", page: 1, rect: { x: 0.2, y: 0.2, w: 0.2, h: 0.2 } },
+      ],
+      openings: [{ planName: plans[0], floor: "0", number: "0.1", x: 0.4, y: 0.5 }],
+      facades: [{ planName: plans[1], number: "0.1", x: 0.22, y: 0.33 }],
+      sizes: [{ number: "0.1", orientation: "width", valueMm: "1200" }],
+      raaminfo: [],
+      pageRotations: [],
+    };
+    const turned = rotatePlanPage(marked, plans[1], 0, 90);
+    expect(turned.drawings[0].rect).toEqual({ x: 0.4, y: 0.1, w: 0.4, h: 0.3 });
+    expect(turned.drawings[1]).toEqual(marked.drawings[1]);
+    expect(turned.openings).toEqual(marked.openings);
+    expect(turned.facades[0]).toMatchObject({ x: 0.67, y: 0.22 });
+    expect(turned.sizes).toEqual(marked.sizes);
+    expect(turned.pageRotations).toEqual([{ planName: plans[1], page: 0, degrees: 90 }]);
+
+    const left = rotatePlanPage(marked, plans[1], 0, -90);
+    expect(left.pageRotations).toEqual([{ planName: plans[1], page: 0, degrees: 270 }]);
+    expect(left.drawings[0].rect).toEqual({ x: 0.2, y: 0.6, w: 0.4, h: 0.3 });
+
+    let full = marked;
+    for (let step = 0; step < 4; step += 1) full = rotatePlanPage(full, plans[1], 0, 90);
+    expect(full.pageRotations).toEqual([]);
+    expect(full.drawings[0].rect).toEqual(marked.drawings[0].rect);
+    expect(full.facades[0]).toMatchObject({ x: 0.22, y: 0.33 });
+
+    const payload = buildRaamstudioPayload(prefill, turned, plans);
+    expect(payload.documents).toEqual([
+      { name: plans[1], original_path: plans[1], page_rotations: [90] },
+    ]);
+    expect(payload.project_details).toMatchObject({ seller: "Haegeman Robbe", site_address: "Hofstraat 1, 9000 Gent" });
+    expect(JSON.stringify(payload)).not.toContain("total_bruto");
+    expect(workspaceFromPayload(payload, plans).pageRotations).toEqual(turned.pageRotations);
+    expect(workspaceFromPayload(payload, plans).drawings[0].rect).toEqual(turned.drawings[0].rect);
   });
 
   it("round-trips a .tc-raam the reader already accepts", async () => {

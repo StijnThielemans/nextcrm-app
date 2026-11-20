@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import type { NormRect } from "@/lib/raamstudio/workspace-model";
 
 export type SheetMark = {
@@ -23,8 +23,15 @@ type Drag =
   | { kind: "new"; start: Point; current: Point }
   | { kind: "move"; id: string; start: Point; origin: SheetMark; current: Point };
 
+const MIN_ZOOM = 0.5;
+const MAX_ZOOM = 3;
+
 function clamp(value: number, min = 0, max = 1) {
   return Math.min(max, Math.max(min, value));
+}
+
+function clampZoom(value: number) {
+  return clamp(Math.round(value * 100) / 100, MIN_ZOOM, MAX_ZOOM);
 }
 
 function labelPoint(mark: SheetMark): Point {
@@ -63,11 +70,13 @@ export function PlanSheet({
   marks,
   selectedId,
   pending,
+  rotation = 0,
   onPageCount,
   onSelect,
   onPlace,
   onPending,
   onMove,
+  onRotate,
 }: {
   planId: string;
   planName: string;
@@ -77,11 +86,14 @@ export function PlanSheet({
   marks: SheetMark[];
   selectedId: string | null;
   pending: NormRect | null;
+  /** Clockwise degrees already stored for this PDF page: 0, 90, 180 or 270. */
+  rotation?: number;
   onPageCount: (count: number) => void;
   onSelect: (id: string | null) => void;
   onPlace: (place: SheetPlace) => void;
   onPending: (rect: NormRect) => void;
   onMove: (id: string, next: { x: number; y: number; w?: number; h?: number }) => void;
+  onRotate?: (delta: 90 | -90) => void;
 }) {
   const [src, setSrc] = useState<string | null>(null);
   const [loadedKey, setLoadedKey] = useState<string | null>(null);
@@ -90,6 +102,9 @@ export function PlanSheet({
   const [drag, setDrag] = useState<(Drag & { key: string }) | null>(null);
   const reportPages = useRef(onPageCount);
   const blob = useRef<string | null>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const sheetRef = useRef<HTMLDivElement>(null);
+  const zoomAnchor = useRef<{ fracX: number; fracY: number; clientX: number; clientY: number } | null>(null);
   const requestKey = `${pdf ? "pdf" : "img"}:${planId}:${page}`;
   const status = loadedKey === requestKey ? "ready" : failedKey === requestKey ? "error" : "loading";
   const activeDrag = drag?.key === requestKey ? drag : null;
@@ -140,6 +155,49 @@ export function PlanSheet({
     if (blob.current) URL.revokeObjectURL(blob.current);
   }, []);
 
+  useEffect(() => {
+    setZoom(1);
+  }, [planId, page, rotation]);
+
+  useLayoutEffect(() => {
+    const anchor = zoomAnchor.current;
+    const sheet = sheetRef.current;
+    if (!anchor || !sheet) return;
+    const frame = requestAnimationFrame(() => {
+      const current = sheetRef.current;
+      const point = zoomAnchor.current;
+      zoomAnchor.current = null;
+      if (!current || !point) return;
+      const next = current.getBoundingClientRect();
+      scrollByDelta(current, next.left + point.fracX * next.width - point.clientX, next.top + point.fracY * next.height - point.clientY);
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [zoom]);
+
+  useEffect(() => {
+    const node = scrollRef.current;
+    if (!node) return;
+    const onWheel = (event: WheelEvent) => {
+      if (!event.deltaY || event.buttons !== 0) return;
+      const sheet = sheetRef.current;
+      if (!sheet) return;
+      event.preventDefault();
+      const before = sheet.getBoundingClientRect();
+      const fracX = (event.clientX - before.left) / Math.max(1, before.width);
+      const fracY = (event.clientY - before.top) / Math.max(1, before.height);
+      const clientX = event.clientX;
+      const clientY = event.clientY;
+      setZoom((current) => {
+        const next = clampZoom(current * Math.exp(-event.deltaY * 0.0015));
+        if (next === current) return current;
+        zoomAnchor.current = { fracX, fracY, clientX, clientY };
+        return next;
+      });
+    };
+    node.addEventListener("wheel", onWheel, { passive: false });
+    return () => node.removeEventListener("wheel", onWheel);
+  }, []);
+
   function pointOf(event: ReactPointerEvent<HTMLDivElement>): Point {
     const box = event.currentTarget.getBoundingClientRect();
     return {
@@ -177,18 +235,23 @@ export function PlanSheet({
   return (
     <div className="flex h-full min-h-[520px] flex-col">
       <div className="flex items-center gap-2 border-b border-black/10 bg-white px-2 py-1.5">
-        <button type="button" className="rounded border px-2 py-0.5 text-sm" onClick={() => setZoom((value) => Math.max(1, Math.round((value - 0.25) * 100) / 100))} aria-label="Uitzoomen">−</button>
+        <button type="button" className="rounded border px-2 py-0.5 text-sm" onClick={() => setZoom((value) => clampZoom(value - 0.25))} aria-label="Uitzoomen">−</button>
         <button type="button" className="rounded border px-2 py-0.5 text-xs" onClick={() => setZoom(1)}>Passend</button>
-        <button type="button" className="rounded border px-2 py-0.5 text-sm" onClick={() => setZoom((value) => Math.min(3, Math.round((value + 0.25) * 100) / 100))} aria-label="Inzoomen">+</button>
+        <button type="button" className="rounded border px-2 py-0.5 text-sm" onClick={() => setZoom((value) => clampZoom(value + 0.25))} aria-label="Inzoomen">+</button>
         <span className="text-xs text-muted-foreground">{Math.round(zoom * 100)}%</span>
+        {pdf ? (
+          <>
+            <button type="button" className="rounded border px-2 py-0.5 text-xs" data-testid="raamstudio-rotate-left" title="Draai deze pagina 90 graden linksom" onClick={() => onRotate?.(-90)} disabled={!onRotate}>↶ Linksom</button>
+            <button type="button" className="rounded border px-2 py-0.5 text-xs" data-testid="raamstudio-rotate-right" title="Draai deze pagina 90 graden rechtsom" onClick={() => onRotate?.(90)} disabled={!onRotate}>Rechtsom ↷</button>
+          </>
+        ) : null}
       </div>
-      <div className="min-h-0 flex-1 overflow-auto bg-neutral-200">
+      <div ref={scrollRef} className="min-h-0 flex-1 overflow-auto bg-neutral-200" data-testid="raamstudio-plan-scroll" data-zoom={zoom} data-rotation={rotation}>
         {status === "loading" ? <p className="p-6 text-sm text-muted-foreground" data-testid="raamstudio-plan-loading">Tekening laden…</p> : null}
         {status === "error" ? <p className="p-6 text-sm text-destructive">De tekening kon niet worden geopend.</p> : null}
         {status === "ready" && src ? (
-          <div className="relative inline-block min-w-full" style={{ width: `${zoom * 100}%` }}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={src} alt={planName} className="block w-full select-none" draggable={false} />
+          <div ref={sheetRef} className="relative inline-block align-top" style={{ width: `${zoom * 100}%` }}>
+            <TurnedSheet src={src} alt={planName} rotation={rotation}>
             <div
               className="absolute inset-0 cursor-crosshair touch-none"
               data-testid="raamstudio-plan-surface"
@@ -254,9 +317,92 @@ export function PlanSheet({
               {pending && !rubber ? <RectView rect={pending} label="Nieuw kader" pending /> : null}
               {rubber && rubber.w >= 0.008 && rubber.h >= 0.008 ? <RectView rect={rubber} label="" pending /> : null}
             </div>
+            </TurnedSheet>
           </div>
         ) : null}
       </div>
+    </div>
+  );
+}
+
+/** Move the sheet point back under the cursor. A positive error means the point sits too far right or down. */
+function scrollByDelta(start: HTMLElement, errorX: number, errorY: number) {
+  let node: HTMLElement | null = start.parentElement;
+  let left = errorX;
+  let top = errorY;
+  while (node) {
+    if (Math.abs(left) > 0.5 && node.scrollWidth > node.clientWidth + 1) {
+      const max = node.scrollWidth - node.clientWidth;
+      const next = Math.min(max, Math.max(0, node.scrollLeft + left));
+      left -= next - node.scrollLeft;
+      node.scrollLeft = next;
+    }
+    if (Math.abs(top) > 0.5 && node.scrollHeight > node.clientHeight + 1) {
+      const max = node.scrollHeight - node.clientHeight;
+      const next = Math.min(max, Math.max(0, node.scrollTop + top));
+      top -= next - node.scrollTop;
+      node.scrollTop = next;
+    }
+    node = node.parentElement;
+  }
+  if (Math.abs(left) > 0.5 || Math.abs(top) > 0.5) window.scrollBy(left, top);
+}
+
+function TurnedSheet({
+  src,
+  alt,
+  rotation,
+  children,
+}: {
+  src: string;
+  alt: string;
+  rotation: number;
+  children: ReactNode;
+}) {
+  const [natural, setNatural] = useState<{ w: number; h: number } | null>(null);
+  const [seenSrc, setSeenSrc] = useState(src);
+  if (seenSrc !== src) {
+    setSeenSrc(src);
+    setNatural(null);
+  }
+  const quarter = rotation % 180 !== 0;
+  const turned = rotation % 360 !== 0;
+  const measured = natural != null && natural.w > 0 && natural.h > 0;
+  return (
+    <div
+      className="relative w-full"
+      style={quarter && measured ? { aspectRatio: `${natural.h} / ${natural.w}` } : undefined}
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={src}
+        alt={alt}
+        draggable={false}
+        onLoad={(event) => {
+          const width = event.currentTarget.naturalWidth;
+          const height = event.currentTarget.naturalHeight;
+          if (width > 0 && height > 0) setNatural({ w: width, h: height });
+        }}
+        className={[
+          "select-none",
+          quarter && measured ? "absolute max-w-none" : "block w-full",
+          turned && !measured ? "invisible" : "",
+        ].filter(Boolean).join(" ")}
+        style={
+          quarter && measured
+            ? {
+                left: "50%",
+                top: "50%",
+                width: `${(natural.w / natural.h) * 100}%`,
+                height: `${(natural.h / natural.w) * 100}%`,
+                transform: `translate(-50%, -50%) rotate(${rotation}deg)`,
+              }
+            : rotation % 360 === 180
+              ? { transform: "rotate(180deg)" }
+              : undefined
+        }
+      />
+      {!turned || measured ? children : null}
     </div>
   );
 }

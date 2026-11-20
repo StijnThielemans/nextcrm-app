@@ -67,12 +67,19 @@ export type WorkspaceFacade = { planName: string; number: string; page?: number;
 export type WorkspaceSize = { number: string; orientation: "width" | "height"; valueMm: string };
 export type WorkspaceRaaminfo = { number: string; category: string; text: string };
 
+/** Clockwise page rotation, the same steps as PyMuPDF page.rotation. 0 is omitted. */
+export type QuarterTurn = 90 | 180 | 270;
+
+/** One open PDF page. Page 0 is stored, because a later page can turn on its own. */
+export type PageRotation = { planName: string; page: number; degrees: QuarterTurn };
+
 export type WorkspaceDraft = {
   drawings: WorkspaceDrawing[];
   openings: WorkspaceOpening[];
   facades: WorkspaceFacade[];
   sizes: WorkspaceSize[];
   raaminfo: WorkspaceRaaminfo[];
+  pageRotations: PageRotation[];
 };
 
 export type DossierPrefill = {
@@ -91,6 +98,7 @@ export const EMPTY_DRAFT: WorkspaceDraft = {
   facades: [],
   sizes: [],
   raaminfo: [],
+  pageRotations: [],
 };
 
 const LIMIT = 400;
@@ -157,6 +165,92 @@ function normRect(value: unknown): NormRect | null {
   const height = Math.min(h, roundUnit(1 - y));
   if (width < 0.008 || height < 0.008) return null;
   return { x, y, w: width, h: height };
+}
+
+function clampUnit(value: number): number {
+  return Math.min(1, Math.max(0, roundUnit(value)));
+}
+
+/** Page index including 0. Drawing marks still omit page 0. */
+function pageIndex(value: unknown): number | null {
+  if (typeof value !== "number" || !Number.isInteger(value) || value < 0 || value > 500) return null;
+  return value;
+}
+
+function quarterTurn(value: unknown): QuarterTurn | null {
+  const turn = typeof value === "number" ? ((value % 360) + 360) % 360 : NaN;
+  if (turn === 90 || turn === 180 || turn === 270) return turn;
+  return null;
+}
+
+/**
+ * A displayed point after a clockwise quarter turn.
+ * 90°: (x, y) -> (1 - y, x). 270° is one step left, the same as the desktop ↶ button.
+ */
+export function rotateNormalizedPoint(x: number, y: number, degrees: number): { x: number; y: number } {
+  const turn = ((degrees % 360) + 360) % 360;
+  if (turn === 90) return { x: clampUnit(1 - y), y: clampUnit(x) };
+  if (turn === 180) return { x: clampUnit(1 - x), y: clampUnit(1 - y) };
+  if (turn === 270) return { x: clampUnit(y), y: clampUnit(1 - x) };
+  return { x: clampUnit(x), y: clampUnit(y) };
+}
+
+/** The rectangle around the same sheet region after the page turns clockwise. */
+export function rotateNormalizedRect(rect: NormRect, degrees: number): NormRect {
+  const corners = [
+    rotateNormalizedPoint(rect.x, rect.y, degrees),
+    rotateNormalizedPoint(rect.x + rect.w, rect.y, degrees),
+    rotateNormalizedPoint(rect.x + rect.w, rect.y + rect.h, degrees),
+    rotateNormalizedPoint(rect.x, rect.y + rect.h, degrees),
+  ];
+  const xs = corners.map((corner) => corner.x);
+  const ys = corners.map((corner) => corner.y);
+  const x = Math.min(...xs);
+  const y = Math.min(...ys);
+  return {
+    x,
+    y,
+    w: clampUnit(Math.max(...xs) - x),
+    h: clampUnit(Math.max(...ys) - y),
+  };
+}
+
+export function pageRotationOf(draft: WorkspaceDraft, planName: string, page: number): number {
+  return draft.pageRotations.find((item) => item.planName === planName && item.page === page)?.degrees ?? 0;
+}
+
+/**
+ * Turn one PDF page and move every mark on that page with it.
+ * Other pages and other PDFs stay where they are. Prices are not touched.
+ */
+export function rotatePlanPage(draft: WorkspaceDraft, planName: string, page: number, delta: 90 | -90): WorkspaceDraft {
+  const clockwise = delta === 90 ? 90 : 270;
+  const onPage = (name: string, itemPage?: number) => name === planName && (itemPage ?? 0) === page;
+  const drawings = draft.drawings.map((drawing) => {
+    if (!onPage(drawing.planName, drawing.page) || !drawing.rect) return drawing;
+    return { ...drawing, rect: rotateNormalizedRect(drawing.rect, clockwise) };
+  });
+  const openings = draft.openings.map((opening) => {
+    if (!onPage(opening.planName, opening.page)) return opening;
+    const point = opening.x != null && opening.y != null
+      ? rotateNormalizedPoint(opening.x, opening.y, clockwise)
+      : null;
+    const rect = opening.rect ? rotateNormalizedRect(opening.rect, clockwise) : null;
+    return {
+      ...opening,
+      ...(point ?? {}),
+      ...(rect ? { rect } : {}),
+    };
+  });
+  const facades = draft.facades.map((facade) => {
+    if (!onPage(facade.planName, facade.page) || facade.x == null || facade.y == null) return facade;
+    return { ...facade, ...rotateNormalizedPoint(facade.x, facade.y, clockwise) };
+  });
+  const current = pageRotationOf(draft, planName, page);
+  const next = quarterTurn((current + clockwise) % 360);
+  const pageRotations = draft.pageRotations.filter((item) => !(item.planName === planName && item.page === page));
+  if (next) pageRotations.push({ planName, page, degrees: next });
+  return { ...draft, drawings, openings, facades, pageRotations };
 }
 
 export function raamstudioDocumentName(number: string | null): string {
@@ -298,7 +392,19 @@ export function normalizeDraft(draft: WorkspaceDraft, planNames: readonly string
     if (category !== "Eigen tekst" && !allowed.includes(text)) continue;
     raaminfo.push({ number, category, text });
   }
-  return { drawings, openings, facades, sizes, raaminfo };
+  const pageRotations: PageRotation[] = [];
+  const seenRotation = new Set<string>();
+  for (const item of (draft.pageRotations ?? []).slice(0, LIMIT)) {
+    const planName = canonicalPlan(item.planName, planNames);
+    const page = pageIndex(item.page);
+    const degrees = quarterTurn(item.degrees);
+    if (!planName || page == null || !degrees) continue;
+    const key = `${planName}\n${page}`;
+    if (seenRotation.has(key)) continue;
+    seenRotation.add(key);
+    pageRotations.push({ planName, page, degrees });
+  }
+  return { drawings, openings, facades, sizes, raaminfo, pageRotations };
 }
 
 function projectType(group: string | null): "Nieuwbouw" | "Renovatie" | null {
@@ -307,9 +413,22 @@ function projectType(group: string | null): "Nieuwbouw" | "Renovatie" | null {
   return null;
 }
 
+/** Desktop documents[].page_rotations. Only plans with a turned page are written. */
+function rotationDocuments(rotations: readonly PageRotation[], planNames: readonly string[]): Record<string, unknown>[] {
+  return planNames.flatMap((name) => {
+    const pages = rotations.filter((item) => item.planName === name);
+    if (!pages.length) return [];
+    const last = Math.max(...pages.map((item) => item.page));
+    const pageRotations = Array.from({ length: last + 1 }, (_, index) => (
+      pages.find((item) => item.page === index)?.degrees ?? 0
+    ));
+    return [{ name, original_path: name, page_rotations: pageRotations }];
+  });
+}
+
 /**
  * project.json for a .tc-raam. Project fields come from the dossier.
- * The draft only adds drawings, numbers, sizes and raaminfo.
+ * The draft only adds drawings, numbers, sizes, raaminfo and page rotation.
  */
 export function buildRaamstudioPayload(
   prefill: DossierPrefill,
@@ -342,7 +461,7 @@ export function buildRaamstudioPayload(
     project_details: details,
     customer_choices: {},
     sources: planNameSet.map((name) => ({ name, original_path: name })),
-    documents: [],
+    documents: rotationDocuments(work.pageRotations, planNames),
     selections: work.drawings.map((drawing) => ({
       source: drawing.planName,
       page_index: drawing.page ?? 0,
@@ -496,5 +615,15 @@ export function workspaceFromPayload(payload: unknown, planNames: readonly strin
     if (!number || !text || !(category in RAAMINFO_OPTIONS)) return [];
     return [{ number, category, text }];
   });
-  return normalizeDraft({ drawings, openings, facades, sizes, raaminfo }, planNames);
+  const pageRotations: PageRotation[] = records(payload.documents).flatMap((document) => {
+    const source = document.name ?? document.original_path;
+    const planName = typeof source === "string" ? canonicalPlan(baseName(source), planNames) : null;
+    if (!planName || !Array.isArray(document.page_rotations)) return [];
+    return document.page_rotations.flatMap((value, page) => {
+      const degrees = quarterTurn(value);
+      if (!degrees) return [];
+      return [{ planName, page, degrees }];
+    });
+  });
+  return normalizeDraft({ drawings, openings, facades, sizes, raaminfo, pageRotations }, planNames);
 }

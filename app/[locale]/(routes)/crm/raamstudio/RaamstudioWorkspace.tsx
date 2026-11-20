@@ -15,7 +15,10 @@ import {
   WORKSPACE_STEPS,
   nextWindowNumber,
   openingStep,
+  pageRotationOf,
   planForStep,
+  rotateNormalizedRect,
+  rotatePlanPage,
   suggestedDrawingKind,
   suggestedDrawingName,
   workspaceFromPayload,
@@ -53,21 +56,37 @@ export function RaamstudioWorkspace({ dossier }: { dossier: RaamstudioDossierOpe
   const [status, setStatus] = useState(savedFile ? savedFile.name : "Nog niet opgeslagen");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [ready, setReady] = useState(!savedFile);
   const pristine = useRef(true);
+  const canPersist = useRef(!savedFile);
+  const draftRef = useRef(draft);
+  const saveQueue = useRef(Promise.resolve());
   const planKey = pdfs.map((plan) => plan.name).join("\n");
   const active = pdfs.find((plan) => plan.id === activeId) ?? pdfs[0] ?? null;
+  const savedId = savedFile?.id ?? null;
+  const savedName = savedFile?.name ?? null;
   const stepMeta = WORKSPACE_STEPS.find((item) => item.id === step) ?? WORKSPACE_STEPS[0];
   const stepIndex = WORKSPACE_STEPS.findIndex((item) => item.id === step);
 
   useEffect(() => {
-    if (!savedFile) return;
+    draftRef.current = draft;
+  }, [draft]);
+
+  useEffect(() => {
+    if (!savedId) {
+      canPersist.current = true;
+      setReady(true);
+      return;
+    }
+    canPersist.current = false;
+    setReady(false);
     const controller = new AbortController();
-    const fileId = savedFile.id;
-    const fileName = savedFile.name;
+    const fileId = savedId;
+    const fileName = savedName ?? "RaamStudio";
     const names = planKey ? planKey.split("\n") : [];
     void (async () => {
       try {
-        const response = await fetch(`/api/documents/${fileId}/file`, { signal: controller.signal });
+        const response = await fetch(`/api/documents/${fileId}/file`, { signal: controller.signal, cache: "no-store" });
         if (!response.ok) return;
         const payload = await readRaamstudioPayload(new Uint8Array(await response.arrayBuffer()));
         if (controller.signal.aborted || !pristine.current) return;
@@ -77,12 +96,14 @@ export function RaamstudioWorkspace({ dossier }: { dossier: RaamstudioDossierOpe
         if (level) setFloor(level);
         if (restored.openings[0]) setInfoNumber(restored.openings[0].number);
         setStatus(fileName);
+        canPersist.current = true;
+        setReady(true);
       } catch {
         if (!controller.signal.aborted) setError("Het opgeslagen .tc-raam kon niet worden gelezen.");
       }
     })();
     return () => controller.abort();
-  }, [savedFile, planKey]);
+  }, [savedId, savedName, planKey]);
 
   function suggestFor(planName: string) {
     setDrawingKind(suggestedDrawingKind(planName));
@@ -236,18 +257,45 @@ export function RaamstudioWorkspace({ dossier }: { dossier: RaamstudioDossierOpe
     }
   }
 
+  function persist(refresh: boolean) {
+    const run = saveQueue.current.then(async () => {
+      const next = draftRef.current;
+      setSaving(true);
+      setError(null);
+      try {
+        const result = await saveRaamstudioProjectAction(dossier.id, next);
+        setSaving(false);
+        if ("error" in result) {
+          setError(result.error);
+          setStatus("Niet opgeslagen");
+          return;
+        }
+        if (draftRef.current === next) {
+          pristine.current = true;
+          setStatus(`Opgeslagen in Calculatie: ${result.fileName}`);
+        }
+        if (refresh) router.refresh();
+      } catch {
+        setSaving(false);
+        setError("Opslaan is mislukt.");
+        setStatus("Niet opgeslagen");
+      }
+    });
+    saveQueue.current = run.then(() => undefined, () => undefined);
+    return run;
+  }
+
   async function save() {
-    setSaving(true);
-    setError(null);
-    const result = await saveRaamstudioProjectAction(dossier.id, draft);
-    setSaving(false);
-    if ("error" in result) {
-      setError(result.error);
-      return;
-    }
-    pristine.current = true;
-    setStatus(`Opgeslagen in Calculatie: ${result.fileName}`);
-    router.refresh();
+    await persist(true);
+  }
+
+  function rotateOpenPage(delta: 90 | -90) {
+    if (!active || !canPersist.current) return;
+    const next = rotatePlanPage(draftRef.current, active.name, page, delta);
+    draftRef.current = next;
+    if (pending) setPending(rotateNormalizedRect(pending, delta === 90 ? 90 : 270));
+    touch(next, "Draaiing opslaan…");
+    void persist(false);
   }
 
   const context = [dossier.number, dossier.name, dossier.customer, dossier.siteAddress, dossier.seller].filter(Boolean).join(" · ");
@@ -355,6 +403,7 @@ export function RaamstudioWorkspace({ dossier }: { dossier: RaamstudioDossierOpe
               marks={marks}
               selectedId={selectedId}
               pending={step === "tekeningen" ? pending : null}
+              rotation={pageRotationOf(draft, active.name, page)}
               onPageCount={(count) => {
                 setPageCount(count);
                 setPage((current) => Math.min(current, Math.max(0, count - 1)));
@@ -369,6 +418,7 @@ export function RaamstudioWorkspace({ dossier }: { dossier: RaamstudioDossierOpe
                 }
               }}
               onMove={moveMark}
+              onRotate={ready ? rotateOpenPage : undefined}
             />
           ) : (
             <p className="p-6 text-sm text-muted-foreground">Er is nog geen plan om te openen.</p>
