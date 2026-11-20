@@ -40,6 +40,7 @@ export function ClipBoard({
   onMove,
   onRemove,
   emptyText = "Duid eerst in stap 1 een gevel, snede of grondplan aan. Die knipsels komen hier.",
+  testId = "raamstudio-clip-board",
 }: {
   clips: ClipView[];
   planNames: string[];
@@ -48,6 +49,7 @@ export function ClipBoard({
   onMove?: (id: string, x: number, y: number) => void;
   onRemove?: (id: string) => void;
   emptyText?: string;
+  testId?: string;
 }) {
   if (!clips.length) {
     return (
@@ -57,7 +59,7 @@ export function ClipBoard({
     );
   }
   return (
-    <div className="min-h-0 flex-1 space-y-3 overflow-auto p-3" data-testid="raamstudio-clip-board">
+    <div className="min-h-0 flex-1 space-y-3 overflow-auto p-3" data-testid={testId}>
       {clips.map((clip) => (
         <ClipCard
           key={`${clip.planId}-${clip.page}-${clip.index}`}

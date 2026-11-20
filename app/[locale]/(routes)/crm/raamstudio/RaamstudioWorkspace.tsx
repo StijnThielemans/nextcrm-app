@@ -523,8 +523,9 @@ export function RaamstudioWorkspace({
       <div className={cn(
         "grid min-h-[640px]",
         step === "tekeningen" ? "lg:grid-cols-[220px_minmax(0,1fr)_300px]"
-          : step === "gevels" || step === "grondplan" ? "lg:grid-cols-[200px_minmax(0,1fr)]"
-            : "lg:grid-cols-[minmax(0,0.7fr)_minmax(460px,1.15fr)]",
+          : step === "gevels" ? "lg:grid-cols-[200px_minmax(0,1fr)_340px]"
+            : step === "grondplan" ? "lg:grid-cols-[200px_minmax(0,1fr)]"
+              : "lg:grid-cols-[minmax(0,0.7fr)_minmax(460px,1.15fr)]",
       )}>
         {step === "tekeningen" ? (
         <div className="border-black/10 lg:border-r" data-testid="raamstudio-plan-list">
@@ -635,7 +636,7 @@ export function RaamstudioWorkspace({
               onPlace={placeOnClip}
               onMove={(id, x, y) => moveMark(id, { x, y })}
               onRemove={removeClipNumber}
-              emptyText="Duid eerst in stap 1 een gevel of snede aan. Grondplannen staan in deze stap niet."
+              emptyText="Duid eerst in stap 1 een gevel of snede aan. De grondplannen staan rechts als overzicht."
             />
           ) : step !== "tekeningen" ? (
             <p className="p-6 text-sm text-muted-foreground" data-testid="raamstudio-clips-hint">
@@ -672,6 +673,22 @@ export function RaamstudioWorkspace({
             <p className="p-6 text-sm text-muted-foreground">Er is nog geen plan om te openen.</p>
           )}
         </div>
+
+        {step === "gevels" ? (
+          <aside className="flex max-h-[calc(100dvh-7.5rem)] min-h-0 flex-col border-black/10 bg-white lg:sticky lg:top-2 lg:border-l" data-testid="raamstudio-floor-overview">
+            <div className="px-3 pt-3">
+              <p className="text-sm font-medium">Grondplannen</p>
+              <p className="text-xs text-muted-foreground">Overzicht met de nummers. Hier plaats je niets.</p>
+            </div>
+            <ClipBoard
+              clips={visibleClips(draft.drawings, pdfs, isFloorClip)}
+              planNames={draft.drawings.map((drawing) => drawing.planName)}
+              numbers={clipNumbers(draft)}
+              testId="raamstudio-floor-overview-board"
+              emptyText="Duid eerst in stap 1 een grondplan aan."
+            />
+          </aside>
+        ) : null}
 
         {step === "gevels" || step === "grondplan" ? null : (
         <div className={cn("flex min-h-0 flex-col border-black/10 lg:border-l", step !== "tekeningen" && "max-h-[760px] overflow-hidden")} data-testid="raamstudio-side">
