@@ -1073,6 +1073,8 @@
     "whichQuoteWon": "Which quote was won?",
     "noPricedQuote": "No quote with a gross total.",
     "wonQuote": "Won quote {name}",
+    "markWon": "Mark as won",
+    "unmarkWon": "Clear won",
     "noPrice": "no price",
     "contacts": "Contacts",
     "original": "original",

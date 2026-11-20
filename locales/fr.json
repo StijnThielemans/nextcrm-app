@@ -1073,6 +1073,8 @@
     "whichQuoteWon": "Quelle offre est gagnée ?",
     "noPricedQuote": "Aucune offre avec un total brut.",
     "wonQuote": "Offre gagnée {name}",
+    "markWon": "Marquer comme gagnée",
+    "unmarkWon": "Retirer gagnée",
     "noPrice": "pas de prix",
     "contacts": "Contacts",
     "original": "d'origine",

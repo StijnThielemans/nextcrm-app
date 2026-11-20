@@ -1177,6 +1177,8 @@
     "whichQuoteWon": "Welke offerte is gewonnen?",
     "noPricedQuote": "Geen offerte met een totaal bruto.",
     "wonQuote": "Gewonnen offerte {name}",
+    "markWon": "Op gewonnen zetten",
+    "unmarkWon": "Gewonnen afhalen",
     "noPrice": "geen prijs",
     "contacts": "Contacten",
     "original": "oorspronkelijk",

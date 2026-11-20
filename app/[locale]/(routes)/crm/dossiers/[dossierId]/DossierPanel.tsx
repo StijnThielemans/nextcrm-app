@@ -38,6 +38,7 @@ import {
   deleteDossierDocumentAction,
   deleteOfferteAction,
   markSentAction,
+  setQuoteWonAction,
 } from "@/actions/crm/sales/actions";
 import { uploadDocumentFile, uploadPdf } from "../../sales/upload-pdf";
 import { FileAttachmentsDialog } from "../../sales/FileAttachmentsDialog";
@@ -56,21 +57,32 @@ function folderTitle(label: string, category: string | null | undefined, t: Retu
 
 function AcceptedQuoteName({ dossier }: { dossier: DossierDetail }) {
   const t = useTranslations("Sales");
-  const quote = dossier.acceptedQuote;
-  if (!quote) return null;
-  const pdfId = dossier.families.flatMap((family) => family.quotes).find((item) => item.id === quote.id)?.pdfId;
-  const sentence = t("wonQuote", { name: quote.name });
-  const at = sentence.indexOf(quote.name);
-  const name = pdfId
-    ? <OpenStoredFile kind="document" id={pdfId} name={quote.name} mimeType="application/pdf" className="underline break-words">{quote.name}</OpenStoredFile>
-    : quote.name;
+  const quotes = dossier.wonQuotes.length > 0
+    ? dossier.wonQuotes
+    : dossier.acceptedQuote
+      ? [dossier.acceptedQuote]
+      : [];
+  if (quotes.length === 0) return null;
+  const pdfById = new Map(dossier.families.flatMap((family) => family.quotes).map((item) => [item.id, item.pdfId]));
   return (
-    <p className="min-w-0 break-words text-[0.72rem] leading-snug text-muted-foreground" data-accepted-quote={quote.id}>
-      {at < 0 ? sentence : sentence.slice(0, at)}
-      {at < 0 ? " " : null}
-      {name}
-      {at < 0 ? null : sentence.slice(at + quote.name.length)}
-    </p>
+    <>
+      {quotes.map((quote) => {
+        const pdfId = pdfById.get(quote.id);
+        const sentence = t("wonQuote", { name: quote.name });
+        const at = sentence.indexOf(quote.name);
+        const name = pdfId
+          ? <OpenStoredFile kind="document" id={pdfId} name={quote.name} mimeType="application/pdf" className="underline break-words">{quote.name}</OpenStoredFile>
+          : quote.name;
+        return (
+          <p key={quote.id} className="min-w-0 break-words text-[0.72rem] leading-snug text-muted-foreground" data-accepted-quote={quote.id} data-won-quote={quote.id}>
+            {at < 0 ? sentence : sentence.slice(0, at)}
+            {at < 0 ? " " : null}
+            {name}
+            {at < 0 ? null : sentence.slice(at + quote.name.length)}
+          </p>
+        );
+      })}
+    </>
   );
 }
 
@@ -509,6 +521,7 @@ export function DossierPanel({
     addedAt: quote.addedAt,
     sentAt: sentOn.get(quote.id) ?? null,
     gross: quote.gross,
+    won: quote.won,
   })));
   const stepper = stepperForDossier(dossier);
   const acceptedPrice = dossier.status === "GEWONNEN" && dossier.acceptedQuote
@@ -528,7 +541,7 @@ export function DossierPanel({
               )}
               <span className="min-w-0 break-words text-xs font-normal text-muted-foreground">{dossier.customer.name}</span>
             </h2>
-            {dossier.status === "GEWONNEN" && dossier.acceptedQuote && (
+            {dossier.status === "GEWONNEN" && (dossier.wonQuotes.length > 0 || dossier.acceptedQuote) && (
               <AcceptedQuoteName dossier={dossier} />
             )}
           </div>
@@ -727,6 +740,9 @@ export function DossierPanel({
                     <tr key={quote.id} className="border-b last:border-0">
                       <td className="py-2.5 pr-3">
                         <OpenStoredFile kind="document" id={quote.pdfId} name={quote.pdfName} mimeType="application/pdf" className="font-medium underline break-all">{quote.pdfName}</OpenStoredFile>
+                        {quote.won && (
+                          <span className="ml-2 text-xs font-medium" data-quote-won={quote.id}>{t("won")}</span>
+                        )}
                       </td>
                       <td className="whitespace-nowrap py-2.5 pr-3">{quote.date}</td>
                       <td className="whitespace-nowrap py-2.5 pr-3">
@@ -745,6 +761,29 @@ export function DossierPanel({
                           ) : !dossier.terminal ? (
                             <Button type="button" size="sm" disabled={busy} onClick={() => sendQuote(quote.id, quote.pdfId)}>{t("send")}</Button>
                           ) : null}
+                          {quote.sentAt && !quote.won && !dossier.terminal && (
+                            <Button
+                              type="button"
+                              size="sm"
+                              disabled={busy}
+                              data-mark-won={quote.id}
+                              onClick={() => void run(() => setQuoteWonAction(dossier.id, quote.id, true))}
+                            >
+                              {t("markWon")}
+                            </Button>
+                          )}
+                          {quote.won && !dossier.terminal && (
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              disabled={busy}
+                              data-unmark-won={quote.id}
+                              onClick={() => void run(() => setQuoteWonAction(dossier.id, quote.id, false))}
+                            >
+                              {t("unmarkWon")}
+                            </Button>
+                          )}
                           {!dossier.terminal && (
                             <Button
                               type="button"

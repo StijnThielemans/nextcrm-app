@@ -2478,6 +2478,8 @@ model crm_ExternalQuotes {
   createdAt       DateTime                 @default(now())
   createdBy       String?                  @db.Uuid
   deletedAt       DateTime?
+  /// Deze offerte is gewonnen. Andere offertes van hetzelfde dossier blijven zoals ze zijn.
+  won_at          DateTime?
 
   family            crm_ExternalQuoteFamilies @relation(fields: [family_id], references: [id], onDelete: Restrict)
   pdf               Documents                 @relation("QuotePdf", fields: [pdf_document_id], references: [id], onDelete: Restrict)

@@ -91,7 +91,7 @@ export async function listOfferteOverview(user: AuthzUser): Promise<OfferteSearc
       customer: dossier.assigned_account?.name ?? null,
       seller: dossier.seller_name ?? dossier.assigned_to_user?.name ?? null,
       status: dossier.dossier_status,
-      won: dossier.accepted_quote_id === row.id,
+      won: row.won_at != null || dossier.accepted_quote_id === row.id,
     };
   });
 }

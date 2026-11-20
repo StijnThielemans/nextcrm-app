@@ -45,6 +45,7 @@ import {
   type ArchitectHit,
 } from "./architects";
 import { parseDossierProjectDraft, type DossierProjectInput } from "./dossier-project";
+import { applyQuoteWin, statusAfterWins, type QuoteWinState } from "./won-quotes";
 
 function denyPartner(user: AuthzUser) {
   if (user.role === "partner") throw new SalesError("forbidden");
@@ -92,7 +93,7 @@ async function loadWritableDossier(user: AuthzUser, dossierId: string) {
   await guard(() => assertCanWriteOpportunity(user, dossierId));
   const row = await prismadb.crm_Opportunities.findFirst({
     where: { id: dossierId, is_dossier: true, deletedAt: null },
-    select: { id: true, dossier_status: true, name: true },
+    select: { id: true, dossier_status: true, name: true, accepted_quote_id: true },
   });
   if (!row) throw new SalesError("notFound");
   return row;
@@ -555,6 +556,7 @@ export type QuoteVersionView = {
   pdfId: string;
   pdfName: string;
   addedAt: string;
+  won: boolean;
 };
 
 export type DossierDetail = {
@@ -602,6 +604,7 @@ export type DossierDetail = {
   customerQuotes: { id: string; name: string }[];
   sends: { id: string; sentAt: string; followUp: string; quoteId: string; label: string }[];
   acceptedQuote: { id: string; name: string; gross: number | null } | null;
+  wonQuotes: { id: string; name: string; gross: number | null }[];
 };
 
 export async function getDossier(user: AuthzUser, dossierId: string): Promise<DossierDetail | null> {
@@ -680,6 +683,7 @@ export async function getDossier(user: AuthzUser, dossierId: string): Promise<Do
         pdfId: quote.pdf.id,
         pdfName: quote.pdf.document_name,
         addedAt: quote.createdAt.toISOString(),
+        won: quote.won_at != null || row.accepted_quote_id === quote.id,
       };
     }),
   }));
@@ -749,6 +753,11 @@ export async function getDossier(user: AuthzUser, dossierId: string): Promise<Do
           gross: money(row.accepted_quote.total_bruto),
         }
       : null,
+    wonQuotes: families.flatMap((family) => family.quotes.filter((quote) => quote.won).map((quote) => ({
+      id: quote.id,
+      name: quote.pdfName,
+      gross: quote.gross,
+    }))),
   };
 }
 
@@ -1501,6 +1510,71 @@ export async function markSent(
   });
 }
 
+async function persistQuoteWin(
+  user: AuthzUser,
+  dossier: { id: string; dossier_status: string | null; accepted_quote_id: string | null },
+  quoteId: string,
+  won: boolean,
+  options: { requireSent: boolean },
+) {
+  const rows = await prismadb.crm_ExternalQuotes.findMany({
+    where: { deletedAt: null, family: { dossier_id: dossier.id } },
+    select: {
+      id: true,
+      total_bruto: true,
+      won_at: true,
+      sends: { select: { id: true }, take: 1 },
+    },
+    orderBy: { createdAt: "asc" },
+  });
+  const current: QuoteWinState[] = rows.map((row) => ({
+    id: row.id,
+    sent: row.sends.length > 0,
+    priced: row.total_bruto != null,
+    accepted: row.id === dossier.accepted_quote_id,
+    markedWon: row.won_at != null,
+  }));
+  const result = applyQuoteWin(current, quoteId, won, options);
+  if (result.error === "missing" || result.error === "notSent") throw new SalesError("quoteRequired");
+  if (result.error === "noPrice") throw new SalesError("winnerPrice");
+  const next = result.quotes;
+  const now = new Date();
+  for (const quote of next) {
+    const before = current.find((item) => item.id === quote.id);
+    if (!before || before.markedWon === quote.markedWon) continue;
+    await prismadb.crm_ExternalQuotes.update({
+      where: { id: quote.id },
+      data: { won_at: quote.markedWon ? now : null },
+    });
+  }
+  const nextAccepted = next.find((quote) => quote.accepted)?.id ?? null;
+  const nextStatus = statusAfterWins(dossier.dossier_status, next);
+  const data: Prisma.crm_OpportunitiesUpdateInput = { updatedBy: user.id };
+  if (nextStatus && nextStatus !== dossier.dossier_status) data.dossier_status = nextStatus as DossierStatus;
+  if (nextAccepted !== dossier.accepted_quote_id) {
+    data.accepted_quote = nextAccepted ? { connect: { id: nextAccepted } } : { disconnect: true };
+  }
+  if (nextStatus === "GEWONNEN" && dossier.dossier_status !== "GEWONNEN") data.won_at = now;
+  if (nextStatus !== "GEWONNEN" && dossier.dossier_status === "GEWONNEN") data.won_at = null;
+  await prismadb.crm_Opportunities.update({ where: { id: dossier.id }, data });
+  await writeAuditLog({
+    entityType: "opportunity",
+    entityId: dossier.id,
+    action: "updated",
+    changes: [
+      { field: "won_quote_id", old: won ? null : quoteId, new: won ? quoteId : null },
+      ...(nextStatus !== dossier.dossier_status ? [{ field: "dossier_status", old: dossier.dossier_status, new: nextStatus }] : []),
+    ],
+    userId: user.id,
+  });
+}
+
+export async function setQuoteWon(user: AuthzUser, dossierId: string, quoteId: string, won: boolean) {
+  const dossier = await loadWritableDossier(user, dossierId);
+  assertOpen(dossier.dossier_status);
+  await persistQuoteWin(user, dossier, quoteId, won, { requireSent: true });
+}
+
 export async function changeDossierStatus(
   user: AuthzUser,
   dossierId: string,
@@ -1510,6 +1584,12 @@ export async function changeDossierStatus(
   assertOpen(dossier.dossier_status);
   if (!DOSSIER_STATUSES.includes(input.status)) throw new SalesError("notFound");
   if (input.status === "OFFERTE_VERSTUURD") throw new SalesError("notFound");
+  if (input.status === "GEWONNEN") {
+    const quoteId = input.acceptedQuoteId?.trim() || "";
+    if (!quoteId) throw new SalesError("quoteRequired");
+    await persistQuoteWin(user, dossier, quoteId, true, { requireSent: false });
+    return;
+  }
   const data: Prisma.crm_OpportunitiesUpdateInput = {
     dossier_status: input.status,
     updatedBy: user.id,
@@ -1517,18 +1597,6 @@ export async function changeDossierStatus(
   if (input.status === "VERLOREN") {
     data.lost_reason = requireText(input.lostReason, "lostReason", 500);
     data.lost_at = new Date();
-  }
-  if (input.status === "GEWONNEN") {
-    const quoteId = input.acceptedQuoteId?.trim() || "";
-    if (!quoteId) throw new SalesError("quoteRequired");
-    const quote = await prismadb.crm_ExternalQuotes.findFirst({
-      where: { id: quoteId, deletedAt: null, family: { dossier_id: dossierId } },
-      select: { id: true, total_bruto: true },
-    });
-    if (!quote) throw new SalesError("quoteRequired");
-    if (quote.total_bruto == null) throw new SalesError("winnerPrice");
-    data.accepted_quote = { connect: { id: quote.id } };
-    data.won_at = new Date();
   }
   if (input.status === "OFFERTE_KLAAR" && !(await hasCustomerQuote(dossierId))) {
     throw new SalesError("noCustomerQuote");
@@ -1541,7 +1609,6 @@ export async function changeDossierStatus(
     changes: [
       { field: "dossier_status", old: dossier.dossier_status, new: input.status },
       ...(input.status === "VERLOREN" ? [{ field: "lost_reason", old: null, new: input.lostReason?.trim() ?? "" }] : []),
-      ...(input.status === "GEWONNEN" ? [{ field: "accepted_quote_id", old: null, new: input.acceptedQuoteId ?? "" }] : []),
     ],
     userId: user.id,
   });
