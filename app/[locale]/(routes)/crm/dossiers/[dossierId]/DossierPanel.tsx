@@ -54,7 +54,7 @@ function folderTitle(label: string, category: string | null | undefined, t: Retu
 }
 
 
-function AcceptedQuoteLine({ dossier }: { dossier: DossierDetail }) {
+function AcceptedQuoteName({ dossier }: { dossier: DossierDetail }) {
   const t = useTranslations("Sales");
   const quote = dossier.acceptedQuote;
   if (!quote) return null;
@@ -62,15 +62,14 @@ function AcceptedQuoteLine({ dossier }: { dossier: DossierDetail }) {
   const sentence = t("wonQuote", { name: quote.name });
   const at = sentence.indexOf(quote.name);
   const name = pdfId
-    ? <OpenStoredFile kind="document" id={pdfId} name={quote.name} mimeType="application/pdf" className="underline break-all">{quote.name}</OpenStoredFile>
+    ? <OpenStoredFile kind="document" id={pdfId} name={quote.name} mimeType="application/pdf" className="underline break-words">{quote.name}</OpenStoredFile>
     : quote.name;
   return (
-    <p data-accepted-quote={quote.id}>
+    <p className="min-w-0 break-words text-[0.72rem] leading-snug text-muted-foreground" data-accepted-quote={quote.id}>
       {at < 0 ? sentence : sentence.slice(0, at)}
       {at < 0 ? " " : null}
       {name}
-      {at < 0 ? null : sentence.slice(at + quote.name.length)}{" "}
-      <span data-accepted-price="">{shownPrice(quote.gross, t("noPrice"))}</span>
+      {at < 0 ? null : sentence.slice(at + quote.name.length)}
     </p>
   );
 }
@@ -512,48 +511,68 @@ export function DossierPanel({
     gross: quote.gross,
   })));
   const stepper = stepperForDossier(dossier);
+  const acceptedPrice = dossier.status === "GEWONNEN" && dossier.acceptedQuote
+    ? shownPrice(dossier.acceptedQuote.gross, t("noPrice"))
+    : null;
 
   return (
     <div className="space-y-4">
-      <section className="tilo-frame flex flex-wrap items-center justify-between gap-4 px-4 py-3" aria-label={t("status")}>
-        <ol className="flex min-w-0 flex-1 flex-nowrap items-center overflow-x-auto">
+      <section className="@container tilo-frame min-w-0 px-3 py-2" aria-label={t("status")} data-testid="dossier-bar">
+        <div className="flex min-w-0 flex-wrap items-start justify-between gap-x-3 gap-y-1">
+          <div className="min-w-0 flex-1">
+            <h2 className="flex min-w-0 flex-wrap items-baseline gap-x-2 text-sm font-medium leading-tight">
+              <span aria-hidden className="h-3.5 w-[3px] shrink-0 self-center rounded-full bg-[hsl(var(--tilo))]" />
+              <span className="min-w-0 break-words">{dossier.name || t("fallbackDossier")}</span>
+              {dossier.number && (
+                <span className="whitespace-nowrap text-xs font-normal text-muted-foreground">{dossier.number}</span>
+              )}
+              <span className="min-w-0 break-words text-xs font-normal text-muted-foreground">{dossier.customer.name}</span>
+            </h2>
+            {dossier.status === "GEWONNEN" && dossier.acceptedQuote && (
+              <AcceptedQuoteName dossier={dossier} />
+            )}
+          </div>
+          <div className="flex max-w-full shrink-0 flex-wrap items-center justify-end gap-1.5">
+            {acceptedPrice && (
+              <span className="whitespace-nowrap text-sm font-semibold tabular-nums" data-accepted-price="">{acceptedPrice}</span>
+            )}
+            {!dossier.terminal && (
+              <>
+                <Button type="button" size="sm" className="h-7 px-2.5 text-xs" disabled={busy} onClick={() => setCloseMode("won")}>{t("won")}</Button>
+                <Button type="button" size="sm" variant="outline" className="h-7 px-2.5 text-xs" disabled={busy} onClick={() => setCloseMode("lost")}>{t("lost")}</Button>
+              </>
+            )}
+          </div>
+        </div>
+        <ol className="mt-1.5 flex w-full min-w-0 flex-nowrap items-center">
           {stepper.steps.map((step, index) => (
-            <li key={step.id} className="flex items-center">
-              {index > 0 && <span aria-hidden className="mx-2 h-px w-6 shrink-0 bg-border sm:w-8" />}
+            <li key={step.id} className={cn("flex items-center", index > 0 && "flex-1")}>
+              {index > 0 && <span aria-hidden className="mx-0.5 h-px min-w-1 flex-1 bg-border @min-[640px]:mx-1.5" />}
               <span
                 data-step={step.id}
                 data-state={step.state}
                 aria-current={step.state === "current" ? "step" : undefined}
                 className={cn(
-                  "inline-flex items-center gap-2 text-sm",
+                  "inline-flex shrink-0 items-center gap-0.5 whitespace-nowrap text-[clamp(0.68rem,1.45cqw,0.8125rem)] leading-none @min-[640px]:gap-1",
                   step.state === "current" && "font-semibold",
                   step.state === "upcoming" && "text-muted-foreground",
                 )}
               >
                 <span
                   className={cn(
-                    "flex size-6 shrink-0 items-center justify-center rounded-full border text-xs",
+                    "flex size-3.5 shrink-0 items-center justify-center rounded-full border text-[0.65rem] @min-[640px]:size-4",
                     step.state === "current" && "border-transparent bg-[hsl(183_42%_38%)] text-white",
                     step.state === "complete" && "border-[hsl(183_40%_72%)] bg-[hsl(183_42%_94%)] text-[hsl(183_35%_28%)]",
                     step.state === "upcoming" && "border-dashed",
                   )}
                 >
-                  {step.state === "complete" ? <Check className="size-3.5" aria-hidden /> : index + 1}
+                  {step.state === "complete" ? <Check className="size-3" aria-hidden /> : index + 1}
                 </span>
                 {t(`steps.${step.id}`)}
               </span>
             </li>
           ))}
         </ol>
-        {!dossier.terminal && (
-          <div className="flex flex-wrap gap-2">
-            <Button type="button" size="sm" disabled={busy} onClick={() => setCloseMode("won")}>{t("won")}</Button>
-            <Button type="button" size="sm" variant="outline" disabled={busy} onClick={() => setCloseMode("lost")}>{t("lost")}</Button>
-          </div>
-        )}
-        {dossier.status === "GEWONNEN" && dossier.acceptedQuote && (
-          <AcceptedQuoteLine dossier={dossier} />
-        )}
       </section>
       <Dialog open={closeMode != null} onOpenChange={(open) => { if (!open) setCloseMode(null); }}>
         <DialogContent>
