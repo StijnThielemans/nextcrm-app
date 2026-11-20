@@ -12,6 +12,7 @@ import { fileOfferteboxAttachments, listPendingOfferteboxAttachments, type Filin
 import {
   addChannelEvent,
   changeDossierStatus,
+  reopenDossier,
   setQuoteWon,
   createAanvraag,
   getDossier,
@@ -369,6 +370,18 @@ export async function changeStatusAction(
   if ("error" in auth) return { error: auth.error };
   try {
     await changeDossierStatus(auth.user, dossierId, input);
+    refresh();
+    return { ok: true };
+  } catch (error) {
+    return await fail(error);
+  }
+}
+
+export async function reopenDossierAction(dossierId: string) {
+  const auth = await userOrError();
+  if ("error" in auth) return { error: auth.error };
+  try {
+    await reopenDossier(auth.user, dossierId);
     refresh();
     return { ok: true };
   } catch (error) {

@@ -1071,6 +1071,7 @@
     "followUpDescription": "Date and note for the next follow-up.",
     "won": "Won",
     "lost": "Lost",
+    "reopenDossier": "Znovu otevřít",
     "wonPrompt": "Choose which quote was won. The price is next to the name.",
     "lostPrompt": "Enter the reason for the loss.",
     "whichQuoteWon": "Which quote was won?",

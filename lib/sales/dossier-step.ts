@@ -121,6 +121,13 @@ export function currentDossierStep(input: DossierStepperInput): DashboardStep {
   return "NIEUW";
 }
 
+/** Stored status after Verloren is cleared. Sends win, then documents, otherwise Nieuw. */
+export function statusAfterReopen(input: { hasDocuments: boolean; sentAt: string | null }): "NIEUW" | "IN_OPMAAK" | "OFFERTE_VERSTUURD" {
+  if (input.sentAt) return "OFFERTE_VERSTUURD";
+  if (input.hasDocuments) return "IN_OPMAAK";
+  return "NIEUW";
+}
+
 export function stepperForDossier(
   dossier: {
     documents: readonly unknown[];

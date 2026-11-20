@@ -237,6 +237,7 @@ export const SALES_ERROR_TEXT: Record<string, string> = {
   notCustomerQuote: "Alleen een klantofferte mag naar de klant. De leveranciersofferte blijft intern.",
   noCustomerQuote: "Laad eerst de klantofferte op.",
   terminal: "Dit dossier is afgesloten.",
+  notLost: "Alleen een verloren dossier kan terug open.",
   quoteRequired: "Kies de aanvaarde offerteversie.",
   winnerPrice: "Kies een offerte met een totaal bruto.",
   emailLater: "E-mail vanuit de app volgt later. Registreer de verzending handmatig.",

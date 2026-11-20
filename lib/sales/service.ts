@@ -16,7 +16,7 @@ import {
 } from "@/lib/authz/scopes/crm";
 import { SalesError } from "./errors";
 import { dossierIsReadOnly } from "./dossier-lock";
-import { buildDossierStepper, currentDossierStep } from "./dossier-step";
+import { buildDossierStepper, currentDossierStep, statusAfterReopen } from "./dossier-step";
 import { parseGrossTotalInput } from "./gross-total";
 import { quoteMargin } from "./margin";
 import { salesTiles, type DashRow, type SalesTiles } from "./dashboard-math";
@@ -1612,6 +1612,48 @@ export async function changeDossierStatus(
     changes: [
       { field: "dossier_status", old: dossier.dossier_status, new: input.status },
       ...(input.status === "VERLOREN" ? [{ field: "lost_reason", old: null, new: input.lostReason?.trim() ?? "" }] : []),
+    ],
+    userId: user.id,
+  });
+}
+
+/** Clears Verloren and the loss reason. Quotes, files, the customer and the seller stay. */
+export async function reopenDossier(user: AuthzUser, dossierId: string) {
+  const dossier = await loadWritableDossier(user, dossierId);
+  if (dossier.dossier_status !== "VERLOREN") throw new SalesError("notLost");
+  const facts = await prismadb.crm_Opportunities.findFirst({
+    where: { id: dossierId, is_dossier: true, deletedAt: null },
+    select: {
+      lost_reason: true,
+      quote_sends: { select: { sent_at: true }, orderBy: { sent_at: "asc" }, take: 1 },
+      documents: {
+        where: { document: { deletedAt: null } },
+        select: { document_id: true },
+        take: 1,
+      },
+    },
+  });
+  if (!facts) throw new SalesError("notFound");
+  const status = statusAfterReopen({
+    hasDocuments: facts.documents.length > 0,
+    sentAt: facts.quote_sends[0]?.sent_at.toISOString() ?? null,
+  });
+  await prismadb.crm_Opportunities.update({
+    where: { id: dossierId },
+    data: {
+      dossier_status: status,
+      lost_reason: null,
+      lost_at: null,
+      updatedBy: user.id,
+    },
+  });
+  await writeAuditLog({
+    entityType: "opportunity",
+    entityId: dossierId,
+    action: "updated",
+    changes: [
+      { field: "dossier_status", old: "VERLOREN", new: status },
+      { field: "lost_reason", old: facts.lost_reason, new: null },
     ],
     userId: user.id,
   });

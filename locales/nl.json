@@ -1172,6 +1172,7 @@
     "followUpDescription": "Datum en notitie voor de volgende opvolging.",
     "won": "Gewonnen",
     "lost": "Verloren",
+    "reopenDossier": "Terug openen",
     "wonPrompt": "Kies welke offerte gewonnen is. De prijs staat naast de naam.",
     "lostPrompt": "Vul de reden van verlies in.",
     "whichQuoteWon": "Welke offerte is gewonnen?",

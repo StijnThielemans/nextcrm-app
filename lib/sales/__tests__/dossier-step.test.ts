@@ -1,4 +1,4 @@
-import { buildDossierStepper, currentDossierStep } from "../dossier-step";
+import { buildDossierStepper, currentDossierStep, statusAfterReopen } from "../dossier-step";
 
 const now = new Date("2026-11-19T15:00:00.000Z");
 
@@ -86,5 +86,14 @@ describe("dossier status stepper", () => {
     expect(view.current).toBe("Project maken");
     expect(view.steps.at(-2)).toBe("Gewonnen:complete");
     expect(view.steps.at(-1)).toBe("Project maken:current");
+  });
+
+  it("puts a reopened dossier back on the step of its quotes", () => {
+    const sent = { hasDocuments: true, sentAt: "2026-11-18T09:00:00.000Z" };
+    expect(statusAfterReopen(sent)).toBe("OFFERTE_VERSTUURD");
+    expect(labels({ ...sent, status: statusAfterReopen(sent) }).current).toBe("Offerte verstuurd");
+    expect(statusAfterReopen({ hasDocuments: true, sentAt: null })).toBe("IN_OPMAAK");
+    expect(labels({ hasDocuments: true, sentAt: null, status: "IN_OPMAAK" }).current).toBe("In behandeling");
+    expect(statusAfterReopen({ hasDocuments: false, sentAt: null })).toBe("NIEUW");
   });
 });

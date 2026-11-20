@@ -36,6 +36,7 @@ import {
   changeDossierDocumentCategoryAction,
   changeStatusAction,
   deleteDossierDocumentAction,
+  reopenDossierAction,
   deleteOfferteAction,
   markSentAction,
   setQuoteWonAction,
@@ -574,6 +575,9 @@ export function DossierPanel({
         <div className="flex shrink-0 items-center gap-1">
           {acceptedPrice && (
             <span className="whitespace-nowrap text-[12px] font-semibold tabular-nums leading-none" data-accepted-price="">{acceptedPrice}</span>
+          )}
+          {dossier.status === "VERLOREN" && (
+            <Button type="button" size="sm" className="h-6 px-1.5 text-[11px]" disabled={busy} data-testid="reopen-dossier" onClick={() => { void run(() => reopenDossierAction(dossier.id)); }}>{t("reopenDossier")}</Button>
           )}
           {!dossier.terminal && (
             <>
