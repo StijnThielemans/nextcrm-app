@@ -528,6 +528,16 @@ export function RaamstudioWorkspace({
   }
 
   const numbers = [...new Set(draft.openings.map((item) => item.number))];
+  const facadeMeasures = numbers.map((number) => {
+    const saved = (orientation: "width" | "height") =>
+      draft.sizes.find((item) => item.number === number && item.orientation === orientation)?.valueMm ?? "";
+    const read = measures.find((item) => item.number === number);
+    return {
+      number,
+      width: saved("width") || (read?.width ? String(read.width.mm) : "???"),
+      height: saved("height") || (read?.height ? String(read.height.mm) : "???"),
+    };
+  });
   const chosenNumber = numbers.includes(infoNumber) ? infoNumber : (numbers[0] ?? "");
   const chosenFacade = armed && numbers.includes(armed)
     ? armed
@@ -610,7 +620,8 @@ export function RaamstudioWorkspace({
         step === "tekeningen" ? "lg:grid-cols-[220px_minmax(0,1fr)_300px]"
           : step === "gevels" ? "lg:grid-cols-[200px_minmax(0,1fr)_340px]"
             : step === "grondplan" ? "lg:grid-cols-[200px_minmax(0,1fr)]"
-              : "lg:grid-cols-[minmax(0,0.7fr)_minmax(460px,1.15fr)]",
+              : step === "maten" ? "lg:grid-cols-1"
+                : "lg:grid-cols-[minmax(0,0.7fr)_minmax(460px,1.15fr)]",
       )}>
         {step === "tekeningen" ? (
         <div className="border-black/10 lg:border-r" data-testid="raamstudio-plan-list">
@@ -732,6 +743,18 @@ export function RaamstudioWorkspace({
               onRemove={removeClipNumber}
               emptyText="Duid eerst in stap 1 een gevel of snede aan. De grondplannen staan rechts als overzicht."
             />
+          ) : step === "maten" ? (
+            <>
+              <p className="px-3 pt-3 text-xs text-muted-foreground">Breedte onder het raam, hoogte rechts. Een ontbrekende maat is ???. Dubbelklik om ze te wijzigen.</p>
+              <ClipBoard
+                clips={visibleClips(draft.drawings, pdfs, isFacadeClip)}
+                planNames={draft.drawings.map((drawing) => drawing.planName)}
+                numbers={clipNumbers(draft)}
+                measures={facadeMeasures}
+                onEditMeasure={setSize}
+                emptyText="Duid eerst in stap 1 een gevel of snede aan en zet het raamnummer erop."
+              />
+            </>
           ) : step !== "tekeningen" ? (
             <p className="p-6 text-sm text-muted-foreground" data-testid="raamstudio-clips-hint">
               De lijst met PDF&apos;s is weg. Rechts staan de knipsels. Klik erop om een raamnummer te zetten.
@@ -784,7 +807,7 @@ export function RaamstudioWorkspace({
           </aside>
         ) : null}
 
-        {step === "gevels" || step === "grondplan" ? null : (
+        {step === "gevels" || step === "grondplan" || step === "maten" ? null : (
         <div className={cn("flex min-h-0 flex-col border-black/10 lg:border-l", step !== "tekeningen" && "max-h-[760px] overflow-hidden")} data-testid="raamstudio-side">
           {step !== "tekeningen" ? (
             <ClipBoard
@@ -827,58 +850,6 @@ export function RaamstudioWorkspace({
                 onRemove={(index) => touch({ ...draft, drawings: draft.drawings.filter((_, i) => i !== index) })}
                 onReorder={reorderDrawings}
               />
-            </div>
-          ) : null}
-
-          {step === "maten" ? (
-            <div className="space-y-3" data-testid="raamstudio-sizes">
-              <p className="text-sm font-medium">Breedte en hoogte</p>
-              <p className="text-xs text-muted-foreground">Breedte van het grondplan, gecontroleerd op de gevel. Hoogte van de gevel of de snede. Alleen een maatcijfer bij het raam telt. Een lege maat is niet gevonden. Wat je zelf invult, blijft staan.</p>
-              {numbers.length ? numbers.map((number) => {
-                const measure = measures.find((item) => item.number === number);
-                const savedWidth = draft.sizes.find((item) => item.number === number && item.orientation === "width")?.valueMm ?? "";
-                const savedHeight = draft.sizes.find((item) => item.number === number && item.orientation === "height")?.valueMm ?? "";
-                const widthText = measure?.width
-                  ? `${measure.width.mm} mm breedte, ${measure.width.method} op ${measure.width.plan}${measure.planWidth ? `. Grondplan ${measure.planWidth.mm} mm, ${measure.planWidth.method} op ${measure.planWidth.plan}` : ""}`
-                  : "";
-                const heightText = measure?.height
-                  ? `${measure.height.mm} mm hoogte, ${measure.height.method} op ${measure.height.plan}`
-                  : "";
-                return (
-                  <div
-                    key={number}
-                    className="space-y-1"
-                    data-testid="raamstudio-measure"
-                    data-number={number}
-                    data-width={measure?.width?.mm ?? ""}
-                    data-height={measure?.height?.mm ?? ""}
-                    data-width-method={measure?.width?.method ?? ""}
-                    data-height-method={measure?.height?.method ?? ""}
-                    data-width-plan={measure?.width?.plan ?? ""}
-                    data-height-plan={measure?.height?.plan ?? ""}
-                    data-plan-width={measure?.planWidth?.mm ?? ""}
-                  >
-                    <p className="text-sm">{number}</p>
-                    {widthText ? <p className="text-xs text-muted-foreground" data-testid="raamstudio-measure-width">{widthText}</p> : null}
-                    {heightText ? <p className="text-xs text-muted-foreground" data-testid="raamstudio-measure-height">{heightText}</p> : null}
-                    {measure && !measure.onFacade ? <p className="text-xs text-muted-foreground">Staat niet op een gevel, dus geen hoogte.</p> : null}
-                    <Input
-                      inputMode="decimal"
-                      placeholder="Breedte (mm)"
-                      aria-label={`Breedte ${number}`}
-                      value={savedWidth}
-                      onChange={(event) => setSize(number, "width", event.target.value)}
-                    />
-                    <Input
-                      inputMode="decimal"
-                      placeholder="Hoogte (mm)"
-                      aria-label={`Hoogte ${number}`}
-                      value={savedHeight}
-                      onChange={(event) => setSize(number, "height", event.target.value)}
-                    />
-                  </div>
-                );
-              }) : <p className="text-sm text-muted-foreground">Nummer eerst de ramen op het grondplan.</p>}
             </div>
           ) : null}
 

@@ -32,6 +32,12 @@ export type ClipNumber = {
   y: number;
 };
 
+export type ClipMeasure = {
+  number: string;
+  width: string;
+  height: string;
+};
+
 export function ClipBoard({
   clips,
   planNames,
@@ -39,6 +45,8 @@ export function ClipBoard({
   onPlace,
   onMove,
   onRemove,
+  measures,
+  onEditMeasure,
   emptyText = "Duid eerst in stap 1 een gevel, snede of grondplan aan. Die knipsels komen hier.",
   testId = "raamstudio-clip-board",
 }: {
@@ -48,6 +56,8 @@ export function ClipBoard({
   onPlace?: (index: number, localX: number, localY: number) => void;
   onMove?: (id: string, x: number, y: number) => void;
   onRemove?: (id: string) => void;
+  measures?: ClipMeasure[];
+  onEditMeasure?: (number: string, orientation: "width" | "height", value: string) => void;
   emptyText?: string;
   testId?: string;
 }) {
@@ -66,6 +76,8 @@ export function ClipBoard({
           clip={clip}
           planName={planNames[clip.index] ?? ""}
           numbers={numbers}
+          measures={measures}
+          onEditMeasure={onEditMeasure}
           onPlace={onPlace}
           onMove={onMove}
           onRemove={onRemove}
@@ -79,6 +91,8 @@ function ClipCard({
   clip,
   planName,
   numbers,
+  measures,
+  onEditMeasure,
   onPlace,
   onMove,
   onRemove,
@@ -86,6 +100,8 @@ function ClipCard({
   clip: ClipView;
   planName: string;
   numbers: ClipNumber[];
+  measures?: ClipMeasure[];
+  onEditMeasure?: (number: string, orientation: "width" | "height", value: string) => void;
   onPlace?: (index: number, localX: number, localY: number) => void;
   onMove?: (id: string, x: number, y: number) => void;
   onRemove?: (id: string) => void;
@@ -268,6 +284,29 @@ function ClipCard({
               {number.label}
             </button>
           ))}
+          {onEditMeasure ? visible.map((number) => {
+            const measure = measures?.find((item) => item.number === number.label);
+            return (
+              <span key={`size-${number.id}`}>
+                <MeasureTag
+                  text={measure?.width || "???"}
+                  number={number.label}
+                  orientation="width"
+                  testId="raamstudio-facade-width"
+                  style={{ left: `${number.x * 100}%`, top: `${number.y * 100}%`, transform: "translate(-50%, 18px)" }}
+                  onCommit={(value) => onEditMeasure(number.label, "width", value)}
+                />
+                <MeasureTag
+                  text={measure?.height || "???"}
+                  number={number.label}
+                  orientation="height"
+                  testId="raamstudio-facade-height"
+                  style={{ left: `${number.x * 100}%`, top: `${number.y * 100}%`, transform: "translate(28px, -50%)" }}
+                  onCommit={(value) => onEditMeasure(number.label, "height", value)}
+                />
+              </span>
+            );
+          }) : null}
         </div>
       </div>
       </div>
@@ -282,5 +321,79 @@ function ClipCard({
         </ul>
       ) : null}
     </article>
+  );
+}
+
+function MeasureTag({
+  text,
+  number,
+  orientation,
+  testId,
+  style,
+  onCommit,
+}: {
+  text: string;
+  number: string;
+  orientation: "width" | "height";
+  testId: string;
+  style: { left: string; top: string; transform: string };
+  onCommit: (value: string) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState("");
+  const skipCommit = useRef(false);
+  if (editing) {
+    return (
+      <input
+        autoFocus
+        inputMode="decimal"
+        aria-label={`${orientation === "width" ? "Breedte" : "Hoogte"} ${number}`}
+        className="absolute z-20 h-6 w-16 rounded border border-black/30 bg-white px-1 text-center text-xs"
+        style={style}
+        value={value}
+        data-testid={testId}
+        data-number={number}
+        data-editing="true"
+        onChange={(event) => setValue(event.target.value)}
+        onPointerDown={(event) => event.stopPropagation()}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") {
+            onCommit(value);
+            setEditing(false);
+          }
+          if (event.key === "Escape") {
+            skipCommit.current = true;
+            setEditing(false);
+          }
+        }}
+        onBlur={() => {
+          if (skipCommit.current) {
+            skipCommit.current = false;
+            return;
+          }
+          onCommit(value);
+          setEditing(false);
+        }}
+      />
+    );
+  }
+  return (
+    <button
+      type="button"
+      className="absolute z-20 whitespace-nowrap rounded bg-white/90 px-1 text-xs font-medium text-black"
+      style={style}
+      data-testid={testId}
+      data-number={number}
+      data-value={text}
+      onPointerDown={(event) => event.stopPropagation()}
+      onDoubleClick={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        setValue(text === "???" ? "" : text);
+        setEditing(true);
+      }}
+    >
+      {text}
+    </button>
   );
 }
