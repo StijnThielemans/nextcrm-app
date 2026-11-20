@@ -23,10 +23,11 @@ type SheetRequest = {
   page: number;
   name: string;
   role: "floor" | "facade";
+  rotation: number;
   marks: PlanMark[];
 };
 
-const cache = new Map<string, { width: number; height: number; words: PlanSheet["words"] }>();
+const cache = new Map<string, { width: number; height: number; words: PlanSheet["words"]; lines: PlanSheet["lines"] }>();
 
 export async function POST(request: NextRequest) {
   let user;
@@ -62,7 +63,15 @@ export async function POST(request: NextRequest) {
     for (const sheet of wanted) {
       const page = pages.get(sheet.page + 1);
       if (!page) continue;
-      const built = { name: sheet.name, width: page.width, height: page.height, words: page.words };
+      const built = {
+        name: sheet.name,
+        width: page.width,
+        height: page.height,
+        words: page.words,
+        lines: page.lines,
+        rotation: sheet.rotation,
+        role: sheet.role,
+      };
       const target = sheet.role === "facade" ? facades : floors;
       target.push({ sheet: built, marks: sheet.marks });
     }
@@ -81,6 +90,7 @@ function parseSheets(value: unknown): SheetRequest[] | null {
     const documentId = typeof sheet.documentId === "string" ? sheet.documentId : "";
     const name = typeof sheet.name === "string" ? sheet.name.trim().slice(0, 80) : "";
     const page = sheet.page;
+    const rotation = sheet.rotation === 90 || sheet.rotation === 180 || sheet.rotation === 270 ? sheet.rotation : 0;
     const role = sheet.role === "floor" || sheet.role === "facade" ? sheet.role : null;
     if (!/^[0-9a-f-]{16,40}$/i.test(documentId) || !name || !role) return null;
     if (typeof page !== "number" || !Number.isInteger(page) || page < 0 || page > 399) return null;
@@ -96,7 +106,7 @@ function parseSheets(value: unknown): SheetRequest[] | null {
       marks += 1;
       if (marks > 200) return null;
     }
-    if (parsed.length) sheets.push({ documentId, page, name, role, marks: parsed });
+    if (parsed.length) sheets.push({ documentId, page, name, role, rotation, marks: parsed });
   }
   return sheets;
 }
@@ -111,7 +121,7 @@ async function wordsFor(documentId: string, pages: number[]) {
   if (!pdf) throw new Error("missing");
   const bytes = await documentBytes(doc);
   const stamp = createHash("sha1").update(bytes).digest("hex").slice(0, 16);
-  const result = new Map<number, { width: number; height: number; words: PlanSheet["words"] }>();
+  const result = new Map<number, { width: number; height: number; words: PlanSheet["words"]; lines: PlanSheet["lines"] }>();
   const missing: number[] = [];
   for (const page of pages) {
     const cached = cache.get(`${documentId}:${page}:${stamp}`);

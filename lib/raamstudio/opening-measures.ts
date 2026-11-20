@@ -6,11 +6,24 @@ export type PlanWord = {
   rotated: boolean;
 };
 
+/** A straight stroke from the PDF, in page points. `y` grows upward. */
+export type PlanLine = {
+  x0: number;
+  y0: number;
+  x1: number;
+  y1: number;
+};
+
 export type PlanSheet = {
   name: string;
   width: number;
   height: number;
   words: PlanWord[];
+  lines?: PlanLine[];
+  /** Clockwise display rotation. Marks are stored in that view; the text is not. */
+  rotation?: number;
+  /** A facade width is horizontal. A floor-plan width follows the wall, either way. */
+  role?: "floor" | "facade";
 };
 
 /** A window number, as a fraction of the page from the top-left. */
@@ -31,12 +44,13 @@ export type WindowMeasure = {
   onFacade: boolean;
   width: MeasureReading | null;
   height: MeasureReading | null;
-  /** The floor-plan width, when the facade width is the view size and the two differ. */
+  /** Kept empty. Two disagreeing sources leave the width itself empty. */
   planWidth: MeasureReading | null;
 };
 
 const WIDTH_MIN = 500;
 const WIDTH_MAX = 3200;
+const WIDTH_LINE_MAX = 4200;
 const HEIGHT_MIN = 1400;
 const HEIGHT_MAX = 2700;
 
@@ -59,8 +73,87 @@ function millimetres(text: string, unit: "mm" | "cm"): number | null {
   return unit === "cm" ? value * 10 : value;
 }
 
+function unrotated(mark: PlanMark, degrees: number): PlanMark {
+  const turn = ((degrees % 360) + 360) % 360;
+  if (turn === 90) return { ...mark, x: mark.y, y: 1 - mark.x };
+  if (turn === 180) return { ...mark, x: 1 - mark.x, y: 1 - mark.y };
+  if (turn === 270) return { ...mark, x: 1 - mark.y, y: mark.x };
+  return mark;
+}
+
 function origin(sheet: PlanSheet, mark: PlanMark): { x: number; y: number } {
-  return { x: mark.x * sheet.width, y: (1 - mark.y) * sheet.height };
+  const point = unrotated(mark, sheet.rotation ?? 0);
+  return { x: point.x * sheet.width, y: (1 - point.y) * sheet.height };
+}
+
+/** The scale printed on the sheet, such as 1:50 or 1/100. Nothing is assumed. */
+export function sheetScale(words: PlanWord[]): number | null {
+  for (const word of words) {
+    const hit = word.text.match(/1\s*[:/]\s*(\d{2,3})/);
+    if (!hit) continue;
+    const scale = Number(hit[1]);
+    if (scale >= 10 && scale <= 500) return scale;
+  }
+  return null;
+}
+
+function lineInterpretations(text: string): number[] {
+  const raw = text.trim();
+  const values: number[] = [];
+  if (/^\d{1,2}[.,]\d{1,2}$/.test(raw)) {
+    const meters = Number(raw.replace(",", "."));
+    const mm = Math.round(meters * 1000);
+    if (mm >= WIDTH_MIN && mm <= WIDTH_LINE_MAX) values.push(mm);
+  }
+  if (/^\d{2,4}$/.test(raw)) {
+    const value = Number(raw);
+    if (value >= WIDTH_MIN && value <= WIDTH_LINE_MAX) values.push(value);
+    if (value * 10 >= WIDTH_MIN && value * 10 <= WIDTH_LINE_MAX) values.push(value * 10);
+  }
+  return [...new Set(values)];
+}
+
+/**
+ * The dimension line that runs across the opening. The printed scale only
+ * decides whether that figure is centimetres, millimetres or metres. A second
+ * figure just as close, with a different length, is left unread.
+ */
+function readWidthOnLine(sheet: PlanSheet, mark: PlanMark): number | null {
+  const scale = sheetScale(sheet.words);
+  const lines = sheet.lines ?? [];
+  if (!scale || !lines.length) return null;
+  const at = origin(sheet, mark);
+  const hits: { mm: number; dist: number }[] = [];
+  for (const line of lines) {
+    const dx = Math.abs(line.x0 - line.x1);
+    const dy = Math.abs(line.y0 - line.y1);
+    const horizontal = dy <= 1.5 && dx >= 8;
+    const vertical = sheet.role !== "facade" && dx <= 1.5 && dy >= 8;
+    if (!horizontal && !vertical) continue;
+    const span = horizontal ? dx : dy;
+    const along0 = horizontal ? Math.min(line.x0, line.x1) : Math.min(line.y0, line.y1);
+    const along1 = along0 + span;
+    const cross = horizontal ? (line.y0 + line.y1) / 2 : (line.x0 + line.x1) / 2;
+    const markAlong = horizontal ? at.x : at.y;
+    const markCross = horizontal ? at.y : at.x;
+    if (markAlong < along0 - 2 || markAlong > along1 + 2 || Math.abs(cross - markCross) > 48) continue;
+    for (const word of sheet.words) {
+      if (horizontal ? word.rotated : !word.rotated) continue;
+      const wordAlong = horizontal ? word.x : word.y;
+      const wordCross = horizontal ? word.y : word.x;
+      if (Math.abs(wordCross - cross) > 10 || wordAlong < along0 - 5 || wordAlong > along1 + 5) continue;
+      if (Math.abs(wordAlong - markAlong) > 32) continue;
+      for (const mm of lineInterpretations(word.text)) {
+        const want = mm / scale / 25.4 * 72;
+        if (Math.abs(span - want) <= Math.max(6, want * 0.16)) hits.push({ mm, dist: Math.abs(cross - markCross) });
+      }
+    }
+  }
+  if (!hits.length) return null;
+  hits.sort((left, right) => left.dist - right.dist);
+  const best = hits[0];
+  const rival = hits.find((hit) => Math.abs(hit.mm - best.mm) > 40 && hit.dist <= best.dist + 4);
+  return rival ? null : best.mm;
 }
 
 function pick(candidates: Candidate[]): Candidate | null {
@@ -78,6 +171,11 @@ function pick(candidates: Candidate[]): Candidate | null {
  * used: that would be a guess, not a measure.
  */
 export function readWidth(sheet: PlanSheet, mark: PlanMark): number | null {
+  if ((sheet.lines?.length ?? 0) > 0 && sheetScale(sheet.words)) return readWidthOnLine(sheet, mark);
+  return readWidthNearby(sheet, mark);
+}
+
+function readWidthNearby(sheet: PlanSheet, mark: PlanMark): number | null {
   const unit = pageUnit(sheet.words);
   const at = origin(sheet, mark);
   const candidates: Candidate[] = [];
@@ -118,9 +216,8 @@ function reading(plan: string, mm: number | null): MeasureReading | null {
 }
 
 /**
- * Width prefers the floor plan and is checked against the facade. When both
- * exist and differ, the facade figure is the view size and the plan figure
- * stays beside it. Height comes only from the facade or section.
+ * Width comes from the floor plan or the facade. When both exist and differ,
+ * the field stays empty. Height comes only from the facade or section.
  */
 export function measuresFromSheets(input: {
   floors: { sheet: PlanSheet; marks: PlanMark[] }[];
@@ -144,9 +241,9 @@ export function measuresFromSheets(input: {
     return {
       number,
       onFacade: facadeMark != null,
-      width: differ ? facadeWidth : (planWidth ?? facadeWidth),
+      width: differ ? null : (planWidth ?? facadeWidth),
       height,
-      planWidth: differ ? planWidth : null,
+      planWidth: null,
     };
   });
 }

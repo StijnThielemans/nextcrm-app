@@ -70,6 +70,7 @@ function measureSheets(draft: WorkspaceDraft, pdfs: { id: string; name: string }
     page: number;
     name: string;
     role: "floor" | "facade";
+    rotation: number;
     marks: { number: string; x: number; y: number }[];
   }>();
   const roles = [
@@ -87,6 +88,7 @@ function measureSheets(draft: WorkspaceDraft, pdfs: { id: string; name: string }
         page: drawing.page ?? 0,
         name: drawing.name,
         role,
+        rotation: pageRotationOf(draft, drawing.planName, drawing.page ?? 0),
         marks: [],
       };
       sheet.marks.push({ number: mark.number, x: mark.x, y: mark.y });
@@ -663,29 +665,38 @@ export function RaamstudioWorkspace({
 
         {step === "gevels" ? (
           <div className="border-black/10 p-3 lg:border-r" data-testid="raamstudio-ground-numbers">
-            <p className="text-sm font-medium">Nummers van het grondplan</p>
-            <p className="mt-1 text-xs text-muted-foreground">Kies een nummer en klik op een gevel of snede. Het blijft hetzelfde nummer.</p>
+            <p className="text-sm font-medium">Nummering</p>
+            <label className="mt-2 block text-xs text-muted-foreground">
+              Verdieping / code
+              <Input className="mt-1 h-8" value={floor} onChange={(event) => setFloor(event.target.value)} data-testid="raamstudio-floor" />
+            </label>
             {numbers.length ? (
-              <ul className="mt-3 space-y-1">
-                {numbers.map((number) => {
-                  const placed = draft.facades.some((item) => item.number === number && item.x != null);
-                  return (
-                    <li key={number}>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant={chosenFacade === number ? "secondary" : "outline"}
-                        className="w-full justify-start"
-                        data-testid="raamstudio-ground-number"
-                        data-number={number}
-                        aria-pressed={chosenFacade === number}
-                        onClick={() => setArmed(number)}
-                      >
-                        {placed ? `${number} staat op de tekening` : `Kies ${number}`}
-                      </Button>
-                    </li>
-                  );
-                })}
+              <ul className="mt-3 space-y-1" data-testid="raamstudio-openings">
+                {numbers.map((number) => (
+                  <li key={number} className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      className={cn("min-w-0 flex-1 rounded px-1 py-0.5 text-left text-xs", chosenFacade === number && "bg-accent font-medium")}
+                      data-testid="raamstudio-ground-number"
+                      data-number={number}
+                      aria-pressed={chosenFacade === number}
+                      onClick={() => setArmed(number)}
+                    >
+                      {number}
+                    </button>
+                    <button
+                      type="button"
+                      className="text-[11px] text-muted-foreground underline"
+                      onClick={() => touch({
+                        ...draft,
+                        openings: draft.openings.filter((item) => item.number !== number),
+                        facades: draft.facades.filter((item) => item.number !== number),
+                      })}
+                    >
+                      Weg
+                    </button>
+                  </li>
+                ))}
               </ul>
             ) : (
               <p className="mt-3 text-sm text-muted-foreground">Nummer eerst de ramen op het grondplan.</p>
