@@ -86,12 +86,12 @@ export function QuotePositionsSection({ dossierId, quotes }: { dossierId: string
       {status === "empty" && <p className="text-sm" data-quote-positions-none="">{t("positions.noPositions")}</p>}
       {status === "error" && <p className="text-sm text-destructive" role="status">{t("positions.loadFailed")}</p>}
       {status === "ready" && (
-        <ul className="grid w-full grid-cols-1 items-start gap-2">
+        <ul className="grid w-full grid-cols-1 items-start justify-items-start gap-2">
           {positions.map((position) => {
             const title = position.title !== position.number ? position.title : "";
             return (
-              <li key={position.id} className="w-full space-y-1 rounded-lg border border-[hsl(215_14%_84%)] px-2.5 py-2" data-quote-position={position.number}>
-                <p className="flex flex-wrap items-baseline gap-x-2.5 gap-y-0.5 text-xs leading-tight">
+              <li key={position.id} className="grid w-max max-w-full justify-self-start gap-y-1 rounded-lg border border-[hsl(215_14%_84%)] px-2.5 py-2" data-quote-position={position.number}>
+                <p className="flex w-0 min-w-full flex-wrap items-baseline gap-x-2.5 gap-y-0.5 text-xs leading-tight">
                   <span className="font-semibold">{t("positions.position")} {position.number}</span>
                   {position.quantity && (
                     <span><span className="text-muted-foreground">{t("positions.quantity")} </span>{position.quantity}</span>
@@ -102,14 +102,14 @@ export function QuotePositionsSection({ dossierId, quotes }: { dossierId: string
                   )}
                 </p>
                 {broken[position.id] ? (
-                  <p className="whitespace-pre-wrap text-xs leading-snug">{position.text}</p>
+                  <p className="w-[min(100%,26rem)] whitespace-pre-wrap text-xs leading-snug">{position.text}</p>
                 ) : (
                   // The crop is a rendered slice of the uploaded quote, not a remote image.
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={`/api/crm/dossiers/${dossierId}/quotes/${pdfId}/positions/${position.id}/image`}
                     alt={t("positions.drawing", { name: position.number })}
-                    className="h-auto w-auto max-w-full rounded border bg-white sm:max-w-[26rem]"
+                    className="h-auto w-auto max-w-full justify-self-start rounded border bg-white sm:max-w-[26rem]"
                     onError={() => setBroken((current) => ({ ...current, [position.id]: true }))}
                   />
                 )}
