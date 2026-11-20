@@ -319,7 +319,8 @@ function ClipCard({
                   anchorY={number.y}
                   dx={measure?.widthDx ?? 0}
                   dy={measure?.widthDy ?? 0}
-                  transform="translate(-50%, 18px)"
+                  transform="translate(-50%, 0)"
+                  drop={0.11}
                   onCommit={(value) => onEditMeasure(number.label, "width", value)}
                   onMove={onMoveMeasure ? (dx, dy) => onMoveMeasure(number.label, "width", dx, dy) : undefined}
                 />
@@ -332,7 +333,9 @@ function ClipCard({
                   anchorY={number.y}
                   dx={measure?.heightDx ?? 0}
                   dy={measure?.heightDy ?? 0}
-                  transform="translate(28px, -50%)"
+                  transform="translate(-50%, 0)"
+                  drop={0.11}
+                  stack="18px"
                   onCommit={(value) => onEditMeasure(number.label, "height", value)}
                   onMove={onMoveMeasure ? (dx, dy) => onMoveMeasure(number.label, "height", dx, dy) : undefined}
                 />
@@ -366,6 +369,8 @@ function MeasureTag({
   dx,
   dy,
   transform,
+  drop = 0,
+  stack = "0px",
   onCommit,
   onMove,
 }: {
@@ -378,6 +383,8 @@ function MeasureTag({
   dx: number;
   dy: number;
   transform: string;
+  drop?: number;
+  stack?: string;
   onCommit: (value: string) => void;
   onMove?: (dx: number, dy: number) => void;
 }) {
@@ -388,7 +395,7 @@ function MeasureTag({
   const place = drag ?? { dx, dy };
   const style = {
     left: `${(anchorX + place.dx) * 100}%`,
-    top: `${(anchorY + place.dy) * 100}%`,
+    top: `calc(${(anchorY + place.dy + drop) * 100}% + ${stack})`,
     transform,
     zIndex: drag || Math.abs(place.dx) + Math.abs(place.dy) > 0.001 ? 30 : 20,
   };
