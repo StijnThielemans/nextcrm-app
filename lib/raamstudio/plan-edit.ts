@@ -125,6 +125,30 @@ export function resizeNormRect(origin: NormRect, handle: FrameHandle, point: { x
   return { x: round4(left), y: round4(top), w: round4(right - left), h: round4(bottom - top) };
 }
 
+/** A click on a clip, as a fraction of that clip, becomes a point on the full page. */
+export function pagePointInClip(rect: NormRect, localX: number, localY: number): { x: number; y: number } {
+  return {
+    x: round4(clamp(rect.x + localX * rect.w)),
+    y: round4(clamp(rect.y + localY * rect.h)),
+  };
+}
+
+/** The same page point, measured inside the clip. Outside points stay outside. */
+export function localPointInClip(rect: NormRect, x: number, y: number): { x: number; y: number; inside: boolean } {
+  const localX = (x - rect.x) / rect.w;
+  const localY = (y - rect.y) / rect.h;
+  return {
+    x: localX,
+    y: localY,
+    inside: localX >= -0.001 && localY >= -0.001 && localX <= 1.001 && localY <= 1.001,
+  };
+}
+
+/** The next ground-plan number that is not on this facade or section yet. */
+export function nextSharedNumber(numbers: readonly string[], used: ReadonlySet<string>): string | null {
+  return numbers.find((number) => number.trim() && !used.has(number)) ?? null;
+}
+
 /** Move one block in a stack. Other blocks keep their name and type. */
 export function reorderItems<T>(items: readonly T[], from: number, to: number): T[] {
   if (

@@ -1,5 +1,5 @@
 import { buildRaamstudioPayload, workspaceFromPayload, type DossierPrefill, type WorkspaceDraft } from "../workspace-model";
-import { hitFrame, moveNormRect, reorderItems, resizeNormRect } from "../plan-edit";
+import { hitFrame, localPointInClip, moveNormRect, nextSharedNumber, pagePointInClip, reorderItems, resizeNormRect } from "../plan-edit";
 
 const plans = ["plan.pdf"];
 const prefill: DossierPrefill = {
@@ -42,6 +42,14 @@ describe("plan frame editing", () => {
     ];
     expect(reorderItems(clips, 2, 0).map((item) => item.name)).toEqual(["Voorgevel", "Snede AA", "Snede BB"]);
     expect(reorderItems(clips, 0, 0)).toEqual(clips);
+  });
+
+  it("keeps a number on the same spot of a clip and reuses that number on a facade", () => {
+    const rect = { x: 0.2, y: 0.1, w: 0.4, h: 0.5 };
+    expect(pagePointInClip(rect, 0.5, 0.25)).toEqual({ x: 0.4, y: 0.225 });
+    expect(localPointInClip(rect, 0.4, 0.225).inside).toBe(true);
+    expect(nextSharedNumber(["0.1", "0.2"], new Set(["0.1"]))).toBe("0.2");
+    expect(nextSharedNumber(["0.1"], new Set(["0.1"]))).toBeNull();
   });
 
   it("keeps a moved frame in the project file", () => {

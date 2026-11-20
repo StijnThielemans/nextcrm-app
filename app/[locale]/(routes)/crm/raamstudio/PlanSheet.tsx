@@ -225,14 +225,15 @@ export function PlanSheet({
   }, [zoom]);
 
   useEffect(() => {
-    const node = scrollRef.current;
-    if (!node) return;
     const onWheel = (event: WheelEvent) => {
-      if (!event.deltaY || event.buttons !== 0) return;
+      const port = scrollRef.current;
       const sheet = sheetRef.current;
-      if (!sheet) return;
+      if (!port || !sheet) return;
+      const overPlan = event.target instanceof Node && port.contains(event.target);
+      const browserZoom = event.ctrlKey || event.metaKey;
+      if (!overPlan && !browserZoom) return;
       event.preventDefault();
-      event.stopPropagation();
+      if (!overPlan || event.buttons !== 0 || !event.deltaY) return;
       const before = sheet.getBoundingClientRect();
       const fracX = (event.clientX - before.left) / Math.max(1, before.width);
       const fracY = (event.clientY - before.top) / Math.max(1, before.height);
@@ -245,8 +246,8 @@ export function PlanSheet({
         return next;
       });
     };
-    node.addEventListener("wheel", onWheel, { passive: false });
-    return () => node.removeEventListener("wheel", onWheel);
+    window.addEventListener("wheel", onWheel, { passive: false, capture: true });
+    return () => window.removeEventListener("wheel", onWheel, { capture: true });
   }, []);
 
   function pointOf(event: ReactPointerEvent<HTMLDivElement>): Point {
