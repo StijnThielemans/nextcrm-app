@@ -8,7 +8,7 @@ import { CrmListTable } from "@/components/crm/CrmListTable";
 import { dossierMatchesSearch, type DossierSearchRow } from "./dossier-search";
 import { columns } from "./columns";
 
-export function DossierList({ rows }: { rows: DossierSearchRow[] }) {
+export function DossierList({ rows, title }: { rows: DossierSearchRow[]; title: string }) {
   const t = useTranslations("Sales");
 
   return (
@@ -16,8 +16,9 @@ export function DossierList({ rows }: { rows: DossierSearchRow[] }) {
       tableId="dossiers"
       columns={columns}
       data={rows}
+      title={title}
       actions={
-        <Button size="sm" className="h-9 rounded-full px-4" asChild>
+        <Button size="sm" className="h-8 rounded-full px-3 text-xs" asChild>
           <Link href="/crm/aanvraag">{t("newRequestPlus")}</Link>
         </Button>
       }

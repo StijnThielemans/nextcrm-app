@@ -11,14 +11,25 @@ import { DataTableViewOptions } from "./data-table-view-options";
 
 interface DataTableToolbarProps<TData> {
   table: Table<TData>;
+  title?: string;
   searchTestId?: string;
   onResetColumns?: () => void;
   actions?: ReactNode;
   trailing?: ReactNode;
 }
 
+export function ListPageTitle({ title }: { title: string }) {
+  return (
+    <h2 className="flex shrink-0 items-center gap-2 text-base font-medium leading-none tracking-[-0.02em]">
+      <span aria-hidden className="h-4 w-[3px] shrink-0 rounded-full bg-[hsl(var(--tilo))]" />
+      {title}
+    </h2>
+  );
+}
+
 export function DataTableToolbar<TData>({
   table,
+  title,
   searchTestId = "accounts-search",
   onResetColumns,
   actions,
@@ -29,13 +40,14 @@ export function DataTableToolbar<TData>({
   const isFiltered = table.getState().columnFilters.length > 0 || globalFilter.length > 0;
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3">
-      <div className="flex min-w-0 flex-1 items-center space-x-2">
+    <div className="flex items-center gap-2 overflow-x-auto">
+      {title ? <ListPageTitle title={title} /> : null}
+      <div className="flex shrink-0 items-center gap-2">
         <Input
           placeholder={t("search")}
           value={globalFilter}
           onChange={(event) => table.setGlobalFilter(event.target.value)}
-          className="h-10 w-full max-w-md rounded-full bg-[hsl(var(--canvas))] px-4"
+          className="h-8 w-52 rounded-full bg-[hsl(var(--canvas))] px-3 text-xs sm:w-64"
           data-testid={searchTestId}
         />
         {/*         <Input
@@ -65,17 +77,17 @@ export function DataTableToolbar<TData>({
               table.resetColumnFilters();
               table.setGlobalFilter("");
             }}
-            className="h-8 px-2 lg:px-3"
+            className="h-8 px-2 text-xs lg:px-3"
           >
             Reset
-            <Cross2Icon className="ml-2 h-4 w-4" />
+            <Cross2Icon className="ml-1.5 h-3.5 w-3.5" />
           </Button>
         )}
       </div>
-      <div className="flex items-center gap-2">
+      <div className="ml-auto flex shrink-0 items-center gap-1.5">
         {actions}
         {onResetColumns && (
-          <Button variant="outline" size="sm" className="h-9 rounded-full px-3.5 font-normal" data-testid="reset-columns" onClick={onResetColumns}>
+          <Button variant="outline" size="sm" className="h-8 rounded-full px-3 text-xs font-normal" data-testid="reset-columns" onClick={onResetColumns}>
             {t("resetColumns")}
           </Button>
         )}

@@ -15,6 +15,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
+import { ListPageTitle } from "../accounts/table-components/data-table-toolbar";
 
 import type { getAllCrmData } from "@/actions/crm/get-crm-data";
 
@@ -23,9 +24,10 @@ type CrmData = Awaited<ReturnType<typeof getAllCrmData>>;
 interface AccountsViewProps {
   data: any[];
   crmData: CrmData;
+  title?: string;
 }
 
-const AccountsView = ({ data, crmData }: AccountsViewProps) => {
+const AccountsView = ({ data, crmData, title }: AccountsViewProps) => {
   const [open, setOpen] = useState(false);
   const t = useTranslations("CrmPage");
   const sales = useTranslations("Sales");
@@ -35,7 +37,7 @@ const AccountsView = ({ data, crmData }: AccountsViewProps) => {
   const addButton = (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
-        <Button size="sm" className="h-9 rounded-full px-4" aria-label={t("accounts.addNew")} data-testid="add-account-btn">+ {sales("newCustomer")}</Button>
+        <Button size="sm" className="h-8 rounded-full px-3 text-xs" aria-label={t("accounts.addNew")} data-testid="add-account-btn">+ {sales("newCustomer")}</Button>
       </SheetTrigger>
       <SheetContent
         data-testid="new-customer-screen"
@@ -58,8 +60,9 @@ const AccountsView = ({ data, crmData }: AccountsViewProps) => {
 
   if (!data || data.length === 0) {
     return (
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-sm text-muted-foreground">{t("accounts.empty")}</p>
+      <div className="tilo-frame flex items-center gap-2 px-3 py-2">
+        {title ? <ListPageTitle title={title} /> : null}
+        <p className="min-w-0 flex-1 truncate text-xs text-muted-foreground">{t("accounts.empty")}</p>
         {addButton}
       </div>
     );
@@ -70,6 +73,7 @@ const AccountsView = ({ data, crmData }: AccountsViewProps) => {
       data={data}
       columns={columns}
       industries={industries}
+      title={title}
       actions={addButton}
     />
   );

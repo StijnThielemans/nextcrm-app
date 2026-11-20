@@ -6,7 +6,7 @@ import { CrmListTable } from "@/components/crm/CrmListTable";
 import { columns } from "./columns";
 import { offerteMatchesSearch, type OfferteSearchRow } from "./offerte-search";
 
-export function OfferteList({ rows }: { rows: OfferteSearchRow[] }) {
+export function OfferteList({ rows, title }: { rows: OfferteSearchRow[]; title: string }) {
   const t = useTranslations("Sales");
 
   return (
@@ -14,6 +14,7 @@ export function OfferteList({ rows }: { rows: OfferteSearchRow[] }) {
       tableId="quotes"
       columns={columns}
       data={rows}
+      title={title}
       globalFilterFn={(row, _columnId, filterValue) => offerteMatchesSearch(row.original, filterValue)}
       searchTestId="offertes-search"
       tableTestId="offertes-table"

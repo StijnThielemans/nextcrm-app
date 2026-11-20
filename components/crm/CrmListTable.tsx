@@ -39,6 +39,7 @@ function SortableHead({ id, children }: { id: string; children: React.ReactNode 
   return (
     <TableHead
       ref={setNodeRef}
+      className="h-8 px-2"
       style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.6 : 1 }}
     >
       <div className="flex items-center gap-1">
@@ -62,6 +63,7 @@ export function CrmListTable<TData>({
   columns,
   data,
   globalFilterFn,
+  title,
   searchTestId,
   tableTestId,
   emptyMessage,
@@ -71,6 +73,7 @@ export function CrmListTable<TData>({
   columns: ColumnDef<TData, unknown>[];
   data: TData[];
   globalFilterFn: (row: Row<TData>, columnId: string, filterValue: string) => boolean;
+  title?: string;
   searchTestId: string;
   tableTestId: string;
   emptyMessage: string;
@@ -134,7 +137,7 @@ export function CrmListTable<TData>({
   );
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-2">
       {hide ? (
         <div className="tilo-frame flex items-center justify-end gap-2 px-4 py-3 text-sm text-muted-foreground">
           <span>This content is hidden now.</span>
@@ -142,9 +145,10 @@ export function CrmListTable<TData>({
         </div>
       ) : (
         <>
-          <div className="tilo-frame px-4 py-3">
+          <div className="tilo-frame px-3 py-2">
             <DataTableToolbar
               table={table}
+              title={title}
               searchTestId={searchTestId}
               onResetColumns={layout.reset}
               actions={actions}
@@ -179,7 +183,7 @@ export function CrmListTable<TData>({
                         data-offerte-name={tableId === "quotes" ? String((row.original as { name?: string }).name ?? "") : undefined}
                       >
                         {row.getVisibleCells().map((cell) => (
-                          <TableCell key={cell.id} className="whitespace-nowrap px-3 py-3.5 text-[0.92rem]">
+                          <TableCell key={cell.id} className="whitespace-nowrap px-2.5 py-1.5 text-[0.8125rem]">
                             {flexRender(cell.column.columnDef.cell, cell.getContext())}
                           </TableCell>
                         ))}

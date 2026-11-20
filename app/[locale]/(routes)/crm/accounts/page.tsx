@@ -12,12 +12,9 @@ const AccountsPage = async () => {
   const t = await getTranslations("Sales");
 
   return (
-    <Container
-      title={t("customers")}
-      description={t("customersDescription")}
-    >
+    <Container bare>
       <Suspense fallback={<CrmAccountsSkeleton />}>
-        <AccountsView crmData={crmData} data={accounts} />
+        <AccountsView crmData={crmData} data={accounts} title={t("customers")} />
       </Suspense>
     </Container>
   );

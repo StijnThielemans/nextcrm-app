@@ -10,11 +10,8 @@ export default async function OffertesPage() {
   const t = await getTranslations("Sales");
   const rows = serializeDecimalsList(await listOfferteOverview(user));
   return (
-    <Container
-      title={t("quotes")}
-      description={t("quotesOverviewDescription")}
-    >
-      <OfferteList rows={rows} />
+    <Container bare>
+      <OfferteList rows={rows} title={t("quotes")} />
     </Container>
   );
 }

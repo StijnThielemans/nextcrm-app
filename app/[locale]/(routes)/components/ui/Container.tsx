@@ -2,30 +2,35 @@ import Heading from "@/components/ui/heading";
 import React from "react";
 
 interface ContainerProps {
-  title: string;
-  description: string;
+  title?: string;
+  description?: string;
   visibility?: string;
   actions?: React.ReactNode;
+  /** Skip the title block when the page puts its name on the list toolbar. */
+  bare?: boolean;
   children: React.ReactNode;
 }
 
 const Container = ({
-  title,
-  description,
+  title = "",
+  description = "",
   visibility,
   actions,
+  bare = false,
   children,
 }: ContainerProps) => {
   return (
     <div className="flex h-full w-full flex-1 flex-col gap-4">
-      <div className="tilo-frame flex flex-wrap items-end justify-between gap-4 px-5 py-4">
-        <Heading
-          title={title}
-          description={description}
-          visibility={visibility}
-        />
-        {actions}
-      </div>
+      {bare ? null : (
+        <div className="tilo-frame flex flex-wrap items-end justify-between gap-4 px-5 py-4">
+          <Heading
+            title={title}
+            description={description}
+            visibility={visibility}
+          />
+          {actions}
+        </div>
+      )}
       <div className="min-h-0 w-full flex-1">
         {children}
       </div>

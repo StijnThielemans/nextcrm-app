@@ -10,8 +10,8 @@ export default async function DossiersPage() {
   const t = await getTranslations("Sales");
   const rows = serializeDecimalsList(await listDossiers(user));
   return (
-    <Container title={t("dossiers")} description={t("dossiersDescription")}>
-      <DossierList rows={rows} />
+    <Container bare>
+      <DossierList rows={rows} title={t("dossiers")} />
     </Container>
   );
 }

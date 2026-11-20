@@ -10,6 +10,7 @@ interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
   data: TData[];
   industries: any[];
+  title?: string;
   actions?: ReactNode;
 }
 
@@ -17,6 +18,7 @@ export function AccountDataTable<TData, TValue>({
   columns,
   data,
   industries,
+  title,
   actions,
 }: DataTableProps<TData, TValue>) {
   void industries;
@@ -25,6 +27,7 @@ export function AccountDataTable<TData, TValue>({
       tableId="customers"
       columns={columns as ColumnDef<TData, unknown>[]}
       data={data}
+      title={title}
       actions={actions}
       globalFilterFn={(row: Row<TData>, _columnId, filterValue) =>
         accountMatchesSearch(row.original as AccountSearchRow, filterValue)
