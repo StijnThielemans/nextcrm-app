@@ -3,6 +3,7 @@ import { routing } from "./i18n/routing";
 import { getSessionCookie } from "better-auth/cookies";
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { isDevPasswordSignIn, isDevTrustedOrigin } from "@/lib/dev-password-sign-in";
 import { isPartnerAllowedPath } from "@/lib/partner-routes";
 
 const intlMiddleware = createMiddleware(routing);
@@ -57,10 +58,17 @@ function dropTunnelDevPort(res: NextResponse) {
 function isCrossOriginWrite(req: NextRequest, path: string, hasSessionCookie: boolean) {
   if (!hasSessionCookie || ["GET", "HEAD", "OPTIONS"].includes(req.method)) return false;
   if (path.includes("/webhooks/") || ORIGIN_CHECK_EXEMPT.some((p) => path.startsWith(p))) return false;
+  const origin = req.headers.get("origin");
+  if (!origin) return true;
   const appOrigin = process.env.BETTER_AUTH_URL
     ? new URL(process.env.BETTER_AUTH_URL).origin
     : req.nextUrl.origin;
-  return req.headers.get("origin") !== appOrigin;
+  if (origin === appOrigin) return false;
+  // Document uploads are cookie writes to /api. On this dev server the page
+  // is opened on localhost or on whichever trycloudflare tunnel is up, while
+  // BETTER_AUTH_URL can still name an older tunnel. That 403 was shown as
+  // "Het bestand opslaan is mislukt". Production keeps the configured origin.
+  return !(isDevPasswordSignIn() && isDevTrustedOrigin(origin));
 }
 
 export async function proxy(req: NextRequest) {
