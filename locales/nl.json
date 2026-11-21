@@ -1381,7 +1381,7 @@
     "openProject": "Naar project",
     "projects": "Projecten",
     "projectleiding": "Projectleiding",
-    "projectDashboardDescription": "Projecten uit gewonnen offertedossiers. Het projectnummer komt erbij op het moment dat je het project maakt.",
+    "projectDashboardDescription": "Opvolging van projecten uit gewonnen offertedossiers: projectnummer, verkoopdossier, status, verkoper, klant en de gegevens die er al staan.",
     "noProjects": "Nog geen projecten. Maak er een vanuit een gewonnen offertedossier.",
     "noProjectsFound": "Geen projecten gevonden.",
     "projectCount": "Projecten",

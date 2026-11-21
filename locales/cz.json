@@ -1280,7 +1280,7 @@
     "openProject": "Open project",
     "projects": "Projects",
     "projectleiding": "Projectleiding",
-    "projectDashboardDescription": "Projects made from won quote dossiers. The project number is created when you make the project.",
+    "projectDashboardDescription": "Follow-up of projects from won quote dossiers: project number, quote dossier, status, salesperson, customer, and the details already stored.",
     "noProjects": "No projects yet. Make one from a won quote dossier.",
     "noProjectsFound": "No projects found.",
     "projectCount": "Projects",

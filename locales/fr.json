@@ -1277,7 +1277,7 @@
     "openProject": "Ouvrir le projet",
     "projects": "Projets",
     "projectleiding": "Projectleiding",
-    "projectDashboardDescription": "Projets issus d'un dossier d'offre gagné. Le numéro de projet est créé au moment où vous créez le projet.",
+    "projectDashboardDescription": "Suivi des projets issus d'un dossier gagné : numéro de projet, dossier de vente, statut, vendeur, client et les données déjà enregistrées.",
     "noProjects": "Pas encore de projets. Créez-en un à partir d'un dossier gagné.",
     "noProjectsFound": "Aucun projet trouvé.",
     "projectCount": "Projets",
