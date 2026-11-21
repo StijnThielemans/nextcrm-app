@@ -5,16 +5,20 @@ import { Link, useRouter } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { saveRaamstudioProjectAction } from "@/actions/crm/raamstudio/actions";
+import { saveRaamstudioExportPdfAction, saveRaamstudioProjectAction } from "@/actions/crm/raamstudio/actions";
 import type { RaamstudioDossierOpen } from "@/lib/raamstudio/dossier-plans";
 import type { WindowMeasure } from "@/lib/raamstudio/opening-measures";
 import { localPointInClip, nextSharedNumber, pagePointInClip, reorderItems } from "@/lib/raamstudio/plan-edit";
-import { ClipBoard, type ClipNumber } from "./ClipBoard";
+import { ClipBoard, type ClipNumber, type ClipSill } from "./ClipBoard";
+import { captureFacadeBoard } from "./capture-facade";
+import { pdfFromJpegs } from "@/lib/raamstudio/sheet-pdf";
 import { readRaamstudioPayload } from "@/lib/raamstudio/read-project";
 import {
   DRAWING_KINDS,
   EMPTY_DRAFT,
+  ONDERAANSLUITINGEN,
   RAAMINFO_OPTIONS,
+  SILL_COLORS,
   WORKSPACE_STEPS,
   nextWindowNumber,
   openingStep,
@@ -132,6 +136,10 @@ export function RaamstudioWorkspace({
   const [category, setCategory] = useState("Onderaansluiting");
   const [infoNumber, setInfoNumber] = useState("");
   const [customText, setCustomText] = useState("");
+  const [armedSill, setArmedSill] = useState<string | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [pdfBusy, setPdfBusy] = useState(false);
+  const previewBytes = useRef<Uint8Array | null>(null);
   const [status, setStatus] = useState(savedFile ? savedFile.name : "Nog niet opgeslagen");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -235,6 +243,7 @@ export function RaamstudioWorkspace({
   }
 
   function touch(next: WorkspaceDraft, nextStatus = "Niet opgeslagen") {
+    draftRef.current = next;
     pristine.current = false;
     onDirtyChange?.(true);
     setDraft(next);
@@ -471,6 +480,89 @@ export function RaamstudioWorkspace({
     });
   }
 
+  function placeSill(index: number, x: number, y: number) {
+    const text = armedSill;
+    if (!text || !ONDERAANSLUITINGEN.includes(text)) return;
+    const current = draftRef.current;
+    const drawing = current.drawings[index];
+    if (!drawing || !isFacadeClip(drawing)) return;
+    touch({
+      ...current,
+      sills: [...(current.sills ?? []), {
+        text,
+        planName: drawing.planName,
+        page: drawing.page ?? 0,
+        drawingName: drawing.name,
+        x: round(x),
+        y: round(y),
+      }],
+    });
+  }
+
+  function moveSill(id: string, x: number, y: number) {
+    const index = Number(id);
+    const current = draftRef.current;
+    const sills = (current.sills ?? []).slice();
+    const item = sills[index];
+    if (!item) return;
+    sills[index] = { ...item, x: round(x), y: round(y) };
+    touch({ ...current, sills });
+  }
+
+  function removeSill(id: string) {
+    const index = Number(id);
+    const current = draftRef.current;
+    touch({ ...current, sills: (current.sills ?? []).filter((_, item) => item !== index) });
+  }
+
+  function closePreview() {
+    setPreviewUrl((current) => {
+      if (current) URL.revokeObjectURL(current);
+      return null;
+    });
+    previewBytes.current = null;
+  }
+
+  async function openPreview() {
+    const root = document.querySelector("[data-testid='raamstudio-plan-view']");
+    if (!root) return;
+    setPdfBusy(true);
+    setError(null);
+    try {
+      const pages = await captureFacadeBoard(root);
+      const pdf = pdfFromJpegs(pages);
+      previewBytes.current = pdf;
+      const blob = new Blob([pdf], { type: "application/pdf" });
+      setPreviewUrl((current) => {
+        if (current) URL.revokeObjectURL(current);
+        return URL.createObjectURL(blob);
+      });
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "De PDF kon niet worden gemaakt.");
+    } finally {
+      setPdfBusy(false);
+    }
+  }
+
+  async function savePreview() {
+    const pdf = previewBytes.current;
+    if (!pdf) return;
+    setPdfBusy(true);
+    setError(null);
+    try {
+      const result = await saveRaamstudioExportPdfAction(dossier.id, bytesToBase64(pdf));
+      if ("error" in result) {
+        setError(result.error);
+        return;
+      }
+      setStatus(`PDF opgeslagen in Documentbeheer: ${result.fileName}`);
+    } catch {
+      setError("De PDF kon niet worden opgeslagen.");
+    } finally {
+      setPdfBusy(false);
+    }
+  }
+
   function addInfo(number: string, text: string) {
     const label = text.trim();
     if (!number || !label) return;
@@ -560,6 +652,16 @@ export function RaamstudioWorkspace({
     ? armed
     : (numbers.find((number) => !draft.facades.some((item) => item.number === number && item.x != null)) ?? numbers[0] ?? "");
   const infoOptions = RAAMINFO_OPTIONS[category] ?? [];
+  const facadeSills: ClipSill[] = (draft.sills ?? []).flatMap((sill, index) => {
+    const clipIndex = draft.drawings.findIndex((drawing) => (
+      isFacadeClip(drawing)
+      && drawing.name === sill.drawingName
+      && drawing.planName === sill.planName
+      && (drawing.page ?? 0) === sill.page
+    ));
+    if (clipIndex < 0) return [];
+    return [{ id: String(index), clipIndex, text: sill.text, x: sill.x, y: sill.y }];
+  });
   const mode = step === "tekeningen" ? "draw" : step === "grondplan" ? "opening" : step === "gevels" ? "facade" : "inspect";
   const marks = active ? marksOnPage(draft, active.name, page) : [];
 
@@ -635,7 +737,7 @@ export function RaamstudioWorkspace({
       <div className={cn(
         "grid min-h-[640px]",
         step === "tekeningen" ? "lg:grid-cols-[220px_minmax(0,1fr)_300px]"
-          : step === "gevels" || step === "maten" ? "lg:grid-cols-[200px_minmax(0,1fr)_340px]"
+          : step === "gevels" || step === "maten" || step === "raaminfo" ? "lg:grid-cols-[200px_minmax(0,1fr)_340px]"
             : step === "grondplan" ? "lg:grid-cols-[200px_minmax(0,1fr)]"
               : "lg:grid-cols-[minmax(0,0.7fr)_minmax(460px,1.15fr)]",
       )}>
@@ -733,6 +835,44 @@ export function RaamstudioWorkspace({
           </div>
         ) : null}
 
+        {step === "raaminfo" ? (
+          <div className="flex max-h-[calc(100dvh-7.5rem)] min-h-0 flex-col border-black/10 p-3 lg:sticky lg:top-2 lg:border-r" data-testid="raamstudio-sills">
+            <p className="text-sm font-medium">Onderaansluitingen</p>
+            <p className="mt-1 text-xs text-muted-foreground">Klik een type en daarna op de gevel. Dezelfde mag vaker. Sleep het label.</p>
+            <ul className="mt-2 min-h-0 flex-1 space-y-1 overflow-auto">
+              {ONDERAANSLUITINGEN.map((option) => (
+                <li key={option}>
+                  <button
+                    type="button"
+                    data-testid="raamstudio-sill-option"
+                    data-text={option}
+                    aria-pressed={armedSill === option}
+                    className="w-full rounded-[3px] border px-1.5 py-0.5 text-left text-xs"
+                    style={armedSill === option
+                      ? { background: SILL_COLORS.line, color: "#ffffff", borderColor: SILL_COLORS.line }
+                      : { background: SILL_COLORS.pale, color: SILL_COLORS.text, borderColor: SILL_COLORS.line }}
+                    onClick={() => setArmedSill((current) => (current === option ? null : option))}
+                  >
+                    {option}
+                  </button>
+                </li>
+              ))}
+            </ul>
+            <p className="mt-3 text-xs font-medium">Geplaatst</p>
+            <ul className="mt-1 max-h-28 space-y-1 overflow-auto text-xs" data-testid="raamstudio-sill-placed">
+              {(draft.sills ?? []).length ? (draft.sills ?? []).map((sill, index) => (
+                <li key={`${sill.drawingName}-${sill.text}-${index}`} className="flex items-center gap-1">
+                  <span className="min-w-0 flex-1 truncate">{sill.text}</span>
+                  <button type="button" className="text-[11px] text-muted-foreground underline" data-testid="raamstudio-sill-remove" onClick={() => removeSill(String(index))}>Weg</button>
+                </li>
+              )) : <li className="text-muted-foreground">Nog niets op de gevel.</li>}
+            </ul>
+            <Button type="button" size="sm" className="mt-3" disabled={pdfBusy} data-testid="raamstudio-pdf-preview" onClick={() => void openPreview()}>
+              PDF-voorbeeld
+            </Button>
+          </div>
+        ) : null}
+
         <div className="flex min-h-[520px] min-w-0 flex-col overflow-auto bg-neutral-100" data-testid="raamstudio-plan-view">
           {step === "tekeningen" && pageCount > 1 ? (
             <div className="flex items-center gap-2 border-b border-black/10 bg-white px-2 py-1.5">
@@ -771,6 +911,19 @@ export function RaamstudioWorkspace({
               onMoveMeasure={setMeasurePlace}
               emptyText="Duid eerst in stap 1 een gevel of snede aan. De grondplannen staan rechts als overzicht."
             />
+          ) : step === "raaminfo" ? (
+            <ClipBoard
+              clips={visibleClips(draft.drawings, pdfs, isFacadeClip)}
+              planNames={draft.drawings.map((drawing) => drawing.planName)}
+              numbers={clipNumbers(draft)}
+              measures={facadeMeasures}
+              onEditMeasure={setSize}
+              onMoveMeasure={setMeasurePlace}
+              sills={facadeSills}
+              onPlaceSill={armedSill ? placeSill : undefined}
+              onMoveSill={moveSill}
+              emptyText="Duid eerst in stap 1 een gevel of snede aan. De grondplannen staan rechts als overzicht."
+            />
           ) : step !== "tekeningen" ? (
             <p className="p-6 text-sm text-muted-foreground" data-testid="raamstudio-clips-hint">
               De lijst met PDF&apos;s is weg. Rechts staan de knipsels. Klik erop om een raamnummer te zetten.
@@ -807,7 +960,7 @@ export function RaamstudioWorkspace({
           )}
         </div>
 
-        {step === "gevels" || step === "maten" ? (
+        {step === "gevels" || step === "maten" || step === "raaminfo" ? (
           <aside className="flex max-h-[calc(100dvh-7.5rem)] min-h-0 flex-col border-black/10 bg-white lg:sticky lg:top-2 lg:border-l" data-testid="raamstudio-floor-overview">
             <div className="px-3 pt-3">
               <p className="text-sm font-medium">Grondplannen</p>
@@ -823,7 +976,7 @@ export function RaamstudioWorkspace({
           </aside>
         ) : null}
 
-        {step === "gevels" || step === "grondplan" || step === "maten" ? null : (
+        {step === "gevels" || step === "grondplan" || step === "maten" || step === "raaminfo" ? null : (
         <div className={cn("flex min-h-0 flex-col border-black/10 lg:border-l", step !== "tekeningen" && "max-h-[760px] overflow-hidden")} data-testid="raamstudio-side">
           {step !== "tekeningen" ? (
             <ClipBoard
@@ -904,6 +1057,18 @@ export function RaamstudioWorkspace({
         )}
       </div>
 
+      {previewUrl ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" data-testid="raamstudio-pdf-dialog">
+          <div className="flex h-[min(820px,90vh)] w-[min(1000px,96vw)] flex-col rounded-xl bg-white p-3 shadow-xl">
+            <p className="text-sm font-medium">PDF-voorbeeld</p>
+            <iframe title="PDF-voorbeeld" src={previewUrl} className="mt-2 min-h-0 flex-1 rounded border" data-testid="raamstudio-pdf-frame" />
+            <div className="mt-3 flex justify-end gap-2">
+              <Button type="button" size="sm" variant="outline" onClick={closePreview}>Sluiten</Button>
+              <Button type="button" size="sm" disabled={pdfBusy} data-testid="raamstudio-pdf-save" onClick={() => void savePreview()}>Opslaan in dossier</Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
       {error ? <p role="alert" className="px-3 py-2 text-sm text-destructive" data-testid="raamstudio-error">{error}</p> : null}
     </section>
   );
@@ -974,6 +1139,15 @@ function ClipStack({
 
 function round(value: number): number {
   return Math.round(value * 10000) / 10000;
+}
+
+function bytesToBase64(bytes: Uint8Array): string {
+  let binary = "";
+  const step = 0x8000;
+  for (let index = 0; index < bytes.length; index += step) {
+    binary += String.fromCharCode(...bytes.subarray(index, index + step));
+  }
+  return btoa(binary);
 }
 
 function visibleClips(

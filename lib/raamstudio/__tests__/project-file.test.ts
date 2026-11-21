@@ -165,6 +165,30 @@ describe("RaamStudio workspace file", () => {
     expect(workspaceFromPayload(payload, plans)).toEqual(normalizeDraft(marked, plans));
   });
 
+  it("keeps two of the same onderaansluiting and does not invent a size", () => {
+    const placed: WorkspaceDraft = {
+      ...draft,
+      sills: [
+        { text: "Renodorpel", planName: plans[1], page: 0, drawingName: "Voorgevel", x: 0.42, y: 0.71 },
+        { text: "Renodorpel", planName: plans[1], page: 0, drawingName: "Voorgevel", x: 0.61, y: 0.74 },
+        { text: "Verzonnen dorpel", planName: plans[1], page: 0, drawingName: "Voorgevel", x: 0.2, y: 0.2 },
+      ],
+    };
+    const payload = buildRaamstudioPayload(prefill, placed, plans);
+    expect(payload.tilo_sills).toEqual([
+      { text: "Renodorpel", category: "Onderaansluiting", plan_name: plans[1], page: 0, drawing_name: "Voorgevel", x: 0.42, y: 0.71 },
+      { text: "Renodorpel", category: "Onderaansluiting", plan_name: plans[1], page: 0, drawing_name: "Voorgevel", x: 0.61, y: 0.74 },
+    ]);
+    expect(payload.dimensions).toEqual([{ number: "0.1", orientation: "width", value_mm: "1200", selection_index: -1 }]);
+    expect(payload.project_details).toMatchObject({ seller: "Haegeman Robbe" });
+    const restored = workspaceFromPayload(payload, plans);
+    expect(restored.sills).toEqual(placed.sills?.slice(0, 2));
+    expect(restored.sizes).toEqual(draft.sizes);
+    const turned = rotatePlanPage(placed, plans[1], 0, 90);
+    expect(turned.sills?.[0]).toMatchObject({ x: 0.29, y: 0.42 });
+    expect(turned.sizes).toEqual(draft.sizes);
+  });
+
   it("keeps a dragged measure label and does not turn it into a new size", () => {
     const moved: WorkspaceDraft = {
       ...draft,

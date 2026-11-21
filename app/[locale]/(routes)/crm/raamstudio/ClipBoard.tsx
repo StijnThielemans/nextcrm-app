@@ -42,6 +42,15 @@ export type ClipMeasure = {
   heightDy?: number;
 };
 
+/** x and y are fractions of the PDF page, the same plane as a facade number. */
+export type ClipSill = {
+  id: string;
+  clipIndex: number;
+  text: string;
+  x: number;
+  y: number;
+};
+
 export function ClipBoard({
   clips,
   planNames,
@@ -52,6 +61,9 @@ export function ClipBoard({
   measures,
   onEditMeasure,
   onMoveMeasure,
+  sills,
+  onPlaceSill,
+  onMoveSill,
   fitFrames = false,
   emptyText = "Duid eerst in stap 1 een gevel, snede of grondplan aan. Die knipsels komen hier.",
   testId = "raamstudio-clip-board",
@@ -65,6 +77,9 @@ export function ClipBoard({
   measures?: ClipMeasure[];
   onEditMeasure?: (number: string, orientation: "width" | "height", value: string) => void;
   onMoveMeasure?: (number: string, orientation: "width" | "height", dx: number, dy: number) => void;
+  sills?: ClipSill[];
+  onPlaceSill?: (index: number, x: number, y: number) => void;
+  onMoveSill?: (id: string, x: number, y: number) => void;
   fitFrames?: boolean;
   emptyText?: string;
   testId?: string;
@@ -87,6 +102,9 @@ export function ClipBoard({
           measures={measures}
           onEditMeasure={onEditMeasure}
           onMoveMeasure={onMoveMeasure}
+          sills={sills}
+          onPlaceSill={onPlaceSill}
+          onMoveSill={onMoveSill}
           fill={fitFrames}
           onPlace={onPlace}
           onMove={onMove}
@@ -104,6 +122,9 @@ function ClipCard({
   measures,
   onEditMeasure,
   onMoveMeasure,
+  sills,
+  onPlaceSill,
+  onMoveSill,
   fill = false,
   onPlace,
   onMove,
@@ -115,6 +136,9 @@ function ClipCard({
   measures?: ClipMeasure[];
   onEditMeasure?: (number: string, orientation: "width" | "height", value: string) => void;
   onMoveMeasure?: (number: string, orientation: "width" | "height", dx: number, dy: number) => void;
+  sills?: ClipSill[];
+  onPlaceSill?: (index: number, x: number, y: number) => void;
+  onMoveSill?: (id: string, x: number, y: number) => void;
   fill?: boolean;
   onPlace?: (index: number, localX: number, localY: number) => void;
   onMove?: (id: string, x: number, y: number) => void;
@@ -125,6 +149,7 @@ function ClipCard({
   const [frameWidth, setFrameWidth] = useState(0);
   const [frameHeightPx, setFrameHeightPx] = useState(0);
   const [drag, setDrag] = useState<{ id: string; dx: number; dy: number } | null>(null);
+  const [sillDrag, setSillDrag] = useState<{ id: string; x: number; y: number } | null>(null);
   const frameRef = useRef<HTMLDivElement>(null);
   const zoomAnchor = useRef<{ relX: number; relY: number; clientX: number; clientY: number } | null>(null);
   const view = clipViewRect(clip.rect);
@@ -255,8 +280,15 @@ function ClipCard({
           className="absolute inset-0"
           data-testid="raamstudio-clip-surface"
           onPointerDown={(event) => {
-            if (event.button !== 0 || !onPlace) return;
-            const point = originalLocal(localOf(event).x, localOf(event).y);
+            if (event.button !== 0) return;
+            const here = localOf(event);
+            if (onPlaceSill) {
+              const pagePoint = pagePointInClip(view, here.x, here.y);
+              onPlaceSill(clip.index, pagePoint.x, pagePoint.y);
+              return;
+            }
+            if (!onPlace) return;
+            const point = originalLocal(here.x, here.y);
             onPlace(clip.index, point.x, point.y);
           }}
         >
@@ -341,6 +373,65 @@ function ClipCard({
               </span>
             );
           }) : null}
+          {(sills ?? []).flatMap((sill) => {
+            if (sill.clipIndex !== clip.index) return [];
+            const local = localPointInClip(view, sill.x, sill.y);
+            if (!local.inside) return [];
+            const at = sillDrag?.id === sill.id ? sillDrag : { x: local.x, y: local.y };
+            return [(
+              <button
+                key={sill.id}
+                type="button"
+                data-testid="raamstudio-sill"
+                data-sill-id={sill.id}
+                data-text={sill.text}
+                data-x={sill.x}
+                data-y={sill.y}
+                className="absolute z-30 -translate-x-1/2 -translate-y-1/2 cursor-grab touch-none whitespace-nowrap rounded-[3px] border px-1 py-px text-[11px] font-medium active:cursor-grabbing"
+                style={{ left: `${at.x * 100}%`, top: `${at.y * 100}%`, borderColor: "#1769aa", background: "#e2f0ff", color: "#104b7c" }}
+                title="Sleep de onderaansluiting."
+                onPointerDown={(event) => {
+                  event.stopPropagation();
+                  event.preventDefault();
+                  if (!onMoveSill || event.button !== 0) return;
+                  const surface = event.currentTarget.parentElement;
+                  if (!surface) return;
+                  const box = surface.getBoundingClientRect();
+                  const origin = { x: local.x, y: local.y };
+                  const start = { x: event.clientX, y: event.clientY };
+                  let moved = false;
+                  const move = (pointer: PointerEvent) => {
+                    if (Math.hypot(pointer.clientX - start.x, pointer.clientY - start.y) < 4) return;
+                    moved = true;
+                    setSillDrag({
+                      id: sill.id,
+                      x: Math.min(1, Math.max(0, origin.x + (pointer.clientX - start.x) / Math.max(1, box.width))),
+                      y: Math.min(1, Math.max(0, origin.y + (pointer.clientY - start.y) / Math.max(1, box.height))),
+                    });
+                  };
+                  const up = (pointer: PointerEvent) => {
+                    window.removeEventListener("pointermove", move);
+                    window.removeEventListener("pointerup", up);
+                    if (!moved) {
+                      setSillDrag(null);
+                      return;
+                    }
+                    const next = {
+                      x: Math.min(1, Math.max(0, origin.x + (pointer.clientX - start.x) / Math.max(1, box.width))),
+                      y: Math.min(1, Math.max(0, origin.y + (pointer.clientY - start.y) / Math.max(1, box.height))),
+                    };
+                    setSillDrag(null);
+                    const pagePoint = pagePointInClip(view, next.x, next.y);
+                    onMoveSill(sill.id, pagePoint.x, pagePoint.y);
+                  };
+                  window.addEventListener("pointermove", move);
+                  window.addEventListener("pointerup", up);
+                }}
+              >
+                {sill.text}
+              </button>
+            )];
+          })}
         </div>
       </div>
       </div>

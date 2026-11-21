@@ -40,12 +40,18 @@ export const RAAMINFO_OPTIONS: Record<string, readonly string[]> = {
   "Eigen tekst": [],
 };
 
+/** WindowInfoWorkspace.OPTIONS_BY_CATEGORY["Onderaansluiting"], in the desktop order. */
+export const ONDERAANSLUITINGEN = RAAMINFO_OPTIONS.Onderaansluiting;
+
+/** WindowInfoWorkspace.CATEGORY_COLORS["Onderaansluiting"]. */
+export const SILL_COLORS = { line: "#1769aa", pale: "#e2f0ff", text: "#104b7c" } as const;
+
 export const WORKSPACE_STEPS = [
   { id: "tekeningen", label: "Tekeningen", hint: "Sleep een kader rond een gevel, snede of grondplan en geef het een naam." },
   { id: "grondplan", label: "Grondplan", hint: "Alleen de grondplannen. Links staan de nummers. Klik op een grondplan om het volgende nummer te zetten." },
   { id: "gevels", label: "Gevels", hint: "Alleen gevels en snedes. Kies links een nummer van het grondplan en klik op de tekening." },
   { id: "maten", label: "Maten", hint: "Breedte van het grondplan, hoogte van de gevel. Een lege maat is niet gevonden." },
-  { id: "raaminfo", label: "Raaminfo", hint: "Kies raaminfo bij het raamnummer." },
+  { id: "raaminfo", label: "Raaminfo", hint: "Zet een onderaansluiting op de gevel. Dezelfde mag vaker. Sleep ze op hun plaats." },
 ] as const;
 
 export type WorkspaceStepId = (typeof WORKSPACE_STEPS)[number]["id"];
@@ -68,6 +74,15 @@ export type WorkspaceSize = { number: string; orientation: "width" | "height"; v
 /** Offset of a measure label from the window, as a fraction of the clip. Absent means the default place. */
 export type WorkspaceMeasurePlace = { number: string; orientation: "width" | "height"; dx: number; dy: number };
 export type WorkspaceRaaminfo = { number: string; category: string; text: string };
+/** One placed onderaansluiting. x and y are fractions of the PDF page, the same plane as a facade number. */
+export type WorkspaceSill = {
+  text: string;
+  planName: string;
+  page: number;
+  drawingName: string;
+  x: number;
+  y: number;
+};
 
 /** Clockwise page rotation, the same steps as PyMuPDF page.rotation. 0 is omitted. */
 export type QuarterTurn = 90 | 180 | 270;
@@ -81,6 +96,7 @@ export type WorkspaceDraft = {
   facades: WorkspaceFacade[];
   sizes: WorkspaceSize[];
   measurePlaces?: WorkspaceMeasurePlace[];
+  sills?: WorkspaceSill[];
   raaminfo: WorkspaceRaaminfo[];
   pageRotations: PageRotation[];
 };
@@ -101,6 +117,7 @@ export const EMPTY_DRAFT: WorkspaceDraft = {
   facades: [],
   sizes: [],
   measurePlaces: [],
+  sills: [],
   raaminfo: [],
   pageRotations: [],
 };
@@ -256,16 +273,28 @@ export function rotatePlanPage(draft: WorkspaceDraft, planName: string, page: nu
     if (!onPage(facade.planName, facade.page) || facade.x == null || facade.y == null) return facade;
     return { ...facade, ...rotateNormalizedPoint(facade.x, facade.y, clockwise) };
   });
+  const sills = draft.sills?.map((sill) => {
+    if (!onPage(sill.planName, sill.page)) return sill;
+    return { ...sill, ...rotateNormalizedPoint(sill.x, sill.y, clockwise) };
+  });
   const current = pageRotationOf(draft, planName, page);
   const next = quarterTurn((current + clockwise) % 360);
   const pageRotations = draft.pageRotations.filter((item) => !(item.planName === planName && item.page === page));
   if (next) pageRotations.push({ planName, page, degrees: next });
-  return { ...draft, drawings, openings, facades, pageRotations };
+  return { ...draft, drawings, openings, facades, ...(sills ? { sills } : {}), pageRotations };
 }
 
 export function raamstudioDocumentName(number: string | null): string {
   const safe = clean(number ?? "", 80).replace(/[<>:"/\\|?*]/g, "_") || "dossier";
   return `RaamStudio ${safe}.tc-raam`;
+}
+
+export const RAAMSTUDIO_EXPORT_DESCRIPTION = "RaamStudio-onderaansluitingen";
+
+/** The PDF of this last step, stored beside the project file in Documentbeheer. */
+export function raamstudioExportName(number: string | null): string {
+  const safe = clean(number ?? "", 80).replace(/[<>:"/\\|?*]/g, "_") || "dossier";
+  return `RaamStudio ${safe} onderaansluitingen.pdf`;
 }
 
 /** MainWindow.next_number: the next raamnummer on a floor. */
@@ -426,6 +455,18 @@ export function normalizeDraft(draft: WorkspaceDraft, planNames: readonly string
     seenPlace.add(key);
     measurePlaces.push({ number, orientation: place.orientation, dx, dy });
   }
+  const sills: WorkspaceSill[] = [];
+  for (const sill of (draft.sills ?? []).slice(0, LIMIT)) {
+    const planName = canonicalPlan(sill.planName, planNames);
+    const drawingName = clean(sill.drawingName, 120);
+    const text = clean(sill.text, 160);
+    const x = unit(sill.x);
+    const y = unit(sill.y);
+    const page = pageIndex(sill.page);
+    if (!planName || !drawingName || !text || x == null || y == null || page == null) continue;
+    if (!RAAMINFO_OPTIONS.Onderaansluiting.includes(text)) continue;
+    sills.push({ text, planName, page, drawingName, x, y });
+  }
   const raaminfo: WorkspaceRaaminfo[] = [];
   for (const item of draft.raaminfo.slice(0, LIMIT)) {
     const number = clean(item.number, 40);
@@ -448,7 +489,7 @@ export function normalizeDraft(draft: WorkspaceDraft, planNames: readonly string
     seenRotation.add(key);
     pageRotations.push({ planName, page, degrees });
   }
-  return { drawings, openings, facades, sizes, measurePlaces, raaminfo, pageRotations };
+  return { drawings, openings, facades, sizes, measurePlaces, sills, raaminfo, pageRotations };
 }
 
 function projectType(group: string | null): "Nieuwbouw" | "Renovatie" | null {
@@ -557,6 +598,17 @@ export function buildRaamstudioPayload(
         orientation: place.orientation,
         dx: place.dx,
         dy: place.dy,
+      })),
+    } : {}),
+    ...(work.sills?.length ? {
+      tilo_sills: work.sills.map((sill) => ({
+        text: sill.text,
+        category: "Onderaansluiting",
+        plan_name: sill.planName,
+        page: sill.page,
+        drawing_name: sill.drawingName,
+        x: sill.x,
+        y: sill.y,
       })),
     } : {}),
     window_info_annotations: work.raaminfo.map((item) => ({
@@ -669,6 +721,18 @@ export function workspaceFromPayload(payload: unknown, planNames: readonly strin
     if (!number || !orientation || dx == null || dy == null) return [];
     return [{ number, orientation, dx, dy }];
   });
+  const sills: WorkspaceSill[] = records(payload.tilo_sills).flatMap((item) => {
+    const planName = planFromSource(item.plan_name, planNames);
+    const drawingName = clean(item.drawing_name, 120);
+    const text = clean(item.text, 160);
+    const x = unit(item.x);
+    const y = unit(item.y);
+    const page = pageIndex(item.page) ?? 0;
+    if (!planName || !drawingName || !text || x == null || y == null) return [];
+    if (item.category != null && item.category !== "Onderaansluiting") return [];
+    if (!RAAMINFO_OPTIONS.Onderaansluiting.includes(text)) return [];
+    return [{ text, planName, page, drawingName, x, y }];
+  });
   const raaminfo: WorkspaceRaaminfo[] = records(payload.window_info_annotations).flatMap((item) => {
     const number = clean(item.number, 40);
     const category = clean(item.category, 40);
@@ -686,5 +750,5 @@ export function workspaceFromPayload(payload: unknown, planNames: readonly strin
       return [{ planName, page, degrees }];
     });
   });
-  return normalizeDraft({ drawings, openings, facades, sizes, measurePlaces, raaminfo, pageRotations }, planNames);
+  return normalizeDraft({ drawings, openings, facades, sizes, measurePlaces, sills, raaminfo, pageRotations }, planNames);
 }
