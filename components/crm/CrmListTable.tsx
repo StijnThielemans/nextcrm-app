@@ -178,9 +178,10 @@ export function CrmListTable<TData>({
                       <TableRow
                         key={row.id}
                         data-state={row.getIsSelected() && "selected"}
-                        data-testid={tableId === "dossiers" ? "dossier-row" : tableId === "quotes" ? "offerte-row" : undefined}
+                        data-testid={tableId === "dossiers" ? "dossier-row" : tableId === "quotes" ? "offerte-row" : tableId === "projects" ? "project-row" : undefined}
                         data-dossier-number={tableId === "dossiers" ? String((row.original as { number?: string | null }).number ?? "") : undefined}
                         data-offerte-name={tableId === "quotes" ? String((row.original as { name?: string }).name ?? "") : undefined}
+                        data-project-number={tableId === "projects" ? String((row.original as { projectNumber?: string }).projectNumber ?? "") : undefined}
                       >
                         {row.getVisibleCells().map((cell) => (
                           <TableCell key={cell.id} className="whitespace-nowrap px-2.5 py-1.5 text-[0.8125rem]">

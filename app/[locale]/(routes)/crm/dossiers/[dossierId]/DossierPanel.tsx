@@ -35,6 +35,7 @@ import {
   attachOffertePdfAction,
   changeDossierDocumentCategoryAction,
   changeStatusAction,
+  createProjectAction,
   deleteDossierDocumentAction,
   reopenDossierAction,
   deleteOfferteAction,
@@ -402,10 +403,13 @@ export function DossierPanel({
   dossier,
   pendingAttachments = [],
   promptAttachments = false,
+  surface = "sales",
 }: {
   dossier: DossierDetail;
   pendingAttachments?: PendingOfferteboxAttachment[];
   promptAttachments?: boolean;
+  /** The project page shows the same tab, with the project number in front. */
+  surface?: "sales" | "project";
 }) {
   const t = useTranslations("Sales");
   const router = useRouter();
@@ -535,9 +539,23 @@ export function DossierPanel({
       <section className="@container tilo-frame flex min-w-0 items-center gap-x-1.5 px-2 py-1.5" aria-label={t("status")} data-testid="dossier-bar">
         <h2 className="flex shrink-0 items-center gap-x-1.5 text-[10.5px] font-medium leading-none">
           <span aria-hidden className="h-3 w-[3px] shrink-0 rounded-full bg-[hsl(var(--tilo))]" />
+          {surface === "project" && dossier.executionProjectNumber ? (
+            <span className="whitespace-nowrap font-semibold" data-execution-project-number={dossier.executionProjectNumber}>
+              {dossier.executionProjectNumber}
+            </span>
+          ) : null}
           <span className="whitespace-nowrap">{dossier.name || t("fallbackDossier")}</span>
           {dossier.number && (
             <span className="whitespace-nowrap font-normal text-muted-foreground">{dossier.number}</span>
+          )}
+          {surface !== "project" && dossier.executionProjectNumber && (
+            <Link
+              href={`/projectleiding/projecten/${dossier.id}`}
+              className="whitespace-nowrap font-medium underline-offset-4 hover:underline"
+              data-execution-project-number={dossier.executionProjectNumber}
+            >
+              {dossier.executionProjectNumber}
+            </Link>
           )}
         </h2>
         {dossier.status === "GEWONNEN" && (dossier.wonQuotes.length > 0 || dossier.acceptedQuote) && (
@@ -578,6 +596,35 @@ export function DossierPanel({
           )}
           {dossier.status === "VERLOREN" && (
             <Button type="button" size="sm" className="h-6 px-1.5 text-[11px]" disabled={busy} data-testid="reopen-dossier" onClick={() => { void run(() => reopenDossierAction(dossier.id)); }}>{t("reopenDossier")}</Button>
+          )}
+          {dossier.status === "GEWONNEN" && !dossier.executionProjectNumber && (
+            <Button
+              type="button"
+              size="sm"
+              className="h-6 px-1.5 text-[11px]"
+              disabled={busy}
+              data-testid="make-project"
+              onClick={() => {
+                void (async () => {
+                  setBusy(true);
+                  setError(null);
+                  const saved = await createProjectAction(dossier.id);
+                  setBusy(false);
+                  if (saved.error) {
+                    setError(saved.error);
+                    return;
+                  }
+                  router.push(`/projectleiding/projecten/${dossier.id}`);
+                })();
+              }}
+            >
+              {t("makeProject")}
+            </Button>
+          )}
+          {surface !== "project" && dossier.executionProjectNumber && (
+            <Button size="sm" variant="outline" className="h-6 px-1.5 text-[11px]" asChild>
+              <Link href={`/projectleiding/projecten/${dossier.id}`}>{t("openProject")}</Link>
+            </Button>
           )}
           {!dossier.terminal && (
             <>
@@ -656,6 +703,15 @@ export function DossierPanel({
           </div>
           <div className="space-y-1">
           <Fact label={t("projectNumber")}>{dossier.number ?? "—"}</Fact>
+          <Fact label={t("executionProjectNumber")} testId="execution-project-number">
+            {dossier.executionProjectNumber ? (
+              <Link className="underline-offset-4 hover:underline" href={`/projectleiding/projecten/${dossier.id}`}>
+                {dossier.executionProjectNumber}
+              </Link>
+            ) : (
+              "—"
+            )}
+          </Fact>
           <Fact label={t("projectDescription")} testId="dossier-project-description">{dossier.name ?? "—"}</Fact>
           <Fact label={t("seller")} testId="dossier-seller">{dossier.seller ?? "—"}</Fact>
           <Fact label={t("architect")}>

@@ -1373,7 +1373,21 @@
       "duplicateFamily": "Die leverancier en referentie bestaan al. Maak een nieuwe versie.",
       "noSeries": "De nummerreeks voor offertedossiers ontbreekt.",
       "generic": "Er ging iets mis.",
-      "unauthorized": "Je bent niet ingelogd."
-    }
+      "unauthorized": "Je bent niet ingelogd.",
+      "projectNotWon": "Alleen een gewonnen dossier kan een project worden."
+    },
+    "executionProjectNumber": "Projectnummer",
+    "makeProject": "Project maken",
+    "openProject": "Naar project",
+    "projects": "Projecten",
+    "projectleiding": "Projectleiding",
+    "projectDashboardDescription": "Projecten uit gewonnen offertedossiers. Het projectnummer komt erbij op het moment dat je het project maakt.",
+    "noProjects": "Nog geen projecten. Maak er een vanuit een gewonnen offertedossier.",
+    "noProjectsFound": "Geen projecten gevonden.",
+    "projectCount": "Projecten",
+    "projectsThisMonth": "Nieuwe projecten deze maand",
+    "wonWithoutProject": "Gewonnen, nog geen project",
+    "wonWaitingEmpty": "Elk gewonnen dossier heeft al een project.",
+    "recentProjects": "Laatste projecten"
   }
 }

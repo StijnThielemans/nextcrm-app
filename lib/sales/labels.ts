@@ -246,4 +246,5 @@ export const SALES_ERROR_TEXT: Record<string, string> = {
   notFound: "Niet gevonden.",
   duplicateFamily: "Die leverancier en referentie bestaan al. Maak een nieuwe versie.",
   noSeries: "De nummerreeks voor offertedossiers ontbreekt.",
+  projectNotWon: "Alleen een gewonnen dossier kan een project worden.",
 };

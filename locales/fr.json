@@ -1269,7 +1269,21 @@
       "duplicateFamily": "Ce fournisseur et cette référence existent déjà. Créez une nouvelle version.",
       "noSeries": "La série de numéros des dossiers d'offre manque.",
       "generic": "Quelque chose s'est mal passé.",
-      "unauthorized": "Vous n'êtes pas connecté."
-    }
+      "unauthorized": "Vous n'êtes pas connecté.",
+      "projectNotWon": "Seul un dossier gagné peut devenir un projet."
+    },
+    "executionProjectNumber": "Numéro de projet",
+    "makeProject": "Créer le projet",
+    "openProject": "Ouvrir le projet",
+    "projects": "Projets",
+    "projectleiding": "Projectleiding",
+    "projectDashboardDescription": "Projets issus d'un dossier d'offre gagné. Le numéro de projet est créé au moment où vous créez le projet.",
+    "noProjects": "Pas encore de projets. Créez-en un à partir d'un dossier gagné.",
+    "noProjectsFound": "Aucun projet trouvé.",
+    "projectCount": "Projets",
+    "projectsThisMonth": "Nouveaux projets ce mois-ci",
+    "wonWithoutProject": "Gagné, pas encore de projet",
+    "wonWaitingEmpty": "Chaque dossier gagné a déjà un projet.",
+    "recentProjects": "Derniers projets"
   }
 }

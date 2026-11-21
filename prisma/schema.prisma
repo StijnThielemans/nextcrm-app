@@ -287,6 +287,9 @@ model crm_Opportunities {
   won_at               DateTime?
   lost_at              DateTime?
   accepted_quote_id    String?                 @db.Uuid
+  /// Tien cijfers: 1 + volgnummer van 7 + jaar van 2. Leeg tot het project gemaakt is.
+  execution_project_number String?             @unique
+  project_created_at   DateTime?
 
   assigned_type        crm_Opportunities_Type?         @relation(fields: [type], references: [id])
   assigned_sales_stage crm_Opportunities_Sales_Stages? @relation("assinged_sales_stage", fields: [sales_stage], references: [id])

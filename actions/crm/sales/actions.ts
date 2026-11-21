@@ -9,6 +9,7 @@ import { SalesError } from "@/lib/sales/errors";
 import { SALES_ERROR_TEXT, type DossierDocumentCategory, type DossierStatus, type RequestChannel } from "@/lib/sales/labels";
 import { addOfferteboxRequest, assignOfferteboxSeller, linkOfferteboxDossier } from "@/lib/sales/offertebox";
 import { fileOfferteboxAttachments, listPendingOfferteboxAttachments, type FilingAssignment } from "@/lib/sales/offertebox-filing";
+import { createProjectFromWonDossier } from "@/lib/sales/projects";
 import {
   addChannelEvent,
   changeDossierStatus,
@@ -67,6 +68,9 @@ function refresh() {
   revalidatePath("/[locale]/(routes)/crm/offertes", "page");
   revalidatePath("/[locale]/(routes)/crm/dashboard", "page");
   revalidatePath("/[locale]/(routes)/crm/offertebox", "page");
+  revalidatePath("/[locale]/(routes)/projectleiding/dashboard", "page");
+  revalidatePath("/[locale]/(routes)/projectleiding/projecten", "page");
+  revalidatePath("/[locale]/(routes)/projectleiding/projecten/[projectId]", "page");
   revalidatePath("/[locale]/(routes)", "page");
 }
 
@@ -372,6 +376,18 @@ export async function changeStatusAction(
     await changeDossierStatus(auth.user, dossierId, input);
     refresh();
     return { ok: true };
+  } catch (error) {
+    return await fail(error);
+  }
+}
+
+export async function createProjectAction(dossierId: string) {
+  const auth = await userOrError();
+  if ("error" in auth) return { error: auth.error };
+  try {
+    const created = await createProjectFromWonDossier(auth.user, dossierId);
+    refresh();
+    return { ok: true as const, id: created.id, number: created.number };
   } catch (error) {
     return await fail(error);
   }

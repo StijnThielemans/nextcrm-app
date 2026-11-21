@@ -1,4 +1,4 @@
-export const TABLE_IDS = ["customers", "dossiers", "quotes"] as const;
+export const TABLE_IDS = ["customers", "dossiers", "quotes", "projects"] as const;
 
 export type TableId = (typeof TABLE_IDS)[number];
 
@@ -23,12 +23,14 @@ export const TABLE_COLUMNS: Record<TableId, readonly string[]> = {
     "followUp",
   ],
   quotes: ["name", "gross", "date", "sent", "dossier", "project", "customer", "seller", "status", "won"],
+  projects: ["projectNumber", "dossierNumber", "name", "customer", "seller"],
 };
 
 const LOCKED: Record<TableId, readonly string[]> = {
   customers: ["name", "actions"],
   dossiers: ["number"],
   quotes: ["name"],
+  projects: ["projectNumber"],
 };
 
 export type SavedLayout = {

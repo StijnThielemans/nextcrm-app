@@ -489,6 +489,7 @@ export async function listDossiers(user: AuthzUser): Promise<DossierListRow[]> {
       },
       assigned_to_user: { select: { name: true } },
       quote_sends: { select: { sent_at: true }, orderBy: { sent_at: "asc" }, take: 1 },
+      execution_project_number: true,
       documents: {
         where: { document: { deletedAt: null } },
         select: { document_id: true },
@@ -506,6 +507,7 @@ export async function listDossiers(user: AuthzUser): Promise<DossierListRow[]> {
       hasDocuments: row.documents.length > 0,
       sentAt: row.quote_sends[0]?.sent_at.toISOString() ?? null,
       status: row.dossier_status,
+      projectCreated: Boolean(row.execution_project_number),
     }).currentLabel,
     customer: row.assigned_account?.name ?? null,
     contactType: row.assigned_account?.account_role ?? null,
@@ -606,6 +608,8 @@ export type DossierDetail = {
   sends: { id: string; sentAt: string; followUp: string; quoteId: string; label: string }[];
   acceptedQuote: { id: string; name: string; gross: number | null } | null;
   wonQuotes: { id: string; name: string; gross: number | null }[];
+  executionProjectNumber: string | null;
+  projectCreated: boolean;
 };
 
 export async function getDossier(user: AuthzUser, dossierId: string): Promise<DossierDetail | null> {
@@ -761,6 +765,8 @@ export async function getDossier(user: AuthzUser, dossierId: string): Promise<Do
       name: quote.pdfName,
       gross: quote.gross,
     }))),
+    executionProjectNumber: row.execution_project_number,
+    projectCreated: Boolean(row.execution_project_number),
   };
 }
 
@@ -1737,6 +1743,7 @@ export async function getSalesDashboard(user: AuthzUser): Promise<SalesTiles> {
         orderBy: { sent_at: "desc" },
         select: { sent_at: true, quote: { select: { sell_excl_vat: true, margin_euro: true } } },
       },
+      execution_project_number: true,
       documents: {
         where: { document: { deletedAt: null } },
         select: { document_id: true },
@@ -1758,6 +1765,7 @@ export async function getSalesDashboard(user: AuthzUser): Promise<SalesTiles> {
         hasDocuments: row.documents.length > 0,
         sentAt: earliest?.sent_at.toISOString() ?? null,
         status: row.dossier_status,
+        projectCreated: Boolean(row.execution_project_number),
         now,
       }),
       requestDate: dayString(row.request_date),

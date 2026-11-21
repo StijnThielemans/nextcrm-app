@@ -1269,7 +1269,21 @@
       "duplicateFamily": "That supplier and reference already exist. Create a new version.",
       "noSeries": "The number series for quote dossiers is missing.",
       "generic": "Something went wrong.",
-      "unauthorized": "You are not signed in."
-    }
+      "unauthorized": "You are not signed in.",
+      "projectNotWon": "Only a won dossier can become a project."
+    },
+    "executionProjectNumber": "Project number",
+    "makeProject": "Create project",
+    "openProject": "Open project",
+    "projects": "Projects",
+    "projectleiding": "Projectleiding",
+    "projectDashboardDescription": "Projects made from won quote dossiers. The project number is created when you make the project.",
+    "noProjects": "No projects yet. Make one from a won quote dossier.",
+    "noProjectsFound": "No projects found.",
+    "projectCount": "Projects",
+    "projectsThisMonth": "New projects this month",
+    "wonWithoutProject": "Won, no project yet",
+    "wonWaitingEmpty": "Every won dossier already has a project.",
+    "recentProjects": "Recent projects"
   }
 }
