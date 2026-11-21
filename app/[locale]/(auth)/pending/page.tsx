@@ -27,13 +27,10 @@ const PendingPage = async () => {
       </pre> */}
       <div className="flex flex-col">
         <h1 className="text-3xl">
-          {process.env.NEXT_PUBLIC_APP_NAME} - your account must be allowed by
-          Admin
+          TILO — je account moet nog worden toegelaten
         </h1>
         <p>
-          Hi, welcome to {process.env.NEXT_PUBLIC_APP_NAME}. Ask someone in your
-          organization to approve your account. If you are fist user call to
-          tech support to enable account.
+          Welkom bij TILO. Vraag iemand in je organisatie om je account goed te keuren.
         </p>
       </div>
       <div className="flex flex-col justify-center ">

@@ -1,5 +1,5 @@
 import { Prisma } from "@prisma/client";
-import { withDocumentFileRoutes } from "../file-key";
+import { documentContentDisposition, inlineDocumentType, withDocumentFileRoutes } from "../file-key";
 
 const MINIO = "https://files.example/nextcrm/documents/a.pdf";
 
@@ -36,6 +36,17 @@ describe("withDocumentFileRoutes (applied to every prismadb result)", () => {
     expect(out.note).toBeNull();
     expect(withDocumentFileRoutes(3)).toBe(3);
     expect(withDocumentFileRoutes(null)).toBeNull();
+  });
+
+  it("shows a PDF or image and downloads every other type", () => {
+    expect(inlineDocumentType("application/pdf")).toBe("application/pdf");
+    expect(inlineDocumentType("image/png; charset=binary")).toBe("image/png");
+    expect(inlineDocumentType("image/svg+xml")).toBeNull();
+    expect(inlineDocumentType("text/plain")).toBeNull();
+    expect(documentContentDisposition('Offerte "A".pdf', true)).toContain("inline");
+    expect(documentContentDisposition('Offerte "A".pdf', true)).toContain('filename="Offerte A .pdf"');
+    expect(documentContentDisposition("plan.docx", false)).toContain("attachment");
+    expect(documentContentDisposition("mét meting.pdf", true)).toContain("filename*=UTF-8''m%C3%A9t%20meting.pdf");
   });
 
   it("returns plain objects (RSC can pass them to client components)", () => {

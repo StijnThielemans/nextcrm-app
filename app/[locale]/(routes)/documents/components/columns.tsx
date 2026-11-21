@@ -3,6 +3,7 @@
 import { ColumnDef } from "@tanstack/react-table";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
+import { OpenStoredFile } from "@/components/files/OpenStoredFile";
 import { DocumentRow } from "../data/schema";
 import { DataTableColumnHeader } from "./data-table-column-header";
 import { DataTableRowActions } from "./data-table-row-actions";
@@ -78,9 +79,15 @@ export const columns: ColumnDef<DocumentRow>[] = [
             {mimeLabel.label}
           </Badge>
           <div className="min-w-0">
-            <span className="font-medium truncate block">
+            <OpenStoredFile
+              kind="document"
+              id={row.original.id}
+              name={row.original.document_name}
+              mimeType={row.original.document_file_mimeType}
+              className="font-medium truncate block underline"
+            >
               {row.getValue("document_name")}
-            </span>
+            </OpenStoredFile>
             {isProcessing ? (
               <span className="text-xs text-muted-foreground italic">
                 Generating summary...

@@ -45,6 +45,7 @@
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
     "@hookform/resolvers": "^5.2.2",
+    "@kenjiuno/msgreader": "^1.29.0",
     "@mendable/firecrawl-js": "^4.52.0",
     "@modelcontextprotocol/sdk": "^1.32.2",
     "@openai/agents": "^0.8.0",

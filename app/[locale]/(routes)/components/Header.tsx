@@ -1,13 +1,10 @@
-import Feedback from "./Feedback";
 import FulltextSearch from "./FulltextSearch";
 
-import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { SetLanguage } from "@/components/SetLanguage";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { CommandComponent } from "@/components/CommandComponent";
 import SupportComponent from "@/components/support";
-import { CurrencySwitcher } from "@/components/CurrencySwitcher";
 
 type Props = {
   id: string;
@@ -21,7 +18,7 @@ type Props = {
  *
  * Layout Structure:
  * - Left side: SidebarTrigger (mobile menu), FulltextSearch
- * - Right side: CommandComponent, SetLanguage, Feedback, ThemeToggle, SupportComponent
+ * - Right side: CommandComponent, SetLanguage, ThemeToggle, SupportComponent
  *
  * Changes from previous version:
  * - Removed AvatarDropdown (functionality moved to nav-user section in sidebar)
@@ -34,24 +31,18 @@ type Props = {
  */
 const Header = ({ id, lang }: Props) => {
   return (
-    <>
-      <div className="flex h-16 shrink-0 items-center justify-between gap-2 px-4 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12">
-        <div className="flex items-center gap-2">
-          <SidebarTrigger className="-ml-1" />
-          <Separator orientation="vertical" className="mr-2 h-4" />
-          <FulltextSearch />
-        </div>
-        <div className="flex items-center gap-2">
-          <CommandComponent />
-          <SetLanguage userId={id} />
-          <Feedback />
-          <CurrencySwitcher />
-          <ThemeToggle />
-          <SupportComponent />
-        </div>
+    <div className="flex h-14 shrink-0 items-center justify-between gap-3 border-b border-[hsl(215_16%_84%)] bg-card px-4 lg:px-8">
+      <div className="flex min-w-0 items-center gap-2">
+        <SidebarTrigger className="-ml-1 text-muted-foreground" />
+        <FulltextSearch />
       </div>
-      <Separator />
-    </>
+      <div className="flex items-center gap-1">
+        <CommandComponent />
+        <SetLanguage userId={id} />
+        <ThemeToggle />
+        <SupportComponent />
+      </div>
+    </div>
   );
 };
 

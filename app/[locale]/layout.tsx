@@ -1,7 +1,5 @@
 import "./globals.css";
 
-import { Inter } from "next/font/google";
-
 import { ReactNode } from "react";
 
 import { NextIntlClientProvider } from "next-intl";
@@ -10,8 +8,6 @@ import { getTranslations, getMessages } from "next-intl/server";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as SonnerToaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/app/providers/ThemeProvider";
-
-const inter = Inter({ subsets: ["latin"] });
 
 type Props = {
   children: ReactNode;
@@ -27,7 +23,7 @@ export async function generateMetadata(props: Props) {
 
   return {
     metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL!),
-    title: t("title"),
+    title: "TILO",
     description: t("description"),
     openGraph: {
       images: [
@@ -35,7 +31,7 @@ export async function generateMetadata(props: Props) {
           url: "/images/opengraph-image.png",
           width: 1200,
           height: 630,
-          alt: t("title"),
+          alt: "TILO",
         },
       ],
     },
@@ -44,7 +40,7 @@ export async function generateMetadata(props: Props) {
       image: "/images/opengraph-image.png",
       width: 1200,
       height: 630,
-      alt: t("title"),
+      alt: "TILO",
     },
   };
 }
@@ -60,9 +56,9 @@ export default async function RootLayout(props: Props) {
 
   return (
     <html lang={locale} suppressHydrationWarning>
-      <body className={inter.className + " min-h-screen"}>
+      <body className="min-h-screen">
         <NextIntlClientProvider locale={locale} messages={messages}>
-          <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+          <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
             {children}
           </ThemeProvider>
         </NextIntlClientProvider>

@@ -42,76 +42,89 @@
   @apply flex flex-col overflow-hidden items-start justify-center text-xs p-2 m-2 rounded-md border border-slate-300 shadow-md;
 }
 
+@font-face {
+  font-family: Manrope;
+  src: url("/fonts/manrope.woff2") format("woff2");
+  font-weight: 200 800;
+  font-style: normal;
+  font-display: swap;
+}
+
 @layer base {
   :root {
+    /* thielemans.be teal #68ccd1 as a thin accent on a quiet paper surface */
     --background: 0 0% 100%;
-    --foreground: 0 0% 3.9%;
+    --foreground: 210 12% 12%;
     --card: 0 0% 100%;
-    --card-foreground: 0 0% 3.9%;
+    --card-foreground: 210 12% 12%;
     --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 3.9%;
-    --primary: 262.1 83.3% 57.8%;
-    --primary-foreground: 0 0% 98%;
-    --secondary: 0 0% 96.1%;
-    --secondary-foreground: 0 0% 9%;
-    --muted: 0 0% 96.1%;
-    --muted-foreground: 0 0% 45.1%;
-    --accent: 0 0% 96.1%;
-    --accent-foreground: 0 0% 9%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 89.8%;
-    --input: 0 0% 89.8%;
-    --ring: 262.1 83.3% 57.8%;
-    --radius: 0.5rem;
-    --chart-1: 262 83% 58%;
-    --chart-2: 280 70% 65%;
-    --chart-3: 240 65% 55%;
-    --chart-4: 262 50% 75%;
-    --chart-5: 300 60% 60%;
-    --sidebar-background: 0 0% 98%;
-    --sidebar-foreground: 0 0% 45.1%;
-    --sidebar-primary: 0 0% 9%;
-    --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 0 0% 96.1%;
-    --sidebar-accent-foreground: 0 0% 9%;
-    --sidebar-border: 0 0% 89.8%;
-    --sidebar-ring: 262.1 83.3% 57.8%;
+    --popover-foreground: 210 12% 12%;
+    --primary: 210 14% 12%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 183 28% 95%;
+    --secondary-foreground: 210 12% 16%;
+    --muted: 200 14% 96%;
+    --muted-foreground: 210 7% 42%;
+    --accent: 183 42% 94%;
+    --accent-foreground: 190 24% 16%;
+    --destructive: 4 72% 46%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 210 12% 90%;
+    --input: 210 10% 86%;
+    --ring: 183 45% 42%;
+    --radius: 0.8rem;
+    --chart-1: 183 53% 42%;
+    --chart-2: 4 70% 52%;
+    --chart-3: 210 10% 22%;
+    --chart-4: 183 30% 62%;
+    --chart-5: 20 14% 46%;
+    --canvas: 190 16% 96%;
+    --tilo: 183 53% 61%;
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 210 10% 20%;
+    --sidebar-primary: 183 40% 34%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 183 42% 94%;
+    --sidebar-accent-foreground: 190 28% 16%;
+    --sidebar-border: 210 12% 92%;
+    --sidebar-ring: 183 45% 42%;
   }
 
   .dark {
-    --background: 0 0% 3.9%;
-    --foreground: 0 0% 98%;
-    --card: 0 0% 3.9%;
-    --card-foreground: 0 0% 98%;
-    --popover: 0 0% 3.9%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 263.4 70% 50.4%;
-    --primary-foreground: 0 0% 98%;
-    --secondary: 0 0% 14.9%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 0 0% 14.9%;
-    --muted-foreground: 0 0% 63.9%;
-    --accent: 0 0% 14.9%;
-    --accent-foreground: 0 0% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 14.9%;
-    --input: 0 0% 14.9%;
-    --ring: 263.4 70% 50.4%;
-    --chart-1: 263 70% 60%;
-    --chart-2: 280 65% 68%;
-    --chart-3: 240 60% 55%;
-    --chart-4: 263 50% 75%;
-    --chart-5: 300 55% 62%;
-    --sidebar-background: 0 0% 3.9%;
-    --sidebar-foreground: 0 0% 98%;
-    --sidebar-primary: 0 0% 98%;
-    --sidebar-primary-foreground: 0 0% 9%;
-    --sidebar-accent: 0 0% 14.9%;
-    --sidebar-accent-foreground: 0 0% 98%;
-    --sidebar-border: 0 0% 14.9%;
-    --sidebar-ring: 263.4 70% 50.4%;
+    --background: 210 10% 8%;
+    --foreground: 0 0% 96%;
+    --card: 210 8% 11%;
+    --card-foreground: 0 0% 96%;
+    --popover: 210 8% 11%;
+    --popover-foreground: 0 0% 96%;
+    --primary: 0 0% 96%;
+    --primary-foreground: 210 10% 10%;
+    --secondary: 210 8% 16%;
+    --secondary-foreground: 0 0% 96%;
+    --muted: 210 8% 15%;
+    --muted-foreground: 210 8% 68%;
+    --accent: 183 18% 16%;
+    --accent-foreground: 0 0% 96%;
+    --destructive: 4 72% 48%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 210 8% 18%;
+    --input: 210 8% 20%;
+    --ring: 183 53% 61%;
+    --chart-1: 183 53% 61%;
+    --chart-2: 4 70% 57%;
+    --chart-3: 0 0% 80%;
+    --chart-4: 183 30% 45%;
+    --chart-5: 20 12% 70%;
+    --canvas: 210 12% 6%;
+    --tilo: 183 53% 61%;
+    --sidebar-background: 210 10% 8%;
+    --sidebar-foreground: 0 0% 92%;
+    --sidebar-primary: 183 53% 61%;
+    --sidebar-primary-foreground: 210 10% 10%;
+    --sidebar-accent: 183 16% 16%;
+    --sidebar-accent-foreground: 0 0% 96%;
+    --sidebar-border: 210 8% 16%;
+    --sidebar-ring: 183 53% 61%;
   }
 }
 
@@ -120,6 +133,194 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
+    font-family: Manrope, "Segoe UI", sans-serif;
+    letter-spacing: -0.011em;
   }
+}
+
+/* Thin teal edge on the sidebar. The wordmark stays on its white chip. */
+[data-sidebar="sidebar"] {
+  box-shadow: inset 2px 0 0 hsl(var(--tilo));
+}
+
+/* Light block edges. White fill, a visible hairline, no heavy card shadow. */
+.tilo-frame {
+  border: 1px solid hsl(215 16% 76%);
+  border-radius: 0.9rem;
+  background: #fff;
+}
+
+.tilo-cells {
+  display: grid;
+  overflow: hidden;
+  background: #fff;
+}
+
+.tilo-cells > * {
+  min-width: 0;
+  background: #fff;
+  border-right: 1px solid hsl(215 14% 84%);
+  border-bottom: 1px solid hsl(215 14% 84%);
+}
+
+.tilo-rows > * + * {
+  border-top: 1px solid hsl(215 14% 86%);
+}
+
+table.tilo-grid {
+  border-collapse: collapse;
+}
+
+table.tilo-grid th,
+table.tilo-grid td {
+  border-right: 1px solid hsl(215 14% 84%);
+  border-bottom: 1px solid hsl(215 14% 84%);
+  padding-inline: 0.75rem;
+}
+
+table.tilo-grid th:last-child,
+table.tilo-grid td:last-child {
+  border-right: none;
+}
+
+table.tilo-grid tbody tr:last-child td {
+  border-bottom: none;
+}
+
+table.tilo-grid thead th {
+  background: hsl(210 20% 98%);
+  border-bottom-color: hsl(215 14% 76%);
+}
+
+.dark .tilo-frame,
+.dark .tilo-cells > * {
+  border-color: hsl(210 8% 26%);
+  background: hsl(var(--card));
+}
+
+.dark .tilo-cells,
+.dark .tilo-cells > * {
+  background: hsl(var(--card));
+}
+
+.dark .tilo-cells > * {
+  border-color: hsl(210 8% 24%);
+}
+
+.dark .tilo-rows > * + * {
+  border-top-color: hsl(210 8% 24%);
+}
+
+.dark table.tilo-grid th,
+.dark table.tilo-grid td {
+  border-color: hsl(210 8% 24%);
+}
+
+.dark table.tilo-grid thead th {
+  background: hsl(210 8% 14%);
+}
+
+/* Sidebar stays white. Light rules mark the groups and the rows. */
+[data-sidebar="menu"] > [data-sidebar="menu-item"] + [data-sidebar="menu-item"] {
+  margin-top: 0.35rem;
+  border-top: 1px solid hsl(215 14% 88%);
+  padding-top: 0.35rem;
+}
+
+[data-sidebar="menu-sub"] {
+  border-left-color: hsl(215 14% 78%);
+}
+
+[data-sidebar="menu-sub"] > li + li {
+  border-top: 1px solid hsl(215 16% 90%);
+}
+
+/* RaamStudio: borders and gaps only. The workspace logic stays untouched. */
+section:has(> [data-testid="raamstudio-dossiers"]) {
+  border: 1px solid hsl(215 16% 76%);
+  border-radius: 0.9rem;
+  background: #fff;
+  padding: 1rem 1.125rem;
+}
+
+[data-testid="raamstudio-dossiers"] {
+  border: none;
+  border-radius: 0;
+  background: transparent;
+}
+
+[data-testid="raamstudio-dossiers"] > li {
+  border-color: hsl(215 14% 84%);
+}
+
+[data-testid="raamstudio-dossiers"] > li + li {
+  border-top: 1px solid hsl(215 14% 84%);
+}
+
+[data-testid="raamstudio-drop"] {
+  border-color: hsl(215 16% 72%);
+}
+
+[data-testid="raamstudio-program"] {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  border: 1px solid hsl(215 16% 76%);
+  border-radius: 0.9rem;
+  background: hsl(210 16% 97%);
+}
+
+[data-testid="raamstudio-program"] > *:not(:has([data-testid="raamstudio-plan-view"])) {
+  border: 1px solid hsl(215 16% 80%);
+  border-radius: 0.7rem;
+  background: #fff;
+}
+
+[data-testid="raamstudio-steps"] {
+  gap: 0.5rem;
+}
+
+[data-testid="raamstudio-steps"] > button {
+  border: 1px solid hsl(215 16% 78%);
+}
+
+[data-testid="raamstudio-steps"] > button[aria-pressed="true"] {
+  border-color: transparent;
+}
+
+[data-testid="raamstudio-program"] :has(> [data-testid="raamstudio-plan-view"]) {
+  gap: 0.75rem;
+  border: none;
+  background: transparent;
+}
+
+[data-testid="raamstudio-program"] :has(> [data-testid="raamstudio-plan-view"]) > * {
+  border: 1px solid hsl(215 16% 76%);
+  border-radius: 0.7rem;
+  background: #fff;
+}
+
+[data-testid="raamstudio-plan-view"] {
+  background: hsl(210 16% 96%);
+}
+
+[data-testid="raamstudio-plans"] > li + li {
+  border-top: 1px solid hsl(215 14% 88%);
+}
+
+[data-testid="raamstudio-positions"] {
+  border-collapse: collapse;
+}
+
+[data-testid="raamstudio-positions"] th,
+[data-testid="raamstudio-positions"] td {
+  border-right: 1px solid hsl(215 14% 84%);
+  border-bottom: 1px solid hsl(215 14% 84%);
+}
+
+[data-testid="raamstudio-positions"] th:last-child,
+[data-testid="raamstudio-positions"] td:last-child {
+  border-right: none;
 }

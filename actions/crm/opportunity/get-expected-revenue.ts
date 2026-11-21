@@ -19,6 +19,7 @@ export const getExpectedRevenue = async (displayCurrency: string) => {
   const activeOpportunities = await prismadb.crm_Opportunities.findMany({
     where: {
       status: "ACTIVE",
+      is_dossier: false,
       ...opportunityReadScopeWhere(user),
     },
     select: {

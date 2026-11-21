@@ -1,52 +1,21 @@
 import Container from "@/app/[locale]/(routes)/components/ui/Container";
 import React from "react";
 import { BasicView } from "./components/BasicView";
-import CaseStudyCard from "./components/CaseStudyCard";
-import AccountPartnerCard from "./components/AccountPartnerCard";
-import { getPartnerUsers } from "@/actions/crm/accounts/get-partner-users";
-import { getSession } from "@/lib/auth-server";
-import { requireAuthenticated, isManagerOrAdmin } from "@/lib/authz";
-import { getAccountTabs, getAccountPanels } from "@/lib/plugins/slots";
+import { requireAuthenticated } from "@/lib/authz";
+import { getAccountPanels, getAccountTabs } from "@/lib/plugins/slots";
 import { PluginSlot } from "@/lib/plugins/ui/PluginSlot";
-import { FindSimilarButton } from "@/components/crm/find-similar-button";
 
 import { getAccount } from "@/actions/crm/get-account";
-import { getAllCrmData } from "@/actions/crm/get-crm-data";
-import { getOpportunitiesFullByAccountId } from "@/actions/crm/get-opportunities-with-includes-by-accountId";
-import { getContactsByAccountId } from "@/actions/crm/get-contacts-by-accountId";
-import { getLeadsByAccountId } from "@/actions/crm/get-leads-by-accountId";
-import { getDocumentsByAccountId } from "@/actions/documents/get-documents-by-accountId";
-import { getContractsByAccountId } from "@/actions/crm/get-contracts";
-import { getAccountProducts } from "@/actions/crm/account-products/get-account-products";
-import { getProductsFull } from "@/actions/crm/products/get-products";
-import { serializeDecimalsList } from "@/lib/serialize-decimals";
-import { getAccountsTasks } from "@/actions/crm/account/get-tasks";
-import { getInvoicesByAccountId } from "@/actions/invoices/get-invoices-by-accountId";
 import { getTranslations } from "next-intl/server";
+import { Link } from "@/i18n/navigation";
 
-import OpportunitiesView from "../../components/OpportunitiesView";
-import LeadsView from "../../components/LeadsView";
-import ContactsView from "../../components/ContactsView";
-import DocumentsView from "../../components/DocumentsView";
-import InvoicesView from "../../components/InvoicesView";
+import { crm_Accounts } from "@prisma/client";
 
-import {
-  Documents,
-  crm_Accounts,
-  crm_Accounts_Tasks,
-  crm_Contacts,
-  crm_Contracts,
-  crm_Leads,
-  crm_Opportunities,
-} from "@prisma/client";
-
-import AccountsTasksView from "./components/TasksView";
-import ContractsView from "../../components/ContractsView";
-import AccountProductsView from "./components/AccountProductsView";
-import { ActivitiesSection } from "./components/ActivitiesSection";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { HistoryTab } from "./components/HistoryTab";
-import { AccountOrdersTab } from "./components/AccountOrdersTab";
+import { listDossiersForAccount } from "@/lib/sales/service";
+import { stepMessageKey } from "@/lib/sales/step-text";
+import { recordRecentOpen } from "@/lib/sales/recent-opens";
+import { serializeDecimals } from "@/lib/serialize-decimals";
 
 interface AccountDetailPageProps {
   params: Promise<{
@@ -57,138 +26,78 @@ interface AccountDetailPageProps {
 const AccountDetailPage = async (props: AccountDetailPageProps) => {
   const params = await props.params;
   const { accountId } = params;
-  const session = await getSession({ partner: true });
-  const sessionUserRole = (session?.user as any)?.role ?? "user";
   const actorUser = await requireAuthenticated({ partner: true });
   const actor = { type: "user" as const, userId: actorUser.id, role: actorUser.role };
   const [pluginTabs, pluginPanels] = await Promise.all([getAccountTabs(actorUser.role), getAccountPanels(actorUser.role)]);
-  const account: crm_Accounts | null = await getAccount(accountId);
-  const opportunities: crm_Opportunities[] = serializeDecimalsList(
-    await getOpportunitiesFullByAccountId(accountId)
-  );
-  const contacts: crm_Contacts[] = await getContactsByAccountId(accountId);
-  const contracts: crm_Contracts[] = serializeDecimalsList(
-    await getContractsByAccountId(accountId)
-  );
-  const leads: crm_Leads[] = await getLeadsByAccountId(accountId);
-  const documents: Documents[] = await getDocumentsByAccountId(accountId);
-  const tasks: crm_Accounts_Tasks[] = await getAccountsTasks(accountId);
-  const invoices = await getInvoicesByAccountId(accountId);
-  const t = await getTranslations("InvoicesPage");
-  const to = await getTranslations("OrdersPage");
-  const invoiceStatusLabels: Record<string, string> = {
-    DRAFT: t("status.DRAFT"),
-    ISSUED: t("status.ISSUED"),
-    SENT: t("status.SENT"),
-    PARTIALLY_PAID: t("status.PARTIALLY_PAID"),
-    PAID: t("status.PAID"),
-    OVERDUE: t("status.OVERDUE"),
-    CANCELLED: t("status.CANCELLED"),
-    DISPUTED: t("status.DISPUTED"),
-    REFUNDED: t("status.REFUNDED"),
-    WRITTEN_OFF: t("status.WRITTEN_OFF"),
-  };
-  const invoiceTableLabels = {
-    number: t("table.number"),
-    account: t("table.account"),
-    issueDate: t("table.issueDate"),
-    dueDate: t("table.dueDate"),
-    total: t("table.total"),
-    status: t("table.status"),
-    type: t("table.type"),
-    currency: t("table.currency"),
-  };
-  const crmData = await getAllCrmData();
-  const accountProducts = serializeDecimalsList(
-    await getAccountProducts(accountId)
-  );
-  const allProducts = await getProductsFull();
-  const canSetPartner = isManagerOrAdmin(actorUser);
-  const partners = canSetPartner ? await getPartnerUsers() : [];
-  const activeProducts = allProducts
-    .filter((p) => p.status === "ACTIVE")
-    .map((p) => ({ id: p.id, name: p.name, currency: p.currency }));
+  // getAccount includes opportunities, whose budget, expected_revenue, and
+  // snapshot_rate are Prisma Decimals. Client views cannot receive those.
+  const account: crm_Accounts | null = serializeDecimals(await getAccount(accountId));
+  const dossiers = actorUser.role === "partner" ? [] : await listDossiersForAccount(actorUser, accountId);
 
-  if (!account) return <div>Account not found</div>;
+  const sales = await getTranslations("Sales");
+  if (!account) return <div>{sales("customerNotFound")}</div>;
+  await recordRecentOpen(actorUser.id, "ACCOUNT", account.id);
 
   return (
-    <Container
-      title={`Account: ${account?.name}`}
-      description={"Everything you need to know about sales potential"}
-    >
-      <Tabs defaultValue="overview">
-        <TabsList>
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="history">History</TabsTrigger>
-          <TabsTrigger value="orders">{to("ordersTab")}</TabsTrigger>
-          {await Promise.all(pluginTabs.map(async ({ plugin, tab }) => {
-            const tp = await getTranslations(`plugins.${plugin.definition.id}` as never);
-            return <TabsTrigger key={`${plugin.definition.id}:${tab.id}`} value={`plugin-${plugin.definition.id}-${tab.id}`}>{tp(tab.title as never)}</TabsTrigger>;
-          }))}
-        </TabsList>
-        <TabsContent value="overview">
-          <div className="space-y-5">
-            <BasicView data={account} />
-            {pluginPanels.map(({ plugin, panel }) => (
-              <PluginSlot key={`${plugin.definition.id}:${panel.id}`} plugin={plugin} actor={actor} render={(ctx) => panel.component({ accountId: account.id, ctx })} />
-            ))}
-            <CaseStudyCard
-              accountId={account.id}
-              candidate={account.case_study_candidate}
-              approved={account.case_study_approved}
-              canApprove={
-                sessionUserRole === "manager" || sessionUserRole === "admin"
-              }
-            />
-            {canSetPartner && (
-              <AccountPartnerCard
-                accountId={account.id}
-                partnerUserId={account.partnerUserId}
-                partners={partners}
-              />
-            )}
-            <ActivitiesSection accountId={account.id} />
-            <FindSimilarButton entityType="account" recordId={accountId} />
-            <AccountsTasksView data={tasks} account={account} />
-            <OpportunitiesView
-              data={opportunities}
-              crmData={crmData}
-              accountId={accountId}
-            />
-            <ContactsView data={contacts} crmData={crmData} accountId={accountId} />
-            <ContractsView
-              data={contracts}
-              crmData={crmData}
-              accountId={accountId}
-            />
-            <LeadsView data={leads} crmData={crmData} accountId={accountId} />
-            <AccountProductsView
-              data={accountProducts}
-              accountId={accountId}
-              crmData={crmData}
-              activeProducts={activeProducts}
-            />
-            <DocumentsView data={documents} accountId={accountId} />
-            <InvoicesView
-              data={JSON.parse(JSON.stringify(invoices))}
-              accountId={accountId}
-              statusLabels={invoiceStatusLabels}
-              tableLabels={invoiceTableLabels}
-            />
-          </div>
-        </TabsContent>
-        <TabsContent value="history">
-          <HistoryTab accountId={accountId} />
-        </TabsContent>
-        <TabsContent value="orders">
-          <AccountOrdersTab accountId={accountId} />
-        </TabsContent>
-        {pluginTabs.map(({ plugin, tab }) => (
-          <TabsContent key={`${plugin.definition.id}:${tab.id}`} value={`plugin-${plugin.definition.id}-${tab.id}`}>
-            <PluginSlot plugin={plugin} actor={actor} render={(ctx) => tab.component({ accountId, ctx })} />
-          </TabsContent>
+    <Container bare>
+      <div className="space-y-4">
+        <BasicView data={account} />
+        {pluginPanels.map(({ plugin, panel }) => (
+          <PluginSlot key={`${plugin.definition.id}:${panel.id}`} plugin={plugin} actor={actor} render={(ctx) => panel.component({ accountId: account.id, ctx })} />
         ))}
-      </Tabs>
+        <section className="tilo-frame p-3 text-sm">
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <h2 className="flex items-center gap-2 text-sm font-medium">
+              <span aria-hidden className="size-1.5 rounded-full bg-[hsl(var(--tilo))]" />
+              {sales("dossiers")}
+            </h2>
+            <Link href="/crm/aanvraag" className="text-sm underline underline-offset-4">{sales("newRequestPlus")}</Link>
+          </div>
+          <table className="tilo-grid w-full text-sm">
+            <thead>
+              <tr className="border-b text-left text-xs font-medium text-muted-foreground">
+                <th className="py-2 font-medium">{sales("number")}</th>
+                <th className="py-2 font-medium">{sales("name")}</th>
+                <th className="py-2 font-medium">{sales("status")}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {dossiers.map((row) => {
+                const stepKey = stepMessageKey(row.stepLabel);
+                return (
+                  <tr key={row.id} className="border-b last:border-0">
+                    <td className="py-2.5">
+                      <Link className="font-medium underline underline-offset-4" href={`/crm/dossiers/${row.id}`}>{row.number}</Link>
+                    </td>
+                    <td className="py-2.5">{row.name}</td>
+                    <td className="py-2.5">{stepKey ? sales(stepKey) : row.stepLabel}</td>
+                  </tr>
+                );
+              })}
+              {dossiers.length === 0 && (
+                <tr>
+                  <td colSpan={3} className="py-2.5 text-muted-foreground">{sales("noDossiers")}</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </section>
+        {pluginTabs.length > 0 && (
+          <Tabs defaultValue={`plugin-${pluginTabs[0].plugin.definition.id}-${pluginTabs[0].tab.id}`}>
+            <TabsList>
+              {await Promise.all(pluginTabs.map(async ({ plugin, tab }) => {
+                const tp = await getTranslations(`plugins.${plugin.definition.id}` as never);
+                return <TabsTrigger key={`${plugin.definition.id}:${tab.id}`} value={`plugin-${plugin.definition.id}-${tab.id}`}>{tp(tab.title as never)}</TabsTrigger>;
+              }))}
+            </TabsList>
+            {pluginTabs.map(({ plugin, tab }) => (
+              <TabsContent key={`${plugin.definition.id}:${tab.id}`} value={`plugin-${plugin.definition.id}-${tab.id}`}>
+                <PluginSlot plugin={plugin} actor={actor} render={(ctx) => tab.component({ accountId, ctx })} />
+              </TabsContent>
+            ))}
+          </Tabs>
+        )}
+      </div>
     </Container>
   );
 };

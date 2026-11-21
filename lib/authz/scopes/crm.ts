@@ -1,3 +1,4 @@
+import { DocumentSystemType, Prisma } from "@prisma/client";
 import { prismadb } from "@/lib/prisma";
 import { AuthzUser } from "../session";
 import { AuthorizationError } from "../errors";
@@ -632,15 +633,17 @@ export async function assertCanWriteContractLineItem(
 // manager/admin get bare deletedAt-only read.
 // ---------------------------------------------------------------------------
 
-export function documentReadScopeWhere(user: AuthzUser) {
+export function documentReadScopeWhere(user: AuthzUser): Prisma.DocumentsWhereInput {
   if (isManagerOrAdmin(user)) {
     return { deletedAt: null };
   }
   if (user.role === "partner") {
     // Only through his accounts: no created_by_user, assigned_user or public.
+    // Leveranciersoffertes blijven intern, ook als ze aan zijn account hangen.
     const account = partnerAccountWhere(user.id);
     return {
       deletedAt: null,
+      document_system_type: { not: DocumentSystemType.INTERNAL_SUPPLIER_QUOTE },
       OR: [
         { accounts: { some: { account } } },
         { leads: { some: { lead: { assigned_accounts: account } } } },
@@ -742,6 +745,21 @@ export async function filterWritableDocumentIds(
 // Used by activity-feed (T4) and audit-log-by-entity (T5).
 // Unknown entity types: managers/admins pass; everyone else is denied.
 // ---------------------------------------------------------------------------
+async function assertCanReadSalesChild(user: AuthzUser, type: string, entityId: string) {
+  if (user.role === "partner") throw new AuthorizationError();
+  const dossierId =
+    type === "external_quote"
+      ? (await prismadb.crm_ExternalQuotes.findFirst({
+          where: { id: entityId },
+          select: { family: { select: { dossier_id: true } } },
+        }))?.family.dossier_id
+      : type === "quote_send"
+        ? (await prismadb.crm_QuoteSends.findFirst({ where: { id: entityId }, select: { dossier_id: true } }))?.dossier_id
+        : (await prismadb.crm_DossierChannelEvents.findFirst({ where: { id: entityId }, select: { dossier_id: true } }))?.dossier_id;
+  if (!dossierId) throw new AuthorizationError();
+  return assertCanReadOpportunity(user, dossierId);
+}
+
 export async function assertCanReadActivityForEntity(
   user: AuthzUser,
   entityType: string,
@@ -770,6 +788,10 @@ export async function assertCanReadActivityForEntity(
       return assertCanReadContact(user, entityId);
     case "opportunity":
       return assertCanReadOpportunity(user, entityId);
+    case "external_quote":
+    case "quote_send":
+    case "dossier_channel":
+      return assertCanReadSalesChild(user, type, entityId);
     case "contract":
       return assertCanReadContract(user, entityId);
     case "target":

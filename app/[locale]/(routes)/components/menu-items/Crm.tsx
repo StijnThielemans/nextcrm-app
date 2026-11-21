@@ -14,71 +14,27 @@ import { NavItem } from "../nav-main";
 type Props = {
   localizations: {
     title: string;
-    accounts: string;
-    contacts: string;
-    leads: string;
-    opportunities: string;
-    contracts: string;
-    products: string;
-    priceLists: string;
-    orders: string;
+    dashboard: string;
+    customers: string;
+    dossiers: string;
+    quotes: string;
+    offertebox: string;
   };
   /** Current user's role — the Approvals queue is manager/admin only. */
   role?: string;
 };
 
-export const getCrmMenuItem = ({ localizations, role }: Props): NavItem => {
+export const getCrmMenuItem = ({ localizations }: Props): NavItem => {
   return {
     title: localizations.title,
     icon: Coins,
     items: [
-      {
-        title: "Dashboard",
-        url: "/crm/dashboard",
-      },
-      {
-        title: "My Dashboard",
-        url: "/crm/dashboard/user",
-      },
-      {
-        title: "Overview",
-        url: "/crm",
-      },
-      {
-        title: localizations.accounts,
-        url: "/crm/accounts",
-      },
-      {
-        title: localizations.contacts,
-        url: "/crm/contacts",
-      },
-      {
-        title: localizations.leads,
-        url: "/crm/leads",
-      },
-      {
-        title: localizations.opportunities,
-        url: "/crm/opportunities",
-      },
-      {
-        title: localizations.contracts,
-        url: "/crm/contracts",
-      },
-      {
-        title: localizations.products,
-        url: "/crm/products",
-      },
-      {
-        title: localizations.priceLists,
-        url: "/crm/price-lists",
-      },
-      {
-        title: localizations.orders,
-        url: "/crm/orders",
-      },
-      ...(role === "manager" || role === "admin"
-        ? [{ title: "Approvals", url: "/crm/approvals" }]
-        : []),
+      { title: localizations.dashboard, url: "/crm/dashboard" },
+      { title: localizations.customers, url: "/crm/accounts" },
+      { title: localizations.dossiers, url: "/crm/dossiers" },
+      { title: localizations.quotes, url: "/crm/offertes" },
+      { title: localizations.offertebox, url: "/crm/offertebox" },
+      { title: "RaamStudio", url: "/crm/raamstudio" },
     ],
   };
 };

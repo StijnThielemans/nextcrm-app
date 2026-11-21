@@ -12,6 +12,7 @@ function dateRangeWhere(filters: ReportFilters) {
   return {
     created_on: { gte: filters.dateFrom, lte: filters.dateTo },
     deletedAt: null,
+    is_dossier: false,
   };
 }
 

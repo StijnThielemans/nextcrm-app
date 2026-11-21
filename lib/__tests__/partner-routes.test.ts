@@ -23,6 +23,8 @@ describe("isPartnerAllowedPath (partner route allow-list, deny by default)", () 
     "/api/auth/sign-out",
     "/api/invoices/abc/pdf",
     "/api/documents/abc/file",
+    "/api/documents/abc/file/offerte.pdf",
+    "/api/documents/abc/open",
   ])("allows %s", (path) => {
     expect(isPartnerAllowedPath(path)).toBe(true);
   });
@@ -66,9 +68,14 @@ describe("isPartnerAllowedPath (partner route allow-list, deny by default)", () 
 
 describe("partnerNavItems (navigation shows only the partner modules)", () => {
   it("keeps the dashboard and his CRM modules, drops everything else", () => {
-    const crm = { title: "CRM", accounts: "Accounts", contacts: "Contacts", leads: "Leads",
-      opportunities: "Opportunities", contracts: "Contracts", products: "Products",
-      priceLists: "Price lists", orders: "Orders" };
+    const crm = {
+      title: "CRM",
+      dashboard: "Dashboard",
+      customers: "Customers",
+      dossiers: "Dossiers",
+      quotes: "Quotes",
+      offertebox: "Offertebox",
+    };
     const items = [
       getDashboardMenuItem({ title: "Dashboard" }),
       getCrmMenuItem({ localizations: crm, role: "partner" }),
@@ -82,7 +89,7 @@ describe("partnerNavItems (navigation shows only the partner modules)", () => {
     const visible = partnerNavItems(items).map((i) => [i.title, i.items?.map((s) => s.url)]);
     expect(visible).toEqual([
       ["Dashboard", undefined],
-      ["CRM", ["/crm/accounts", "/crm/contacts", "/crm/leads", "/crm/opportunities", "/crm/orders"]],
+      ["CRM", ["/crm/accounts"]],
     ]);
   });
 });

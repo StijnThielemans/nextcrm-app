@@ -38,11 +38,11 @@ export const qualifiedCadence = inngest.createFunction(
         const opp = await prismadb.crm_Opportunities.findUnique({
           where: { id: record_id },
           select: {
-            status: true, sales_stage: true, account: true, assigned_to: true, name: true,
+            status: true, sales_stage: true, account: true, assigned_to: true, name: true, is_dossier: true,
             assigned_sales_stage: { select: { stage_kind: true } },
           },
         });
-        if (!opp || opp.status !== "ACTIVE") return null;
+        if (!opp || opp.status !== "ACTIVE" || opp.is_dossier) return null;
         if (opp.assigned_sales_stage?.stage_kind !== "qualified") return null;
         return createAutoTask({
           title: touch.title,

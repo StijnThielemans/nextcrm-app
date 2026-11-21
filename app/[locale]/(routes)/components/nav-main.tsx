@@ -65,13 +65,15 @@ export function NavMain({ items, dict }: NavMainProps) {
 
   // Helper function to check if a route is active
   const isRouteActive = (url: string, exact?: boolean): boolean => {
+    // Browser paths include the locale (/en/crm/...). Menu urls do not.
+    const bare = pathname.replace(/^\/[a-z]{2}(?=\/|$)/, "") || "/"
     if (url === "/" || url === "") {
-      return pathname === "/" || pathname === ""
+      return bare === "/"
     }
     if (exact) {
-      return pathname === url || pathname.replace(/^\/[a-z]{2}(?=\/|$)/, "") === url
+      return bare === url
     }
-    return pathname.startsWith(url)
+    return bare.startsWith(url)
   }
 
   // Helper to check if any sub-item is active
@@ -82,7 +84,7 @@ export function NavMain({ items, dict }: NavMainProps) {
 
   return (
     <SidebarGroup>
-      <SidebarGroupLabel>Navigation</SidebarGroupLabel>
+      <SidebarGroupLabel>{dict?.navigation || "Navigation"}</SidebarGroupLabel>
       <SidebarMenu>
         {items.map((item) => {
           // Check if this is a collapsible group with sub-items
@@ -93,7 +95,7 @@ export function NavMain({ items, dict }: NavMainProps) {
               <Collapsible
                 key={item.title}
                 asChild
-                defaultOpen={hasActive}
+                defaultOpen={hasActive || item.items.some((subItem) => subItem.url.startsWith("/crm") || subItem.url.startsWith("/projectleiding"))}
                 className="group/collapsible"
               >
                 <SidebarMenuItem>
@@ -112,7 +114,7 @@ export function NavMain({ items, dict }: NavMainProps) {
                       {item.items.map((subItem) => {
                         const isActive = isRouteActive(subItem.url, subItem.exact)
                         return (
-                          <SidebarMenuSubItem key={subItem.title}>
+                          <SidebarMenuSubItem key={subItem.url}>
                             <SidebarMenuSubButton
                               asChild
                               isActive={isActive}

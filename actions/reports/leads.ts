@@ -52,7 +52,7 @@ export async function getConversionRate(
     where: { createdAt: { gte: filters.dateFrom, lte: filters.dateTo }, deletedAt: null, ...scope.lead },
   });
   const converted = await prismadb.crm_Opportunities.count({
-    where: { created_on: { gte: filters.dateFrom, lte: filters.dateTo }, deletedAt: null, ...scope.opportunity },
+    where: { created_on: { gte: filters.dateFrom, lte: filters.dateTo }, deletedAt: null, is_dossier: false, ...scope.opportunity },
   });
   return { leads, converted, rate: leads > 0 ? Math.round((converted / leads) * 100) : 0 };
 }

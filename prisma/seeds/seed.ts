@@ -279,6 +279,95 @@ async function main() {
       ],
     });
   }
+  let demoCustomer = await prisma.crm_Accounts.findFirst({
+    where: { email: "jan.peeters@example.com" },
+  });
+  if (!demoCustomer) {
+    demoCustomer = await prisma.crm_Accounts.create({
+      data: {
+        v: 0,
+        name: "Jan Peeters",
+        email: "jan.peeters@example.com",
+        office_phone: "0470123456",
+        billing_street: "Kerkstraat 12",
+        billing_postal_code: "9000",
+        billing_city: "Gent",
+        billing_country: "BE",
+        customer_kind: "PRIVATE",
+        type: "Customer",
+        status: "Active",
+        assigned_to: testUser.id,
+        createdBy: testUser.id,
+      },
+    });
+    await prisma.crm_Contacts.create({
+      data: {
+        v: 0,
+        first_name: "Jan",
+        last_name: "Peeters",
+        email: "jan.peeters@example.com",
+        mobile_phone: "0470123456",
+        accountsIDs: demoCustomer.id,
+        assigned_to: testUser.id,
+        createdBy: testUser.id,
+      },
+    });
+  }
+
+  const demoDossier = await prisma.crm_Opportunities.findFirst({
+    where: { name: "Ramen living Peeters", is_dossier: true },
+  });
+  if (!demoDossier) {
+    await prisma.$executeRaw`
+      INSERT INTO "NumberSeries" ("id", "scope", "name", "template", "resetPolicy", "counter", "isDefault", "active", "updatedAt")
+      SELECT gen_random_uuid(), 'dossier', 'Offertedossier', 'OFF-{YYYY}-{####}', 'YEARLY', 0, true, true, now()
+      WHERE NOT EXISTS (
+        SELECT 1 FROM "NumberSeries" WHERE "scope" = 'dossier' AND "isDefault" = true
+      )
+    `;
+    const year = new Date().getUTCFullYear();
+    const number = `OFF-${year}-0001`;
+    await prisma.$executeRaw`
+      UPDATE "NumberSeries"
+      SET "counter" = GREATEST("counter", 1), "currentYear" = ${year}, "updatedAt" = now()
+      WHERE "scope" = 'dossier' AND "isDefault" = true AND "counter" < 1
+    `;
+    const dossier = await prisma.crm_Opportunities.create({
+      data: {
+        v: 0,
+        name: "Ramen living Peeters",
+        account: demoCustomer.id,
+        assigned_to: testUser.id,
+        createdBy: testUser.id,
+        updatedBy: testUser.id,
+        description: "Nieuwe ramen in de living",
+        is_dossier: true,
+        dossier_number: number,
+        dossier_status: "NIEUW",
+        status: "ACTIVE",
+        approval_status: "NONE",
+        budget: 0,
+        project_street: "Kerkstraat 12",
+        project_postal_code: "9000",
+        project_city: "Gent",
+        project_country: "BE",
+        request_date: new Date(),
+        source_channel: "PHONE",
+        next_step: "Offerte opvragen bij de leverancier",
+      },
+    });
+    await prisma.crm_DossierChannelEvents.create({
+      data: {
+        dossier_id: dossier.id,
+        channel: "PHONE",
+        occurred_at: new Date(),
+        seller_id: testUser.id,
+        is_original: true,
+        createdBy: testUser.id,
+        note: "Demo-aanvraag",
+      },
+    });
+  }
   console.log("Demo CRM dataset seeded");
   }
 
