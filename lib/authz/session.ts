@@ -8,6 +8,8 @@ import { AuthenticationError, AuthorizationError } from "./errors";
 export interface AuthzUser {
   id: string;
   role: AppRole;
+  /** Loaded with the session. A seller dashboard uses it to keep only that verkoper. */
+  name?: string | null;
 }
 
 /**
@@ -21,12 +23,12 @@ export async function requireAuthenticated(opts?: { partner?: boolean }): Promis
 
   const dbUser = await prismadb.users.findUnique({
     where: { id: userId },
-    select: { id: true, role: true },
+    select: { id: true, role: true, name: true },
   });
   if (!dbUser) throw new AuthenticationError();
   if (dbUser.role === "partner" && !opts?.partner) throw new AuthenticationError();
 
-  return { id: dbUser.id, role: mapLegacyRole(dbUser.role) };
+  return { id: dbUser.id, role: mapLegacyRole(dbUser.role), name: dbUser.name };
 }
 
 export async function requireRole(

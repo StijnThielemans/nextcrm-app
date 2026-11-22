@@ -29,10 +29,13 @@ export function DossierProjectDialog({
   dossier,
   onClose,
   onSaved,
+  lockSeller = false,
 }: {
   dossier: DossierDetail;
   onClose: () => void;
   onSaved: () => void;
+  /** A seller keeps the verkoper already stored on the dossier. */
+  lockSeller?: boolean;
 }) {
   const t = useTranslations("Sales");
   const [description, setDescription] = useState(dossier.name ?? "");
@@ -118,11 +121,15 @@ export function DossierProjectDialog({
           <label className="space-y-1 text-sm">
             <span>{t("seller")}</span>
             <select
-              className="flex h-9 w-full rounded-md border bg-transparent px-3 text-sm"
+              className="flex h-9 w-full rounded-md border bg-transparent px-3 text-sm disabled:opacity-100"
               value={seller}
               required
+              disabled={lockSeller}
               data-testid="dossier-seller-input"
-              onChange={(event) => setSeller(event.target.value as SellerName)}
+              onChange={(event) => {
+                if (lockSeller) return;
+                setSeller(event.target.value as SellerName);
+              }}
             >
               <option value="">{t("choose")}</option>
               {SELLERS.map((name) => (

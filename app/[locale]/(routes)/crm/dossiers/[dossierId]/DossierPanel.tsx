@@ -404,12 +404,15 @@ export function DossierPanel({
   pendingAttachments = [],
   promptAttachments = false,
   surface = "sales",
+  lockSeller = false,
 }: {
   dossier: DossierDetail;
   pendingAttachments?: PendingOfferteboxAttachment[];
   promptAttachments?: boolean;
   /** The project page shows the same tab, with the project number in front. */
   surface?: "sales" | "project";
+  /** A seller cannot assign the dossier to someone else. */
+  lockSeller?: boolean;
 }) {
   const t = useTranslations("Sales");
   const router = useRouter();
@@ -729,6 +732,7 @@ export function DossierPanel({
           {editingProject && (
             <DossierProjectDialog
               dossier={dossier}
+              lockSeller={lockSeller}
               onClose={() => setEditingProject(false)}
               onSaved={() => {
                 setEditingProject(false);

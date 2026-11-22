@@ -4,6 +4,9 @@ import {
   customerProjectLabel,
   isVatChoice,
   matchSellerUser,
+  sellerNameForUser,
+  sellerOnCreate,
+  sellerOnEdit,
   parseVatChoice,
   visibleVatChoice,
   siteAddressFromBilling,
@@ -45,6 +48,18 @@ describe("aanvraag fields", () => {
     ];
     expect(matchSellerUser(users, "Saerens Evi")?.id).toBe("1");
     expect(matchSellerUser(users, "De Meersman Stijn")).toBeNull();
+  });
+
+  it("locks a seller to their own name and leaves admin free to choose", () => {
+    expect(sellerNameForUser({ name: "Robbe Haegeman", role: "user" })).toBe("Haegeman Robbe");
+    expect(sellerNameForUser({ name: "Annaert Uwee", role: "user" })).toBe("Annaert Uwee");
+    expect(sellerNameForUser({ name: "Van Doorslaer Kristof", role: "user" })).toBe("Van Doorslaer Kristof");
+    expect(sellerNameForUser({ name: "Admin", role: "admin" })).toBeNull();
+    expect(sellerNameForUser({ name: "Haegeman Robbe", role: "admin" })).toBeNull();
+    expect(sellerOnCreate({ name: "Haegeman Robbe", role: "user" }, "Saerens Evi")).toBe("Haegeman Robbe");
+    expect(sellerOnCreate({ name: "Admin", role: "admin" }, "Saerens Evi")).toBe("Saerens Evi");
+    expect(sellerOnEdit({ name: "Haegeman Robbe", role: "user" }, "Haegeman Robbe", "Saerens Evi")).toBe("Haegeman Robbe");
+    expect(sellerOnEdit({ name: "Admin", role: "admin" }, "Haegeman Robbe", "Saerens Evi")).toBe("Saerens Evi");
   });
 
   it("copies a customer billing address into the site address", () => {

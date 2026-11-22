@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { prismadb } from "@/lib/prisma";
 import type { AuthzUser } from "@/lib/authz/session";
+import { sellerNameForUser } from "@/lib/sales/aanvraag-fields";
 
 export const RECENT_OPEN_LIMIT = 5;
 
@@ -70,6 +71,7 @@ export async function listRecentOpens(user: AuthzUser): Promise<{ customers: Rec
 
   const accountIds = accountOpens.map((row) => row.record_id);
   const dossierIds = dossierOpens.map((row) => row.record_id);
+  const ownSeller = sellerNameForUser(user);
 
   const [accounts, dossiers] = await Promise.all([
     accountIds.length === 0
@@ -81,7 +83,12 @@ export async function listRecentOpens(user: AuthzUser): Promise<{ customers: Rec
     dossierIds.length === 0
       ? []
       : prismadb.crm_Opportunities.findMany({
-          where: { id: { in: dossierIds }, is_dossier: true, deletedAt: null },
+          where: {
+            id: { in: dossierIds },
+            is_dossier: true,
+            deletedAt: null,
+            ...(ownSeller ? { seller_name: ownSeller } : {}),
+          },
           select: { id: true, dossier_number: true, name: true },
         }),
   ]);

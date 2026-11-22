@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import Container from "@/app/[locale]/(routes)/components/ui/Container";
 import { requireAuthenticated } from "@/lib/authz";
+import { sellerNameForUser } from "@/lib/sales/aanvraag-fields";
 import { getDossier } from "@/lib/sales/service";
 import { listPendingOfferteboxAttachments } from "@/lib/sales/offertebox-filing";
 import { recordRecentOpen } from "@/lib/sales/recent-opens";
@@ -23,6 +24,7 @@ export default async function DossierPage(props: {
         dossier={dossier}
         pendingAttachments={pendingAttachments}
         promptAttachments={bijlagen === "1"}
+        lockSeller={Boolean(sellerNameForUser(user))}
       />
     </Container>
   );

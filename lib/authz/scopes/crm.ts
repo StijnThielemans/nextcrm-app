@@ -6,6 +6,7 @@ import { isManagerOrAdmin } from "../roles";
 import { NO_ROWS, assertHandledRole, isUnhandledRole } from "./unhandled-role";
 import { partnerAccountWhere, partnerVisibleAccountWhere } from "./partner";
 import { CAMPAIGN_NOT_DELETED } from "./campaign-not-deleted";
+import { sellerNameForUser } from "@/lib/sales/aanvraag-fields";
 
 // Partner writes (spec § Writes). A partner may create and edit contacts,
 // leads, opportunities, CRM tasks and activities on his partner accounts and
@@ -278,7 +279,8 @@ export function accountUserScopeOR(userId: string) {
 // Manager/admin: { deletedAt: null }
 // User:           { deletedAt: null, OR: accountUserScopeOR(user.id) }
 export function accountReadScopeWhere(user: AuthzUser) {
-  if (isManagerOrAdmin(user)) {
+  // Sellers share the customer list. Their dossiers are filtered separately.
+  if (isManagerOrAdmin(user) || sellerNameForUser(user)) {
     return { deletedAt: null };
   }
   if (user.role === "partner") {
@@ -315,7 +317,7 @@ export async function assertCanWriteAccount(
   }
   assertHandledRole(user);
   const where =
-    isManagerOrAdmin(user)
+    isManagerOrAdmin(user) || sellerNameForUser(user)
       ? { id: accountId }
       : {
           id: accountId,
@@ -372,7 +374,12 @@ export function contactReadScopeWhere(user: AuthzUser) {
 }
 
 // crm_Opportunities → crm_Accounts via `assigned_account` (FK account).
+// A seller sees dossiers stored under their verkoper name. Admin still sees every row.
 export function opportunityReadScopeWhere(user: AuthzUser) {
+  const seller = sellerNameForUser(user);
+  if (seller) {
+    return { deletedAt: null, seller_name: seller };
+  }
   if (isManagerOrAdmin(user)) {
     return { deletedAt: null };
   }
@@ -511,8 +518,10 @@ export async function assertCanWriteOpportunity(
     );
   }
   assertHandledRole(user);
-  const where =
-    isManagerOrAdmin(user)
+  const seller = sellerNameForUser(user);
+  const where = seller
+    ? { id: opportunityId, deletedAt: null, seller_name: seller }
+    : isManagerOrAdmin(user)
       ? { id: opportunityId, deletedAt: null }
       : { id: opportunityId, deletedAt: null, OR: [{ assigned_to: user.id }, { createdBy: user.id }] };
   const row = await prismadb.crm_Opportunities.findFirst({ where, select: { id: true } });

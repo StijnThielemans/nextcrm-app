@@ -54,9 +54,12 @@ function sameAddress(left: AddressValue, right: AddressValue) {
 export function AanvraagForm({
   projectNumber,
   fromBox,
+  lockedSeller = null,
 }: {
   projectNumber: string;
   fromBox?: OfferteboxPrefill | null;
+  /** Set when the signed-in user is a seller. The dossier is stored under that name. */
+  lockedSeller?: SellerName | null;
 }) {
   const router = useRouter();
   const t = useTranslations("Sales");
@@ -69,7 +72,9 @@ export function AanvraagForm({
   const [createdNotice, setCreatedNotice] = useState(false);
   const [description, setDescription] = useState(fromBox?.subject ?? "");
   const [prefill, setPrefill] = useState(fromBox?.fromName ?? "");
-  const [seller, setSeller] = useState<SellerName | "">(fromBox && isSellerName(fromBox.sellerName) ? fromBox.sellerName : "");
+  const [seller, setSeller] = useState<SellerName | "">(
+    lockedSeller ?? (fromBox && isSellerName(fromBox.sellerName) ? fromBox.sellerName : ""),
+  );
   const [projectGroup, setProjectGroup] = useState<ProjectGroup | "">("");
   const [site, setSite] = useState<AddressValue>(emptyAddress);
   const [copySiteFromCustomer, setCopySiteFromCustomer] = useState(false);
@@ -286,10 +291,15 @@ export function AanvraagForm({
           <label className="space-y-1">
             <span className="text-sm">{t("seller")}</span>
             <select
-              className="flex h-10 w-full rounded-lg border border-input bg-transparent px-3 text-sm"
+              className="flex h-10 w-full rounded-lg border border-input bg-transparent px-3 text-sm disabled:opacity-100"
               value={seller}
               required
-              onChange={(event) => setSeller(event.target.value as SellerName)}
+              disabled={Boolean(lockedSeller)}
+              data-testid="aanvraag-seller"
+              onChange={(event) => {
+                if (lockedSeller) return;
+                setSeller(event.target.value as SellerName);
+              }}
             >
               <option value="">{t("choose")}</option>
               {SELLERS.map((name) => (

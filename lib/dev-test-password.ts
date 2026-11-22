@@ -1,10 +1,12 @@
 import { hashPassword, verifyPassword } from "better-auth/crypto";
 import { prismaBase } from "@/lib/prisma-base";
 import { isDevPasswordSignIn } from "@/lib/dev-password-sign-in";
+import { DEV_SALES_USERS } from "@/lib/sales/dev-sales-users";
 
 const DEV_TEST_EMAIL = "admin@domain.com";
 
 let pending: Promise<void> | null = null;
+let salesPending: Promise<void> | null = null;
 
 /**
  * On a non-production server, store TILO_DEV_PASSWORD on the existing
@@ -37,6 +39,80 @@ async function applyDevTestPassword() {
   });
   if (existing?.password && (await verifyPassword({ hash: existing.password, password }))) return;
 
+  await storeCredentialPassword(user.id, password);
+}
+
+/**
+ * On a non-production server, make sure each verkoper can sign in with
+ * TILO_DEV_PASSWORD. Reuses a user that already has that name. Never touches
+ * admin@domain.com and never rewrites dossier sellers.
+ */
+export function ensureDevSalesUsers(): Promise<void> {
+  if (!isDevPasswordSignIn() || !process.env.TILO_DEV_PASSWORD) return Promise.resolve();
+  if (!salesPending) {
+    salesPending = applyDevSalesUsers().catch((error) => {
+      salesPending = null;
+      throw error;
+    });
+  }
+  return salesPending;
+}
+
+async function applyDevSalesUsers() {
+  const password = process.env.TILO_DEV_PASSWORD;
+  if (!password) return;
+
+  for (const person of DEV_SALES_USERS) {
+    const byEmail = await prismaBase.users.findUnique({
+      where: { email: person.email },
+      select: { id: true, role: true },
+    });
+    const byName = byEmail
+      ? null
+      : await prismaBase.users.findFirst({
+          where: { name: person.name },
+          select: { id: true, role: true },
+        });
+    const existing = byEmail ?? byName;
+    const userId = existing
+      ? existing.id
+      : (
+          await prismaBase.users.create({
+            data: {
+              email: person.email,
+              name: person.name,
+              role: "user",
+              userStatus: "ACTIVE",
+              emailVerified: true,
+              userLanguage: "nl",
+            },
+            select: { id: true },
+          })
+        ).id;
+
+    if (existing && existing.role !== "admin") {
+      await prismaBase.users.update({
+        where: { id: existing.id },
+        data: {
+          name: person.name,
+          role: "user",
+          userStatus: "ACTIVE",
+          emailVerified: true,
+          userLanguage: "nl",
+        },
+      });
+    }
+    await storeCredentialPassword(userId, password);
+  }
+}
+
+async function storeCredentialPassword(userId: string, password: string) {
+  const existing = await prismaBase.account.findFirst({
+    where: { userId, providerId: "credential", accountId: userId },
+    select: { id: true, password: true },
+  });
+  if (existing?.password && (await verifyPassword({ hash: existing.password, password }))) return;
+
   const hashed = await hashPassword(password);
   if (existing) {
     await prismaBase.account.update({
@@ -47,9 +123,9 @@ async function applyDevTestPassword() {
   }
   await prismaBase.account.create({
     data: {
-      accountId: user.id,
+      accountId: userId,
       providerId: "credential",
-      userId: user.id,
+      userId,
       password: hashed,
     },
   });

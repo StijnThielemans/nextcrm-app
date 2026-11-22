@@ -3,6 +3,8 @@ export const SELLERS = [
   "Haegeman Robbe",
   "Ideler Yannick",
   "Van Doorslaer Merel",
+  "Van Doorslaer Kristof",
+  "Annaert Uwee",
   "De Meersman Stijn",
 ] as const;
 
@@ -114,6 +116,32 @@ export function matchSellerUser<T extends { id: string; name: string | null }>(
 ): T | null {
   const key = nameKey(chosen);
   return users.find((user) => user.name && nameKey(user.name) === key) ?? null;
+}
+
+/**
+ * The verkoper this login is. Admin keeps the full desk and still picks a seller.
+ * A partner is not a seller. The match ignores word order, same as matchSellerUser.
+ */
+export function sellerNameForUser(user: { name?: string | null; role?: string | null }): SellerName | null {
+  if (user.role === "admin" || user.role === "partner") return null;
+  if (!user.name?.trim()) return null;
+  const key = nameKey(user.name);
+  return SELLERS.find((seller) => nameKey(seller) === key) ?? null;
+}
+
+/** On create, a seller is stored as themselves. Anyone else keeps the chosen seller. */
+export function sellerOnCreate(user: { name?: string | null; role?: string | null }, submitted: string): string {
+  return sellerNameForUser(user) ?? submitted;
+}
+
+/** On edit, a seller cannot move the dossier to someone else. The stored name stays. */
+export function sellerOnEdit(
+  user: { name?: string | null; role?: string | null },
+  current: string | null,
+  submitted: string,
+): string {
+  if (!sellerNameForUser(user)) return submitted;
+  return current ?? submitted;
 }
 
 export type AddressSuggestion = {

@@ -104,6 +104,15 @@ describe("opportunityReadScopeWhere", () => {
       ]),
     );
   });
+  it("seller → only dossiers stored under that verkoper; admin still sees every row", () => {
+    expect(opportunityReadScopeWhere({ id: "u1", role: "user", name: "Haegeman Robbe" })).toEqual({
+      deletedAt: null,
+      seller_name: "Haegeman Robbe",
+    });
+    expect(opportunityReadScopeWhere({ id: "x", role: "admin", name: "Haegeman Robbe" })).toEqual({
+      deletedAt: null,
+    });
+  });
 });
 
 describe("contractReadScopeWhere", () => {

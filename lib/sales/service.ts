@@ -32,6 +32,9 @@ import {
   isSellerName,
   isVatChoice,
   matchSellerUser,
+  sellerNameForUser,
+  sellerOnCreate,
+  sellerOnEdit,
   customerProjectLabel,
   type AccountRole,
   type ProjectGroup,
@@ -256,7 +259,8 @@ export async function previewDossierNumber(): Promise<string | null> {
 export async function createAanvraag(user: AuthzUser, input: AanvraagInput): Promise<{ id: string; number: string }> {
   denyPartner(user);
   if (!CHANNELS.includes(input.channel)) throw new SalesError("channelRequired");
-  if (!isSellerName(input.sellerName)) throw new SalesError("sellerRequired");
+  const sellerName = sellerOnCreate(user, input.sellerName);
+  if (!isSellerName(sellerName)) throw new SalesError("sellerRequired");
   if (!isProjectGroup(input.projectGroup)) throw new SalesError("projectGroupRequired");
   const requestDate = day(input.requestDate);
   const priceRequestDate = day(input.priceRequestDate);
@@ -271,7 +275,7 @@ export async function createAanvraag(user: AuthzUser, input: AanvraagInput): Pro
   }
   const occurredAt = new Date(`${input.requestDate}T12:00:00.000Z`);
   const sellers = await prismadb.users.findMany({ select: { id: true, name: true } });
-  const matchedSeller = matchSellerUser(sellers, input.sellerName);
+  const matchedSeller = matchSellerUser(sellers, sellerName);
   const assignedTo = matchedSeller?.id ?? user.id;
 
   let accountId = input.accountId?.trim() || "";
@@ -325,7 +329,7 @@ export async function createAanvraag(user: AuthzUser, input: AanvraagInput): Pro
         request_date: requestDate,
         price_request_date: priceRequestDate,
         project_group: input.projectGroup,
-        seller_name: input.sellerName,
+        seller_name: sellerName,
         architect_name: architect?.name ?? null,
         architect_external_id: architect?.externalId ?? null,
         source_channel: input.channel,
@@ -353,7 +357,7 @@ export async function createAanvraag(user: AuthzUser, input: AanvraagInput): Pro
       { field: "dossier_number", old: null, new: created.number },
       { field: "dossier_status", old: null, new: "NIEUW" },
       { field: "source_channel", old: null, new: input.channel },
-      { field: "seller_name", old: null, new: input.sellerName },
+      { field: "seller_name", old: null, new: sellerName },
       { field: "project_group", old: null, new: input.projectGroup },
       ...(architect
         ? [
@@ -861,17 +865,18 @@ export async function updateDossierProject(user: AuthzUser, dossierId: string, i
   });
   if (!current) throw new SalesError("notFound");
 
-  const sellerChanged = (current.seller_name ?? "") !== draft.sellerName;
+  const sellerName = sellerOnEdit(user, current.seller_name, draft.sellerName);
+  const sellerChanged = (current.seller_name ?? "") !== sellerName;
   let assignedTo: string | undefined;
   if (sellerChanged) {
     const sellers = await prismadb.users.findMany({ select: { id: true, name: true } });
-    const matched = matchSellerUser(sellers, draft.sellerName);
+    const matched = matchSellerUser(sellers, sellerName);
     if (matched) assignedTo = matched.id;
   }
 
   const next = {
     name: draft.name,
-    seller_name: draft.sellerName,
+    seller_name: sellerName,
     project_group: draft.projectGroup,
     price_request_date: day(draft.priceRequestDate),
     project_street: draft.projectStreet,
@@ -1855,7 +1860,11 @@ export async function listSalesTasks(user: AuthzUser): Promise<SalesTaskLists> {
     });
   }
   const listed = new Set([...lists.toMake, ...lists.inProgress, ...lists.followUp].map((task) => task.id));
-  const additions = distributedMailsToMake(listed, mails.map((mail) => toDistributedMail(mail, readable)));
+  const ownSeller = sellerNameForUser(user);
+  const distributed = mails
+    .map((mail) => toDistributedMail(mail, readable))
+    .filter((mail) => !ownSeller || sellerNameForUser({ name: mail.sellerName, role: "user" }) === ownSeller);
+  const additions = distributedMailsToMake(listed, distributed);
   lists.toMake = mergeDistributedIntoToMake(lists.toMake, additions);
   return lists;
 }
