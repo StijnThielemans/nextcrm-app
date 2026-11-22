@@ -622,6 +622,7 @@ export type DossierDetail = {
   wonQuotes: { id: string; name: string; gross: number | null }[];
   executionProjectNumber: string | null;
   projectCreated: boolean;
+  projectleidingAction: boolean;
 };
 
 export async function getDossier(user: AuthzUser, dossierId: string): Promise<DossierDetail | null> {
@@ -779,6 +780,7 @@ export async function getDossier(user: AuthzUser, dossierId: string): Promise<Do
     }))),
     executionProjectNumber: row.execution_project_number,
     projectCreated: Boolean(row.execution_project_number),
+    projectleidingAction: row.projectleiding_action === true,
   };
 }
 

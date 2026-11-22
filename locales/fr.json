@@ -1270,7 +1270,9 @@
       "noSeries": "La série de numéros des dossiers d'offre manque.",
       "generic": "Quelque chose s'est mal passé.",
       "unauthorized": "Vous n'êtes pas connecté.",
-      "projectNotWon": "Seul un dossier gagné peut devenir un projet."
+      "projectNotWon": "Seul un dossier gagné peut devenir un projet.",
+      "projectLeaderInvalid": "Choisissez un chef de projet dans la liste.",
+      "projectLeaderNeedsBox": "Assignez un chef de projet depuis Projectbox."
     },
     "executionProjectNumber": "Numéro de projet",
     "makeProject": "Créer le projet",
@@ -1285,6 +1287,12 @@
     "wonWithoutProject": "Gagné, pas encore de projet",
     "wonWaitingEmpty": "Chaque dossier gagné a déjà un projet.",
     "recentProjects": "Derniers projets",
+    "projectleidingAction": "Actie projectleiding",
+    "projectbox": "Projectbox",
+    "projectboxDescription": "Un dossier n'apparaît ici que si Actie projectleiding est coché et qu'un numéro de projet à 10 chiffres existe déjà.",
+    "projectboxEmpty": "Aucun dossier dans Projectbox.",
+    "projectboxCount": "Projectbox",
+    "projectboxUnassigned": "Non assigné",
     "projectScreen": {
       "title": "Projet",
       "type": "Type",

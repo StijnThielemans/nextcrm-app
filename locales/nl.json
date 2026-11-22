@@ -1374,7 +1374,9 @@
       "noSeries": "De nummerreeks voor offertedossiers ontbreekt.",
       "generic": "Er ging iets mis.",
       "unauthorized": "Je bent niet ingelogd.",
-      "projectNotWon": "Alleen een gewonnen dossier kan een project worden."
+      "projectNotWon": "Alleen een gewonnen dossier kan een project worden.",
+      "projectLeaderInvalid": "Kies een projectleider uit de lijst.",
+      "projectLeaderNeedsBox": "Een projectleider wijs je toe vanuit Projectbox."
     },
     "executionProjectNumber": "Projectnummer",
     "makeProject": "Project maken",
@@ -1389,6 +1391,12 @@
     "wonWithoutProject": "Gewonnen, nog geen project",
     "wonWaitingEmpty": "Elk gewonnen dossier heeft al een project.",
     "recentProjects": "Laatste projecten",
+    "projectleidingAction": "Actie projectleiding",
+    "projectbox": "Projectbox",
+    "projectboxDescription": "Een dossier staat hier alleen als Actie projectleiding aan staat en er al een projectnummer van 10 cijfers is.",
+    "projectboxEmpty": "Geen dossiers in Projectbox.",
+    "projectboxCount": "Projectbox",
+    "projectboxUnassigned": "Niet toegewezen",
     "projectScreen": {
       "title": "Project",
       "type": "Type",

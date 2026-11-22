@@ -290,6 +290,10 @@ model crm_Opportunities {
   /// Tien cijfers: 1 + volgnummer van 7 + jaar van 2. Leeg tot het project gemaakt is.
   execution_project_number String?             @unique
   project_created_at   DateTime?
+  /// Verkoop zet dit aan. Alleen samen met een projectnummer komt het dossier in Projectbox.
+  projectleiding_action Boolean?
+  /// Gekozen projectleider, als naam. Leeg tot Projectleiding iemand toewijst.
+  project_leader       String?
 
   assigned_type        crm_Opportunities_Type?         @relation(fields: [type], references: [id])
   assigned_sales_stage crm_Opportunities_Sales_Stages? @relation("assinged_sales_stage", fields: [sales_stage], references: [id])

@@ -20,11 +20,12 @@ describe("project number", () => {
 });
 
 describe("Projectleiding menu", () => {
-  it("is one group with only Dashboard and Projecten", () => {
+  it("is one group with Dashboard, Projectbox and Projecten", () => {
     const item = getProjectleidingMenuItem();
     expect(item.title).toBe("Projectleiding");
     expect(item.items?.map((entry) => [entry.title, entry.url])).toEqual([
       ["Dashboard", "/projectleiding/dashboard"],
+      ["Projectbox", "/projectleiding/projectbox"],
       ["Projecten", "/projectleiding/projecten"],
     ]);
   });

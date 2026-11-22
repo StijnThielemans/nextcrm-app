@@ -9,6 +9,7 @@ import { SalesError } from "@/lib/sales/errors";
 import { SALES_ERROR_TEXT, type DossierDocumentCategory, type DossierStatus, type RequestChannel } from "@/lib/sales/labels";
 import { addOfferteboxRequest, assignOfferteboxSeller, linkOfferteboxDossier } from "@/lib/sales/offertebox";
 import { fileOfferteboxAttachments, listPendingOfferteboxAttachments, type FilingAssignment } from "@/lib/sales/offertebox-filing";
+import { assignProjectLeader, setProjectleidingAction } from "@/lib/sales/projectbox-data";
 import { createProjectFromWonDossier } from "@/lib/sales/projects";
 import {
   addChannelEvent,
@@ -69,6 +70,7 @@ function refresh() {
   revalidatePath("/[locale]/(routes)/crm/dashboard", "page");
   revalidatePath("/[locale]/(routes)/crm/offertebox", "page");
   revalidatePath("/[locale]/(routes)/projectleiding/dashboard", "page");
+  revalidatePath("/[locale]/(routes)/projectleiding/projectbox", "page");
   revalidatePath("/[locale]/(routes)/projectleiding/projecten", "page");
   revalidatePath("/[locale]/(routes)/projectleiding/projecten/[projectId]", "page");
   revalidatePath("/[locale]/(routes)", "page");
@@ -376,6 +378,30 @@ export async function changeStatusAction(
     await changeDossierStatus(auth.user, dossierId, input);
     refresh();
     return { ok: true };
+  } catch (error) {
+    return await fail(error);
+  }
+}
+
+export async function setProjectleidingActionAction(dossierId: string, checked: boolean) {
+  const auth = await userOrError();
+  if ("error" in auth) return { error: auth.error };
+  try {
+    await setProjectleidingAction(auth.user, dossierId, checked);
+    refresh();
+    return { ok: true as const };
+  } catch (error) {
+    return await fail(error);
+  }
+}
+
+export async function assignProjectLeaderAction(dossierId: string, leader: string | null) {
+  const auth = await userOrError();
+  if ("error" in auth) return { error: auth.error };
+  try {
+    await assignProjectLeader(auth.user, dossierId, leader);
+    refresh();
+    return { ok: true as const };
   } catch (error) {
     return await fail(error);
   }

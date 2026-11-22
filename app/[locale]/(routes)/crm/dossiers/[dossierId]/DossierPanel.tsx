@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { Check, ChevronRight, FileText, Folder, Pencil, Plus } from "lucide-react";
 import { useRouter } from "@/i18n/navigation";
@@ -38,6 +38,7 @@ import {
   createProjectAction,
   deleteDossierDocumentAction,
   reopenDossierAction,
+  setProjectleidingActionAction,
   deleteOfferteAction,
   markSentAction,
   setQuoteWonAction,
@@ -430,6 +431,10 @@ export function DossierPanel({
   const [quoteToDelete, setQuoteToDelete] = useState<{ id: string; name: string } | null>(null);
   const [filingOpen, setFilingOpen] = useState(promptAttachments && pendingAttachments.length > 0);
   const [editingProject, setEditingProject] = useState(false);
+  const [actionOn, setActionOn] = useState(dossier.projectleidingAction);
+  useEffect(() => {
+    setActionOn(dossier.projectleidingAction);
+  }, [dossier.projectleidingAction]);
   const versions = dossier.families.flatMap((family) => family.quotes);
   const canChooseWinner = versions.some((quote) => quoteCanWin(quote.gross));
 
@@ -730,6 +735,31 @@ export function DossierPanel({
           <Fact label={t("priceRequestDate")}>{dossier.priceRequestDate ?? dossier.requestDate ?? "—"}</Fact>
           <Fact label={t("siteAddress")}><AddressLink address={dossier.projectAddress} /></Fact>
           <Fact label={t("status")} status={stepper.currentLabel}>{(() => { const current = stepper.steps.find((step) => step.state === "current"); return current ? t(`steps.${current.id}`) : stepper.currentLabel; })()}</Fact>
+          <label className="flex items-center gap-2 pt-1 text-[13px]" data-testid="projectleiding-action">
+            <input
+              type="checkbox"
+              className="size-3.5 accent-[hsl(183_42%_38%)]"
+              checked={actionOn}
+              disabled={busy}
+              onChange={(event) => {
+                const next = event.target.checked;
+                setActionOn(next);
+                void (async () => {
+                  setBusy(true);
+                  setError(null);
+                  const saved = await setProjectleidingActionAction(dossier.id, next);
+                  setBusy(false);
+                  if (saved.error) {
+                    setActionOn(!next);
+                    setError(saved.error);
+                    return;
+                  }
+                  router.refresh();
+                })();
+              }}
+            />
+            <span>{t("projectleidingAction")}</span>
+          </label>
           {dossier.lostReason && <p>{t("lostReasonLine", { reason: dossier.lostReason })}</p>}
           </div>
           </div>

@@ -364,6 +364,7 @@ export type ProjectScreenData = {
   name: string | null;
   status: string;
   seller: string | null;
+  projectLeader: string | null;
   projectGroup: string | null;
   priceRequestDate: string | null;
   customerId: string | null;
@@ -400,6 +401,7 @@ export async function getProjectScreen(user: AuthzUser, projectId: string): Prom
       name: true,
       dossier_status: true,
       seller_name: true,
+      project_leader: true,
       project_group: true,
       architect_name: true,
       architect_external_id: true,
@@ -498,6 +500,7 @@ export async function getProjectScreen(user: AuthzUser, projectId: string): Prom
       projectCreated: true,
     }),
     seller: row.seller_name ?? row.assigned_to_user?.name ?? null,
+    projectLeader: row.project_leader,
     projectGroup: row.project_group,
     priceRequestDate: dayString(row.price_request_date) ?? dayString(row.request_date),
     customerId: account?.id ?? null,

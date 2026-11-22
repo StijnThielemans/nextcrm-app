@@ -247,4 +247,6 @@ export const SALES_ERROR_TEXT: Record<string, string> = {
   duplicateFamily: "Die leverancier en referentie bestaan al. Maak een nieuwe versie.",
   noSeries: "De nummerreeks voor offertedossiers ontbreekt.",
   projectNotWon: "Alleen een gewonnen dossier kan een project worden.",
+  projectLeaderInvalid: "Kies een projectleider uit de lijst.",
+  projectLeaderNeedsBox: "Een projectleider wijs je toe vanuit Projectbox.",
 };

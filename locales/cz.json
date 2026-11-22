@@ -1273,7 +1273,9 @@
       "noSeries": "The number series for quote dossiers is missing.",
       "generic": "Something went wrong.",
       "unauthorized": "You are not signed in.",
-      "projectNotWon": "Only a won dossier can become a project."
+      "projectNotWon": "Only a won dossier can become a project.",
+      "projectLeaderInvalid": "Choose a project leader from the list.",
+      "projectLeaderNeedsBox": "Assign a project leader from Projectbox."
     },
     "executionProjectNumber": "Project number",
     "makeProject": "Create project",
@@ -1288,6 +1290,12 @@
     "wonWithoutProject": "Won, no project yet",
     "wonWaitingEmpty": "Every won dossier already has a project.",
     "recentProjects": "Recent projects",
+    "projectleidingAction": "Actie projectleiding",
+    "projectbox": "Projectbox",
+    "projectboxDescription": "A dossier is listed here only when Actie projectleiding is checked and it already has a 10-digit project number.",
+    "projectboxEmpty": "No dossiers in Projectbox.",
+    "projectboxCount": "Projectbox",
+    "projectboxUnassigned": "Unassigned",
     "projectScreen": {
       "title": "Project",
       "type": "Type",

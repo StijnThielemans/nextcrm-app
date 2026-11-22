@@ -155,7 +155,7 @@ function SpecGrid({ project, group, customerName, t, p }: { project: ProjectScre
         <TextCell label={t("seller")} field="seller" value={project.seller} testId="project-seller" />
         <TextCell label={t("name")} field="name" value={project.name} />
         <TextCell label={t("priceRequestDate")} field="price-request-date" value={project.priceRequestDate} />
-        <TextCell label={p("projectLeader")} field="project-leader" value={null} />
+        <TextCell label={p("projectLeader")} field="project-leader" value={project.projectLeader} testId="project-leader" />
         {[1, 2, 3, 4].map((n) => (
           <TextCell key={`series-${n}`} label={p("series", { n })} field={`series-${n}`} value={null} />
         ))}
@@ -289,7 +289,7 @@ export async function ProjectScreen({ project }: { project: ProjectScreenData })
         </div>
         <dl className="tilo-cells grid-cols-2 border-t border-[hsl(215_14%_84%)] lg:grid-cols-4">
           <TextCell label={t("seller")} field="header-seller" value={project.seller} />
-          <TextCell label={p("projectLeader")} field="header-project-leader" value={null} />
+          <TextCell label={p("projectLeader")} field="header-project-leader" value={project.projectLeader} testId="header-project-leader" />
           <TextCell label={p("type")} field="header-type" value={group} />
           <TextCell label={t("name")} field="header-name" value={project.name} />
         </dl>

@@ -3,6 +3,8 @@ import { getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import { requireAuthenticated } from "@/lib/authz";
 import { euro } from "@/lib/sales/labels";
+import { listProjectbox } from "@/lib/sales/projectbox-data";
+import { summarizeProjectbox } from "@/lib/sales/projectbox";
 import { getProjectDashboard, type ProjectBoardRow, type ProjectFollowUpLine } from "@/lib/sales/projects";
 
 function show(value: string | null | undefined) {
@@ -179,6 +181,7 @@ export async function ProjectBoard() {
   const user = await requireAuthenticated();
   const t = await getTranslations("Sales");
   const board = await getProjectDashboard(user);
+  const box = summarizeProjectbox(await listProjectbox(user));
   const cards = [
     [t("projectCount"), String(board.projectCount)],
     [t("projectsThisMonth"), String(board.newThisMonth)],
@@ -194,6 +197,29 @@ export async function ProjectBoard() {
           </div>
         ))}
       </dl>
+      <section className="tilo-frame px-5 py-4" data-testid="projectbox-summary">
+        <div className="flex flex-wrap items-baseline justify-between gap-3">
+          <h2 className="flex items-center gap-2 text-sm font-medium">
+            <span aria-hidden className="size-1.5 rounded-full bg-[hsl(var(--tilo))]" />
+            {t("projectboxCount")}
+          </h2>
+          <Link href="/projectleiding/projectbox" className="text-sm underline-offset-4 hover:underline" data-testid="projectbox-count">
+            {box.count}
+          </Link>
+        </div>
+        <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-sm" data-testid="projectbox-assignment">
+          {box.leaders.map((leader) => (
+            <li key={leader.name} data-leader={leader.name}>
+              <span>{leader.name}</span>{" "}
+              <span className="tabular-nums">{leader.count}</span>
+            </li>
+          ))}
+          <li data-leader="unassigned">
+            <span>{t("projectboxUnassigned")}</span>{" "}
+            <span className="tabular-nums">{box.unassigned}</span>
+          </li>
+        </ul>
+      </section>
       <section className="space-y-4" aria-label={t("recentProjects")}>
         <h2 className="flex items-center gap-2 text-sm font-medium">
           <span aria-hidden className="size-1.5 rounded-full bg-[hsl(var(--tilo))]" />
