@@ -48,6 +48,7 @@ import type { PendingOfferteboxAttachment } from "@/lib/sales/offertebox-filing"
 import { QuotePositionsSection } from "./QuotePositionsSection";
 import { DossierProjectDialog } from "./DossierProjectDialog";
 import { AddressLink } from "@/components/crm/AddressLink";
+import { playWinConfetti } from "@/components/crm/win-confetti";
 
 const today = new Date().toISOString().slice(0, 10);
 
@@ -656,7 +657,10 @@ export function DossierPanel({
                 const saved = await changeStatusAction(dossier.id, mode === "lost"
                   ? { status: "VERLOREN", lostReason: String(data.get("lostReason") ?? "") }
                   : { status: "GEWONNEN", acceptedQuoteId: String(data.get("accepted") ?? "") });
-                if (!saved.error) setCloseMode(null);
+                if (!saved.error) {
+                  setCloseMode(null);
+                  if (mode === "won") playWinConfetti();
+                }
                 return saved;
               });
             }}
@@ -828,7 +832,11 @@ export function DossierPanel({
                               size="sm"
                               disabled={busy}
                               data-mark-won={quote.id}
-                              onClick={() => void run(() => setQuoteWonAction(dossier.id, quote.id, true))}
+                              onClick={() => void run(async () => {
+                                const saved = await setQuoteWonAction(dossier.id, quote.id, true);
+                                if (!saved.error) playWinConfetti();
+                                return saved;
+                              })}
                             >
                               {t("markWon")}
                             </Button>
