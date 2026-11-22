@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 96" role="img" aria-label="Vrachtwagen">
+  <rect width="128" height="96" rx="12" fill="#f6f3ea"/>
+  <rect x="10" y="30" width="62" height="34" rx="4" fill="#d7f3f1" stroke="#008080" stroke-width="3"/>
+  <path d="M72 42h18l14 12v10H72z" fill="#008080"/>
+  <rect x="86" y="48" width="10" height="8" rx="1" fill="#f6f3ea"/>
+  <circle cx="32" cy="70" r="8" fill="#243038"/>
+  <circle cx="32" cy="70" r="3" fill="#f6f3ea"/>
+  <circle cx="96" cy="70" r="8" fill="#243038"/>
+  <circle cx="96" cy="70" r="3" fill="#f6f3ea"/>
+</svg>

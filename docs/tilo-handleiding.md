@@ -120,6 +120,18 @@ Een dossier staat in **Projectbox** als **Actie projectleiding** aan staat en he
 
 Kies in de kolom **Projectleider** één van de vijf projectleiders. Die naam wordt opgeslagen en staat op het project als **Projectleider**.
 
+### Planningkalenders
+
+In het menu **Planning** staan **Planning binnendienst**, **Planning buitendienst** en **Planning Dienst Na Verkoop**. Elke pagina is een weekkalender. Links staan de jobs die nog geen dag hebben.
+
+Een project met werkdagen komt vanzelf links. Chassis staat op buitendienst. Glas staat voorlopig ook op buitendienst, zolang het project geen splitsing heeft. Het projectnummer opent het project. Het adres opent Google Maps. Sleep de job op een dag: de plandatums zijn dat aantal werkdagen, maandag tot vrijdag, vanaf die dag (een weekend begint de maandag erna). Dezelfde job houdt één kleur over al die dagen. Jobs op dezelfde dag krijgen een andere kleur.
+
+Een dossier in Projectbox zonder werkdagen staat links bij binnendienst. Dienst Na Verkoop blijft leeg tot iemand zelf iets zet.
+
+Op binnendienst voeg je zelf een item toe. Een offerte of een project mag, de rest is vrije tekst. Het werfadres opent Google Maps. Sleep het item op de kalender.
+
+Onderaan buitendienst staan twaalf tijdelijke portretten — Albert Einstein, Marie Curie, Nelson Mandela, Frida Kahlo, Leonardo da Vinci, Amelia Earhart, Charlie Chaplin, Audrey Hepburn, David Bowie, Serena Williams, Bruce Lee en Ada Lovelace — en Vrachtwagen 1 en Vrachtwagen 2. Sleep een persoon of een vrachtwagen op een job voor die dag.
+
 ## 5. Stroomschema
 
 ```mermaid

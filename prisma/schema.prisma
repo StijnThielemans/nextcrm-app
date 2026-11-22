@@ -298,6 +298,15 @@ model crm_Opportunities {
   chassis_work_days    Int?
   /// Aantal werkdagen glas. Leeg mag. Nog geen berekening.
   glass_work_days      Int?
+  /// Eerste en laatste plandag chassis. Leeg tot de job op de kalender staat.
+  chassis_plan_start   DateTime? @db.Date
+  chassis_plan_end     DateTime? @db.Date
+  /// Eerste en laatste plandag glas. Leeg tot de job op de kalender staat.
+  glass_plan_start     DateTime? @db.Date
+  glass_plan_end       DateTime? @db.Date
+  /// Binnendienst, alleen zolang chassis en glas nog leeg zijn.
+  office_plan_start    DateTime? @db.Date
+  office_plan_end      DateTime? @db.Date
 
   assigned_type        crm_Opportunities_Type?         @relation(fields: [type], references: [id])
   assigned_sales_stage crm_Opportunities_Sales_Stages? @relation("assinged_sales_stage", fields: [sales_stage], references: [id])
@@ -316,6 +325,8 @@ model crm_Opportunities {
   quote_sends          crm_QuoteSends[]
   offertebox_items     crm_OfferteboxItems[]
   accepted_quote       crm_ExternalQuotes?             @relation("AcceptedQuote", fields: [accepted_quote_id], references: [id], onDelete: Restrict)
+  planning_items       crm_PlanningItems[]
+  planning_assignments crm_PlanningAssignments[]
 
   deletedAt            DateTime?
   deletedBy            String?   @db.Uuid
@@ -2496,6 +2507,7 @@ model crm_ExternalQuotes {
   pdf               Documents                 @relation("QuotePdf", fields: [pdf_document_id], references: [id], onDelete: Restrict)
   sends             crm_QuoteSends[]
   accepted_by       crm_Opportunities[]       @relation("AcceptedQuote")
+  planning_items    crm_PlanningItems[]
 
   @@unique([family_id, version])
   @@index([family_id])
@@ -2591,4 +2603,60 @@ model crm_RecentOpens {
 
   @@unique([user_id, kind, record_id])
   @@index([user_id, kind, opened_at])
+}
+
+/// Kalender waarop een handmatig planningitem staat. Automatische jobs blijven op het dossier.
+enum crm_PlanningBoard {
+  BINNENDIENST
+  BUITENDIENST
+  DIENST_NA_VERKOOP
+}
+
+enum crm_PlanningKind {
+  CHASSIS
+  GLASS
+  OFFICE
+  MANUAL
+}
+
+/// Item dat iemand zelf op de planning zet. Chassis en glas blijven velden op het project.
+model crm_PlanningItems {
+  id             String            @id @default(uuid()) @db.Uuid
+  board          crm_PlanningBoard
+  text           String
+  opportunity_id String?           @db.Uuid
+  quote_id       String?           @db.Uuid
+  plan_start     DateTime?         @db.Date
+  plan_end       DateTime?         @db.Date
+  createdAt      DateTime          @default(now())
+  createdBy      String?           @db.Uuid
+  updatedAt      DateTime?         @updatedAt
+  deletedAt      DateTime?
+
+  opportunity crm_Opportunities?       @relation(fields: [opportunity_id], references: [id], onDelete: Restrict)
+  quote       crm_ExternalQuotes?      @relation(fields: [quote_id], references: [id], onDelete: Restrict)
+  assignments crm_PlanningAssignments[]
+
+  @@index([board, deletedAt])
+  @@index([opportunity_id])
+  @@index([quote_id])
+}
+
+/// Persoon of vrachtwagen op één job, op één dag.
+model crm_PlanningAssignments {
+  id             String           @id @default(uuid()) @db.Uuid
+  resource       String
+  day            DateTime         @db.Date
+  kind           crm_PlanningKind
+  opportunity_id String?          @db.Uuid
+  item_id        String?          @db.Uuid
+  createdAt      DateTime         @default(now())
+  createdBy      String?          @db.Uuid
+
+  opportunity crm_Opportunities? @relation(fields: [opportunity_id], references: [id], onDelete: Cascade)
+  item        crm_PlanningItems? @relation(fields: [item_id], references: [id], onDelete: Cascade)
+
+  @@index([opportunity_id, kind, day])
+  @@index([item_id, day])
+  @@index([day])
 }

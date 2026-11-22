@@ -16,6 +16,7 @@ import { NavMain } from "./nav-main";
 import { NavUser } from "./nav-user";
 import getCrmMenuItem from "./menu-items/Crm";
 import getProjectleidingMenuItem from "./menu-items/Projectleiding";
+import getPlanningMenuItem from "./menu-items/Planning";
 import getEmailsMenuItem from "./menu-items/Emails";
 import getDocumentsMenuItem from "./menu-items/Documents";
 import getAdministrationMenuItem from "./menu-items/Administration";
@@ -93,6 +94,7 @@ export function AppSidebar({
   const navItems = [
     getCrmMenuItem({ localizations: dict.crm, role: session?.user?.role ?? undefined }),
     getProjectleidingMenuItem(),
+    getPlanningMenuItem(),
     getEmailsMenuItem({ title: dict?.emails || "E-mails" }),
     getDocumentsMenuItem({ title: dict?.documents || "Documenten" }),
   ];

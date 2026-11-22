@@ -8,6 +8,8 @@ import { projectLeaderNameForUser } from "./projectbox";
 import { currentDossierStep } from "./dossier-step";
 import { SalesError } from "./errors";
 import { formatProjectNumber, projectCreationAllowed } from "./project-number";
+import { asDate, dateKey, workDaySpanUpdate } from "./planning";
+import { applyWorkDaySpanCrew } from "./planning-data";
 import { parseWorkDays } from "./work-days";
 
 type RawClient = { $queryRaw: <T = unknown>(query: Prisma.Sql) => Promise<T> };
@@ -582,14 +584,38 @@ export async function setPlanningWorkDays(
       execution_project_number: { not: null },
       ...projectReadWhere(user),
     },
-    select: { id: true, chassis_work_days: true, glass_work_days: true },
+    select: {
+      id: true,
+      chassis_work_days: true,
+      glass_work_days: true,
+      chassis_plan_start: true,
+      glass_plan_start: true,
+    },
   });
   if (!row) throw new SalesError("notFound");
   if (row.chassis_work_days === chassis && row.glass_work_days === glass) return;
+  const span = workDaySpanUpdate({
+    chassis,
+    glass,
+    chassisStart: dateKey(row.chassis_plan_start),
+    glassStart: dateKey(row.glass_plan_start),
+  });
   await prismadb.crm_Opportunities.update({
     where: { id: projectId },
-    data: { chassis_work_days: chassis, glass_work_days: glass, updatedBy: user.id },
+    data: {
+      chassis_work_days: chassis,
+      glass_work_days: glass,
+      updatedBy: user.id,
+      ...(span.chassisStart !== undefined
+        ? { chassis_plan_start: span.chassisStart ? asDate(span.chassisStart) : null, chassis_plan_end: span.chassisEnd ? asDate(span.chassisEnd) : null }
+        : {}),
+      ...(span.glassStart !== undefined
+        ? { glass_plan_start: span.glassStart ? asDate(span.glassStart) : null, glass_plan_end: span.glassEnd ? asDate(span.glassEnd) : null }
+        : {}),
+      ...(span.clearOffice ? { office_plan_start: null, office_plan_end: null } : {}),
+    },
   });
+  await applyWorkDaySpanCrew(projectId, span);
   await writeAuditLog({
     entityType: "opportunity",
     entityId: projectId,

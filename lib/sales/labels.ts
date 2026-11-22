@@ -250,4 +250,10 @@ export const SALES_ERROR_TEXT: Record<string, string> = {
   projectLeaderInvalid: "Kies een projectleider uit de lijst.",
   projectLeaderNeedsBox: "Een projectleider wijs je toe vanuit Projectbox.",
   workDaysInvalid: "Vul een geheel getal in, of laat het veld leeg.",
+  planningEmpty: "Vul een tekst in, of kies een offerte of een project.",
+  planningOneLink: "Kies een offerte of een project, niet allebei.",
+  planningText: "De tekst is te lang.",
+  planningDay: "Die dag hoort niet bij deze job.",
+  planningJob: "Die job staat niet op deze kalender.",
+  planningCrew: "Die persoon of vrachtwagen hoort niet bij de ploeg.",
 };

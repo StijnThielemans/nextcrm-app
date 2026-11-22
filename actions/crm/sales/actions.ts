@@ -73,6 +73,9 @@ function refresh() {
   revalidatePath("/[locale]/(routes)/projectleiding/projectbox", "page");
   revalidatePath("/[locale]/(routes)/projectleiding/projecten", "page");
   revalidatePath("/[locale]/(routes)/projectleiding/projecten/[projectId]", "page");
+  revalidatePath("/[locale]/(routes)/planning/binnendienst", "page");
+  revalidatePath("/[locale]/(routes)/planning/buitendienst", "page");
+  revalidatePath("/[locale]/(routes)/planning/dienst-na-verkoop", "page");
   revalidatePath("/[locale]/(routes)", "page");
 }
 
