@@ -1,6 +1,7 @@
 /**
- * A PDF made of JPEG pages. The pictures already contain the facade,
- * the measures that are on screen, and the placed onderaansluitingen.
+ * A PDF made of JPEG pages. The pictures are the numbered ground plans
+ * and the numbered facades, in that order. Measures and onderaansluitingen
+ * are only the ones already drawn on those pictures.
  */
 
 export type SheetJpeg = {
@@ -17,9 +18,20 @@ function fmt(value: number): string {
   return (Math.round(value * 100) / 100).toString();
 }
 
+/**
+ * Pages for the on-screen preview and the PDF.
+ * Numbered ground plans stay first, numbered facades after them.
+ * A set that is not in the project is left out. The other set is kept.
+ */
+export function sheetsForPreview(ground: readonly SheetJpeg[], facades: readonly SheetJpeg[]): SheetJpeg[] {
+  const pages = [...ground, ...facades];
+  if (!pages.length) throw new Error("Geen plan om te tonen.");
+  return pages;
+}
+
 /** One landscape A4 page per picture, fitted inside the page. */
 export function pdfFromJpegs(pages: readonly SheetJpeg[]): Uint8Array {
-  if (!pages.length) throw new Error("Geen gevel om te tonen.");
+  if (!pages.length) throw new Error("Geen plan om te tonen.");
   const chunks: Uint8Array[] = [];
   let length = 0;
   const offsets = [0];

@@ -56,32 +56,43 @@ async function waitForImage(img: HTMLImageElement) {
     const fail = () => {
       img.removeEventListener("load", done);
       img.removeEventListener("error", fail);
-      reject(new Error("De gevel is nog niet geladen."));
+      reject(new Error("Het plan is nog niet geladen."));
     };
     img.addEventListener("load", done);
     img.addEventListener("error", fail);
   });
 }
 
-/** Draw one facade card as it stands, including only the labels already on it. */
+/**
+ * Draw each clip in this board as it stands.
+ * An empty board yields no pages, so a missing set is not invented.
+ * Labels are only the numbers, measures and onderaansluitingen already on the clip.
+ */
 export async function captureFacadeBoard(root: ParentNode): Promise<SheetJpeg[]> {
   const articles = [...root.querySelectorAll("[data-testid='raamstudio-clip-view']")];
-  if (!articles.length) throw new Error("Geen gevel om te tonen.");
   const pages: SheetJpeg[] = [];
   for (const article of articles) {
     const sheet = article.querySelector("[data-testid='raamstudio-clip-sheet']");
     const img = sheet?.querySelector("img");
     if (!(sheet instanceof HTMLElement) || !(img instanceof HTMLImageElement)) {
-      throw new Error("De gevel is nog niet geladen.");
+      throw new Error("Het plan is nog niet geladen.");
     }
     await waitForImage(img);
-    const scale = 2;
+    for (let frame = 0; frame < 8 && (sheet.clientWidth < 8 || sheet.clientHeight < 8); frame += 1) {
+      await new Promise<void>((resolve) => {
+        requestAnimationFrame(() => resolve());
+      });
+    }
+    if (sheet.clientWidth < 8 || sheet.clientHeight < 8) {
+      throw new Error("Het plan is nog niet geladen.");
+    }
+    const scale = Math.max(2, 1600 / Math.max(sheet.clientWidth, sheet.clientHeight));
     const bar = 22;
     const canvas = document.createElement("canvas");
     canvas.width = Math.max(1, Math.round(sheet.clientWidth * scale));
     canvas.height = Math.max(1, Math.round((sheet.clientHeight + bar) * scale));
     const ctx = canvas.getContext("2d");
-    if (!ctx) throw new Error("De gevel is nog niet geladen.");
+    if (!ctx) throw new Error("Het plan is nog niet geladen.");
     ctx.scale(scale, scale);
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, sheet.clientWidth, bar);

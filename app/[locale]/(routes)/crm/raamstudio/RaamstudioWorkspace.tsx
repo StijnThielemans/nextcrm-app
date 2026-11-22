@@ -11,7 +11,7 @@ import type { WindowMeasure } from "@/lib/raamstudio/opening-measures";
 import { localPointInClip, nextSharedNumber, pagePointInClip, reorderItems } from "@/lib/raamstudio/plan-edit";
 import { ClipBoard, type ClipNumber, type ClipSill } from "./ClipBoard";
 import { captureFacadeBoard } from "./capture-facade";
-import { pdfFromJpegs } from "@/lib/raamstudio/sheet-pdf";
+import { pdfFromJpegs, sheetsForPreview } from "@/lib/raamstudio/sheet-pdf";
 import { readRaamstudioPayload } from "@/lib/raamstudio/read-project";
 import {
   DRAWING_KINDS,
@@ -524,12 +524,15 @@ export function RaamstudioWorkspace({
   }
 
   async function openPreview() {
-    const root = document.querySelector("[data-testid='raamstudio-plan-view']");
-    if (!root) return;
+    const ground = document.querySelector("[data-testid='raamstudio-floor-overview']");
+    const facades = document.querySelector("[data-testid='raamstudio-plan-view']");
+    if (!ground && !facades) return;
     setPdfBusy(true);
     setError(null);
     try {
-      const pages = await captureFacadeBoard(root);
+      const groundPages = ground ? await captureFacadeBoard(ground) : [];
+      const facadePages = facades ? await captureFacadeBoard(facades) : [];
+      const pages = sheetsForPreview(groundPages, facadePages);
       const pdf = pdfFromJpegs(pages);
       previewBytes.current = pdf;
       const blob = new Blob([pdf], { type: "application/pdf" });
