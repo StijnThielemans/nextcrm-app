@@ -2,11 +2,13 @@ import { Prisma } from "@prisma/client";
 import { prismadb } from "@/lib/prisma";
 import { writeAuditLog } from "@/lib/audit-log";
 import type { AuthzUser } from "@/lib/authz/session";
-import { opportunityReadScopeWhere } from "@/lib/authz/scopes/crm";
+import { AuthorizationError } from "@/lib/authz/errors";
+import { assertCanWriteOpportunity, opportunityReadScopeWhere } from "@/lib/authz/scopes/crm";
 import { projectLeaderNameForUser } from "./projectbox";
 import { currentDossierStep } from "./dossier-step";
 import { SalesError } from "./errors";
 import { formatProjectNumber, projectCreationAllowed } from "./project-number";
+import { parseWorkDays } from "./work-days";
 
 type RawClient = { $queryRaw: <T = unknown>(query: Prisma.Sql) => Promise<T> };
 
@@ -29,6 +31,15 @@ export async function allocateProjectNumber(tx: RawClient, now: Date = new Date(
 
 function denyPartner(user: AuthzUser) {
   if (user.role === "partner") throw new SalesError("forbidden");
+}
+
+async function guardProjectWrite(user: AuthzUser, projectId: string) {
+  try {
+    await assertCanWriteOpportunity(user, projectId);
+  } catch (error) {
+    if (error instanceof AuthorizationError) throw new SalesError("forbidden");
+    throw error;
+  }
 }
 
 /** A projectleider sees every project. A verkoper stays on their own dossiers. */
@@ -372,6 +383,9 @@ export type ProjectScreenData = {
   status: string;
   seller: string | null;
   projectLeader: string | null;
+  /** Whole days for later planning. Empty until someone fills them in. */
+  chassisWorkDays: number | null;
+  glassWorkDays: number | null;
   projectGroup: string | null;
   priceRequestDate: string | null;
   customerId: string | null;
@@ -409,6 +423,8 @@ export async function getProjectScreen(user: AuthzUser, projectId: string): Prom
       dossier_status: true,
       seller_name: true,
       project_leader: true,
+      chassis_work_days: true,
+      glass_work_days: true,
       project_group: true,
       architect_name: true,
       architect_external_id: true,
@@ -508,6 +524,8 @@ export async function getProjectScreen(user: AuthzUser, projectId: string): Prom
     }),
     seller: row.seller_name ?? row.assigned_to_user?.name ?? null,
     projectLeader: row.project_leader,
+    chassisWorkDays: row.chassis_work_days,
+    glassWorkDays: row.glass_work_days,
     projectGroup: row.project_group,
     priceRequestDate: dayString(row.price_request_date) ?? dayString(row.request_date),
     customerId: account?.id ?? null,
@@ -545,6 +563,43 @@ export async function getProjectScreen(user: AuthzUser, projectId: string): Prom
       original: event.is_original,
     })),
   };
+}
+
+/** Stores the two planning durations. Prices, seller and project leader stay as they are. */
+export async function setPlanningWorkDays(
+  user: AuthzUser,
+  projectId: string,
+  input: { chassis: unknown; glass: unknown },
+) {
+  denyPartner(user);
+  const chassis = parseWorkDays(input.chassis);
+  const glass = parseWorkDays(input.glass);
+  if (!projectLeaderNameForUser(user)) await guardProjectWrite(user, projectId);
+  const row = await prismadb.crm_Opportunities.findFirst({
+    where: {
+      id: projectId,
+      is_dossier: true,
+      execution_project_number: { not: null },
+      ...projectReadWhere(user),
+    },
+    select: { id: true, chassis_work_days: true, glass_work_days: true },
+  });
+  if (!row) throw new SalesError("notFound");
+  if (row.chassis_work_days === chassis && row.glass_work_days === glass) return;
+  await prismadb.crm_Opportunities.update({
+    where: { id: projectId },
+    data: { chassis_work_days: chassis, glass_work_days: glass, updatedBy: user.id },
+  });
+  await writeAuditLog({
+    entityType: "opportunity",
+    entityId: projectId,
+    action: "updated",
+    changes: [
+      { field: "chassis_work_days", old: row.chassis_work_days, new: chassis },
+      { field: "glass_work_days", old: row.glass_work_days, new: glass },
+    ].filter((change) => change.old !== change.new),
+    userId: user.id,
+  });
 }
 
 type LockedDossier = {

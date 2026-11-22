@@ -10,7 +10,7 @@ import { SALES_ERROR_TEXT, type DossierDocumentCategory, type DossierStatus, typ
 import { addOfferteboxRequest, assignOfferteboxSeller, linkOfferteboxDossier } from "@/lib/sales/offertebox";
 import { fileOfferteboxAttachments, listPendingOfferteboxAttachments, type FilingAssignment } from "@/lib/sales/offertebox-filing";
 import { assignProjectLeader, setProjectleidingAction } from "@/lib/sales/projectbox-data";
-import { createProjectFromWonDossier } from "@/lib/sales/projects";
+import { createProjectFromWonDossier, setPlanningWorkDays } from "@/lib/sales/projects";
 import {
   addChannelEvent,
   changeDossierStatus,
@@ -388,6 +388,21 @@ export async function setProjectleidingActionAction(dossierId: string, checked: 
   if ("error" in auth) return { error: auth.error };
   try {
     await setProjectleidingAction(auth.user, dossierId, checked);
+    refresh();
+    return { ok: true as const };
+  } catch (error) {
+    return await fail(error);
+  }
+}
+
+export async function setPlanningWorkDaysAction(
+  projectId: string,
+  input: { chassis: number | null; glass: number | null },
+) {
+  const auth = await userOrError();
+  if ("error" in auth) return { error: auth.error };
+  try {
+    await setPlanningWorkDays(auth.user, projectId, input);
     refresh();
     return { ok: true as const };
   } catch (error) {

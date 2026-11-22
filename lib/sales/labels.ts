@@ -249,4 +249,5 @@ export const SALES_ERROR_TEXT: Record<string, string> = {
   projectNotWon: "Alleen een gewonnen dossier kan een project worden.",
   projectLeaderInvalid: "Kies een projectleider uit de lijst.",
   projectLeaderNeedsBox: "Een projectleider wijs je toe vanuit Projectbox.",
+  workDaysInvalid: "Vul een geheel getal in, of laat het veld leeg.",
 };

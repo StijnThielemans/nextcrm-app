@@ -110,6 +110,8 @@ De tabbladen staan in deze volgorde:
 11. Taken
 12. Projectinhoud
 
+Op Planning vul je Aantal werkdagen chassis en Aantal werkdagen glas in als een geheel getal; leeg mag.
+
 Een veld zonder gegevens blijft leeg, met een streepje, tot iemand het invult. **Projectinhoud** toont de offertes die al op het dossier staan. **Bestanden** toont de documenten die er al zijn.
 
 ### Projectbox

@@ -5,6 +5,7 @@ import { OpenStoredFile } from "@/components/files/OpenStoredFile";
 import { euro } from "@/lib/sales/labels";
 import { googleMapsSearchUrl } from "@/lib/sales/maps-link";
 import type { ProjectFollowUpLine, ProjectScreenAddress, ProjectScreenData } from "@/lib/sales/projects";
+import { PlanningWorkDays } from "./PlanningWorkDays";
 
 type SalesText = Awaited<ReturnType<typeof getTranslations>>;
 
@@ -343,7 +344,16 @@ export async function ProjectScreen({ project }: { project: ProjectScreenData })
           {
             id: "planning",
             label: p("tabs.planning"),
-            content: <Remark title={p("remarkPlanning")} field="remark-planning" />,
+            content: (
+              <div className="space-y-3">
+                <PlanningWorkDays
+                  projectId={project.id}
+                  chassis={project.chassisWorkDays}
+                  glass={project.glassWorkDays}
+                />
+                <Remark title={p("remarkPlanning")} field="remark-planning" />
+              </div>
+            ),
           },
           {
             id: "facturatie",

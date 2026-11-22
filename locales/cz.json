@@ -1275,7 +1275,8 @@
       "unauthorized": "You are not signed in.",
       "projectNotWon": "Only a won dossier can become a project.",
       "projectLeaderInvalid": "Choose a project leader from the list.",
-      "projectLeaderNeedsBox": "Assign a project leader from Projectbox."
+      "projectLeaderNeedsBox": "Assign a project leader from Projectbox.",
+      "workDaysInvalid": "Enter a whole number, or leave the field empty."
     },
     "executionProjectNumber": "Project number",
     "makeProject": "Create project",
@@ -1323,6 +1324,8 @@
       "contractor": "Contractor",
       "remarkProject": "Project remarks",
       "remarkPlanning": "Planning remarks",
+      "workDaysChassis": "Chassis work days",
+      "workDaysGlass": "Glass work days",
       "remarkInstallers": "Site diary, installers",
       "remarkDnv": "Site diary, DNV",
       "remarkGlass": "Glass slip",
