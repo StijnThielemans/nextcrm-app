@@ -333,6 +333,210 @@ export async function getProjectDashboard(user: AuthzUser, now = new Date()): Pr
   };
 }
 
+export type ProjectScreenQuote = {
+  id: string;
+  pdfId: string;
+  name: string;
+  date: string | null;
+  gross: number | null;
+  won: boolean;
+};
+
+export type ProjectScreenAddress = {
+  name: string | null;
+  street: string | null;
+  postalCode: string | null;
+  city: string | null;
+  country: string | null;
+  phone: string | null;
+  mobile: string | null;
+  email: string | null;
+  vat: string | null;
+  vatChoice: string | null;
+  role: string | null;
+};
+
+/** One project page. New photo fields have no column yet and stay off this object. */
+export type ProjectScreenData = {
+  id: string;
+  projectNumber: string;
+  dossierNumber: string | null;
+  name: string | null;
+  status: string;
+  seller: string | null;
+  projectGroup: string | null;
+  priceRequestDate: string | null;
+  customerId: string | null;
+  customerName: string | null;
+  architectName: string | null;
+  architectExternalId: string | null;
+  customerAddress: ProjectScreenAddress;
+  siteStreet: string | null;
+  sitePostalCode: string | null;
+  siteCity: string | null;
+  siteCountry: string | null;
+  /** The customer record stores one address. Billing uses that same street. */
+  billingAddress: ProjectScreenAddress;
+  projectNotes: string | null;
+  nextStep: string | null;
+  quotes: ProjectScreenQuote[];
+  documents: ProjectDocumentLine[];
+  followUps: ProjectFollowUpLine[];
+};
+
+export async function getProjectScreen(user: AuthzUser, projectId: string): Promise<ProjectScreenData | null> {
+  denyPartner(user);
+  const row = await prismadb.crm_Opportunities.findFirst({
+    where: {
+      id: projectId,
+      is_dossier: true,
+      execution_project_number: { not: null },
+      ...opportunityReadScopeWhere(user),
+    },
+    select: {
+      id: true,
+      execution_project_number: true,
+      dossier_number: true,
+      name: true,
+      dossier_status: true,
+      seller_name: true,
+      project_group: true,
+      architect_name: true,
+      architect_external_id: true,
+      price_request_date: true,
+      request_date: true,
+      project_street: true,
+      project_postal_code: true,
+      project_city: true,
+      project_country: true,
+      internal_notes: true,
+      next_step: true,
+      accepted_quote_id: true,
+      assigned_account: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          office_phone: true,
+          mobile_phone: true,
+          vat: true,
+          vat_choice: true,
+          account_role: true,
+          billing_street: true,
+          billing_postal_code: true,
+          billing_city: true,
+          billing_country: true,
+        },
+      },
+      assigned_to_user: { select: { name: true } },
+      quote_sends: { select: { sent_at: true }, orderBy: { sent_at: "asc" }, take: 1 },
+      quote_families: {
+        orderBy: { createdAt: "asc" },
+        select: {
+          quotes: {
+            where: { deletedAt: null },
+            orderBy: { version: "asc" },
+            select: {
+              id: true,
+              quote_date: true,
+              total_bruto: true,
+              won_at: true,
+              pdf: { select: { id: true, document_name: true } },
+            },
+          },
+        },
+      },
+      documents: {
+        where: { document: { deletedAt: null } },
+        select: {
+          document: { select: { id: true, document_name: true, filing_category: true, document_system_type: true } },
+        },
+      },
+      channel_events: {
+        orderBy: { occurred_at: "desc" },
+        take: 8,
+        select: {
+          id: true,
+          channel: true,
+          occurred_at: true,
+          note: true,
+          is_original: true,
+          seller: { select: { name: true } },
+        },
+      },
+    },
+  });
+  if (!row?.execution_project_number) return null;
+  const account = row.assigned_account;
+  const customerAddress: ProjectScreenAddress = {
+    name: account?.name ?? null,
+    street: account?.billing_street ?? null,
+    postalCode: account?.billing_postal_code ?? null,
+    city: account?.billing_city ?? null,
+    country: account?.billing_country ?? null,
+    phone: account?.office_phone ?? null,
+    mobile: account?.mobile_phone ?? null,
+    email: account?.email ?? null,
+    vat: account?.vat ?? null,
+    vatChoice: account?.vat_choice ?? null,
+    role: account?.account_role ?? null,
+  };
+  const documents = row.documents.map((link) => ({
+    id: link.document.id,
+    name: link.document.document_name,
+    category: link.document.filing_category ?? link.document.document_system_type,
+  }));
+  return {
+    id: row.id,
+    projectNumber: row.execution_project_number,
+    dossierNumber: row.dossier_number,
+    name: row.name,
+    status: currentDossierStep({
+      hasDocuments: documents.length > 0,
+      sentAt: row.quote_sends[0]?.sent_at.toISOString() ?? null,
+      status: row.dossier_status,
+      projectCreated: true,
+    }),
+    seller: row.seller_name ?? row.assigned_to_user?.name ?? null,
+    projectGroup: row.project_group,
+    priceRequestDate: dayString(row.price_request_date) ?? dayString(row.request_date),
+    customerId: account?.id ?? null,
+    customerName: account?.name ?? null,
+    architectName: row.architect_name,
+    architectExternalId: row.architect_external_id,
+    customerAddress,
+    siteStreet: row.project_street,
+    sitePostalCode: row.project_postal_code,
+    siteCity: row.project_city,
+    siteCountry: row.project_country,
+    billingAddress: {
+      ...customerAddress,
+      phone: null,
+      mobile: null,
+      email: null,
+    },
+    projectNotes: row.internal_notes,
+    nextStep: row.next_step,
+    quotes: row.quote_families.flatMap((family) => family.quotes.map((quote) => ({
+      id: quote.id,
+      pdfId: quote.pdf.id,
+      name: quote.pdf.document_name,
+      date: dayString(quote.quote_date),
+      gross: money(quote.total_bruto),
+      won: quote.won_at != null || row.accepted_quote_id === quote.id,
+    }))),
+    documents,
+    followUps: row.channel_events.map((event) => ({
+      id: event.id,
+      at: dayString(event.occurred_at) ?? "",
+      channel: event.channel,
+      seller: event.seller.name,
+      note: event.note,
+      original: event.is_original,
+    })),
+  };
+}
+
 type LockedDossier = {
   id: string;
   dossier_status: string | null;
