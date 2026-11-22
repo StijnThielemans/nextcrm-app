@@ -1316,7 +1316,21 @@
       "remarkDnv": "Site diary, DNV",
       "remarkGlass": "Glass slip",
       "remarkInvoice": "Invoicing remarks",
-      "files": "Files"
+      "files": "Files",
+      "tabs": {
+        "algemeen": "General",
+        "planning": "Planning",
+        "facturatie": "Invoicing",
+        "orders": "Docs & orders",
+        "files": "Files",
+        "dnv": "DNV",
+        "deviations": "Deviations",
+        "mail": "Comm. & mail",
+        "contact": "Contact & billing",
+        "subprojects": "Subprojects",
+        "tasks": "Tasks",
+        "content": "Project content"
+      }
     }
   }
 }

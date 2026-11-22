@@ -1316,7 +1316,21 @@
       "remarkDnv": "Journal de chantier, DNV",
       "remarkGlass": "Bon de verre",
       "remarkInvoice": "Remarques facturation",
-      "files": "Fichiers"
+      "files": "Fichiers",
+      "tabs": {
+        "algemeen": "Général",
+        "planning": "Planning",
+        "facturatie": "Facturation",
+        "orders": "Doc. et commandes",
+        "files": "Fichiers",
+        "dnv": "DNV",
+        "deviations": "Écarts",
+        "mail": "Comm. et mail",
+        "contact": "Contact et facturation",
+        "subprojects": "Sous-projets",
+        "tasks": "Tâches",
+        "content": "Contenu du projet"
+      }
     }
   }
 }

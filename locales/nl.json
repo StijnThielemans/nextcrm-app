@@ -1420,7 +1420,21 @@
       "remarkDnv": "Opmerkingen dagboek der werken DNV",
       "remarkGlass": "Opmerkingen glasbon",
       "remarkInvoice": "Opmerkingen facturatie",
-      "files": "Bestanden"
+      "files": "Bestanden",
+      "tabs": {
+        "algemeen": "Algemeen",
+        "planning": "Planning",
+        "facturatie": "Facturatie",
+        "orders": "Doc. & bestell.",
+        "files": "Bestanden",
+        "dnv": "DNV",
+        "deviations": "Afwijkingen",
+        "mail": "Comm. & mail",
+        "contact": "Contact & fact. params",
+        "subprojects": "Sub-projecten",
+        "tasks": "Taken",
+        "content": "Projectinhoud"
+      }
     }
   }
 }
