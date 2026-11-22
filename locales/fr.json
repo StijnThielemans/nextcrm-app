@@ -968,7 +968,7 @@
     "followUp": "Suivi",
     "sales": "Vente",
     "homeDescription": "Demande, offre et suivi. Gagné clôture le parcours de vente.",
-    "dashboardDescription": "Nombres et valeurs des dossiers d'offre. La valeur est la dernière version envoyée, hors TVA.",
+    "dashboardDescription": "Nombres et valeurs des dossiers d'offre. Les montants sont le total brut enregistré (TVA comprise).",
     "dossiersDescription": "Un client peut avoir plusieurs dossiers.",
     "quotesDescription": "Versions et alternatives du configurateur externe. Les anciennes versions restent.",
     "newRequestDescription": "Le numéro de projet est attribué automatiquement. Cherchez le client, ou créez-en un.",

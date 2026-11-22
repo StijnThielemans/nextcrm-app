@@ -968,7 +968,7 @@
     "followUp": "Follow-up",
     "sales": "Sales",
     "homeDescription": "Request, quote and follow-up. Won closes the sales path.",
-    "dashboardDescription": "Counts and values of quote dossiers. The value is the last sent version, excl. VAT.",
+    "dashboardDescription": "Counts and values of quote dossiers. Amounts are the stored gross total (incl. VAT).",
     "dossiersDescription": "One customer can have several dossiers.",
     "quotesDescription": "Versions and alternatives from the external configurator. Older versions stay.",
     "newRequestDescription": "The project number is assigned automatically. Search for the customer, or create a new one.",

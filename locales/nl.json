@@ -1072,7 +1072,7 @@
     "followUp": "Opvolging",
     "sales": "Verkoop",
     "homeDescription": "Aanvraag, offerte en opvolging. Gewonnen sluit het verkooppad.",
-    "dashboardDescription": "Aantallen en waarden van offertedossiers. De waarde is de laatst verstuurde versie, excl. btw.",
+    "dashboardDescription": "Aantallen en waarden van offertedossiers. Bedragen zijn het opgeslagen totaal bruto (incl. btw).",
     "dossiersDescription": "Eén klant kan meerdere dossiers hebben.",
     "quotesDescription": "Versies en alternatieven uit de externe configurator. Oude versies blijven staan.",
     "newRequestDescription": "Het projectnummer wordt automatisch toegekend. Zoek de klant, of maak er een nieuwe.",

@@ -20,6 +20,14 @@ import { buildDossierStepper, currentDossierStep, statusAfterReopen } from "./do
 import { parseGrossTotalInput } from "./gross-total";
 import { quoteMargin } from "./margin";
 import { salesTiles, type DashRow, type SalesTiles } from "./dashboard-math";
+import { calendarDate, resolvePeriod } from "./dashboard-period";
+import {
+  buildSalesDashboard,
+  canSeeOtherSellers,
+  sellerFilterParam,
+  type DashDossier,
+  type SalesDashboardModel,
+} from "./dashboard-view";
 import { dossierOpenLabel } from "./recent-opens";
 import { dossierTaskKind, type DossierTaskKind } from "./task-lists";
 import { distributedMailsToMake, mergeDistributedIntoToMake, type DistributedMail } from "./distributed-requests";
@@ -1784,6 +1792,90 @@ export async function getSalesDashboard(user: AuthzUser): Promise<SalesTiles> {
     };
   });
   return salesTiles(dashRows, monthStart, monthEnd, today);
+}
+
+export async function getSalesDashboardView(
+  user: AuthzUser,
+  query: { periode?: string; van?: string; tot?: string; verkoper?: string },
+  now = new Date(),
+): Promise<SalesDashboardModel> {
+  denyPartner(user);
+  const seller = sellerFilterParam(user, query.verkoper);
+  const rows = await prismadb.crm_Opportunities.findMany({
+    where: {
+      is_dossier: true,
+      ...opportunityReadScopeWhere(user),
+      ...(seller === "none" ? { seller_name: null } : seller ? { seller_name: seller } : {}),
+    },
+    select: {
+      id: true,
+      dossier_number: true,
+      dossier_status: true,
+      seller_name: true,
+      project_city: true,
+      project_postal_code: true,
+      request_date: true,
+      won_at: true,
+      lost_at: true,
+      accepted_quote_id: true,
+      assigned_account: { select: { name: true } },
+      quote_families: {
+        select: {
+          id: true,
+          quotes: {
+            where: { deletedAt: null },
+            select: {
+              id: true,
+              version: true,
+              quote_number: true,
+              total_bruto: true,
+              won_at: true,
+              createdAt: true,
+            },
+          },
+        },
+      },
+      quote_sends: { select: { quote_id: true, sent_at: true } },
+    },
+  });
+  const dossiers: DashDossier[] = rows.map((row) => ({
+    id: row.id,
+    number: row.dossier_number,
+    status: row.dossier_status ?? "NIEUW",
+    seller: row.seller_name,
+    customer: row.assigned_account?.name ?? null,
+    city: row.project_city,
+    postalCode: row.project_postal_code,
+    requestDate: dayString(row.request_date),
+    wonAt: row.won_at ? row.won_at.toISOString() : null,
+    lostAt: row.lost_at ? row.lost_at.toISOString() : null,
+    quotes: row.quote_families.flatMap((family) =>
+      family.quotes.map((quote) => {
+        const bruto = money(quote.total_bruto);
+        return {
+          id: quote.id,
+          familyId: family.id,
+          version: quote.version,
+          number: quote.quote_number,
+          bruto: bruto != null && Number.isFinite(bruto) ? bruto : null,
+          wonAt: quote.won_at ? quote.won_at.toISOString() : null,
+          accepted: quote.id === row.accepted_quote_id,
+          createdAt: quote.createdAt.toISOString(),
+        };
+      }),
+    ),
+    sends: row.quote_sends.map((send) => ({ quoteId: send.quote_id, sentAt: send.sent_at.toISOString() })),
+  }));
+  const today = calendarDate(now);
+  const period = resolvePeriod({ preset: query.periode, from: query.van, to: query.tot }, today);
+  return buildSalesDashboard({
+    dossiers,
+    preset: period.preset,
+    range: period.range,
+    previous: period.previous,
+    today,
+    canSeeOthers: canSeeOtherSellers(user),
+  });
 }
 
 export type SalesTask = {
