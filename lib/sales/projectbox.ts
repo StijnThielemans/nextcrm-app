@@ -1,7 +1,8 @@
 /**
  * Projectbox holds a dossier only when sales checked Actie projectleiding
  * and the dossier already has a 10-digit project number.
- * The project leader is a name stored on that project. No login is created here.
+ * The project leader stored on the project is one of these display names.
+ * Sign-in accounts are created beside the verkoper accounts, not in this file.
  */
 
 export const PROJECT_LEADERS = [
@@ -13,6 +14,37 @@ export const PROJECT_LEADERS = [
 ] as const;
 
 export type ProjectLeaderName = (typeof PROJECT_LEADERS)[number];
+
+function personNameKey(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLocaleLowerCase("nl")
+    .split(/\s+/)
+    .filter(Boolean)
+    .sort()
+    .join(" ");
+}
+
+/**
+ * The project leader this login is. Admin keeps the full desk.
+ * A partner is not a project leader. Word order does not matter.
+ * The stored name on a project stays the display name from PROJECT_LEADERS.
+ */
+export function projectLeaderNameForUser(user: {
+  name?: string | null;
+  role?: string | null;
+}): ProjectLeaderName | null {
+  if (user.role === "admin" || user.role === "partner") return null;
+  if (!user.name?.trim()) return null;
+  const key = personNameKey(user.name);
+  return PROJECT_LEADERS.find((leader) => personNameKey(leader) === key) ?? null;
+}
+
+/** After sign-in, a project leader opens Projectleiding. A verkoper and admin stay on the sales desk. */
+export function homeHrefForUser(user: { name?: string | null; role?: string | null }): "/" | "/projectleiding/dashboard" {
+  return projectLeaderNameForUser(user) ? "/projectleiding/dashboard" : "/";
+}
 
 const TEN_DIGITS = /^\d{10}$/;
 

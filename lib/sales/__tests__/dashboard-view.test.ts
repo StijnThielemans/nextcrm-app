@@ -53,6 +53,8 @@ describe("seller visibility", () => {
     expect(canSeeOtherSellers({ name: "Robbe Haegeman", role: "user" })).toBe(false);
     expect(sellerFilterParam({ name: "Robbe Haegeman", role: "user" }, "Van Doorslaer Merel")).toBeNull();
     expect(sellerFilterParam({ name: "Planner", role: "user" }, "Haegeman Robbe")).toBeNull();
+    expect(canSeeOtherSellers({ name: "Van Holder Jens", role: "user" })).toBe(false);
+    expect(sellerFilterParam({ name: "Van Holder Jens", role: "user" }, "Haegeman Robbe")).toBeNull();
   });
 });
 

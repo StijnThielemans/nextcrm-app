@@ -1,8 +1,11 @@
+import { SELLERS, sellerNameForUser, sellerOnCreate } from "../aanvraag-fields";
 import {
   PROJECT_LEADERS,
   dossierInProjectbox,
+  homeHrefForUser,
   isTenDigitProjectNumber,
   parseProjectLeader,
+  projectLeaderNameForUser,
   summarizeProjectbox,
 } from "../projectbox";
 
@@ -23,6 +26,22 @@ describe("Projectbox membership", () => {
     expect(dossierInProjectbox(false, "1000000126")).toBe(false);
     expect(dossierInProjectbox(null, "1000000126")).toBe(false);
     expect(dossierInProjectbox(undefined, "1000000126")).toBe(false);
+  });
+});
+
+describe("project leader logins", () => {
+  it("opens Projectleiding and does not become a verkoper", () => {
+    for (const name of PROJECT_LEADERS) {
+      expect((SELLERS as readonly string[]).includes(name)).toBe(false);
+      expect(projectLeaderNameForUser({ name, role: "user" })).toBe(name);
+      expect(sellerNameForUser({ name, role: "user" })).toBeNull();
+      expect(sellerOnCreate({ name, role: "user" }, "Haegeman Robbe")).toBe("Haegeman Robbe");
+      expect(homeHrefForUser({ name, role: "user" })).toBe("/projectleiding/dashboard");
+    }
+    expect(projectLeaderNameForUser({ name: "Jens Van Holder", role: "user" })).toBe("Van Holder Jens");
+    expect(projectLeaderNameForUser({ name: "Van Holder Jens", role: "admin" })).toBeNull();
+    expect(homeHrefForUser({ name: "Haegeman Robbe", role: "user" })).toBe("/");
+    expect(homeHrefForUser({ name: "Admin", role: "admin" })).toBe("/");
   });
 });
 

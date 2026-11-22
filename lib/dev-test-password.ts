@@ -1,12 +1,14 @@
 import { hashPassword, verifyPassword } from "better-auth/crypto";
 import { prismaBase } from "@/lib/prisma-base";
 import { isDevPasswordSignIn } from "@/lib/dev-password-sign-in";
+import { DEV_PROJECT_LEADERS } from "@/lib/sales/dev-project-leaders";
 import { DEV_SALES_USERS } from "@/lib/sales/dev-sales-users";
 
 const DEV_TEST_EMAIL = "admin@domain.com";
 
 let pending: Promise<void> | null = null;
 let salesPending: Promise<void> | null = null;
+let leadersPending: Promise<void> | null = null;
 
 /**
  * On a non-production server, store TILO_DEV_PASSWORD on the existing
@@ -59,10 +61,30 @@ export function ensureDevSalesUsers(): Promise<void> {
 }
 
 async function applyDevSalesUsers() {
+  await applyNamedDevUsers(DEV_SALES_USERS);
+}
+
+/**
+ * On a non-production server, make sure each projectleider can sign in with
+ * TILO_DEV_PASSWORD. Same create-or-update path as the verkopers. Never touches
+ * admin@domain.com, never rewrites dossier sellers, and never adds them to SELLERS.
+ */
+export function ensureDevProjectLeaders(): Promise<void> {
+  if (!isDevPasswordSignIn() || !process.env.TILO_DEV_PASSWORD) return Promise.resolve();
+  if (!leadersPending) {
+    leadersPending = applyNamedDevUsers(DEV_PROJECT_LEADERS).catch((error) => {
+      leadersPending = null;
+      throw error;
+    });
+  }
+  return leadersPending;
+}
+
+async function applyNamedDevUsers(people: readonly { email: string; name: string }[]) {
   const password = process.env.TILO_DEV_PASSWORD;
   if (!password) return;
 
-  for (const person of DEV_SALES_USERS) {
+  for (const person of people) {
     const byEmail = await prismaBase.users.findUnique({
       where: { email: person.email },
       select: { id: true, role: true },

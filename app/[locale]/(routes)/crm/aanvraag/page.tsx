@@ -1,7 +1,9 @@
-import { getTranslations } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
+import { redirect } from "@/i18n/navigation";
 import Container from "@/app/[locale]/(routes)/components/ui/Container";
 import { requireAuthenticated } from "@/lib/authz";
 import { sellerNameForUser } from "@/lib/sales/aanvraag-fields";
+import { projectLeaderNameForUser } from "@/lib/sales/projectbox";
 import { offerteboxPrefill } from "@/lib/sales/offertebox";
 import { previewDossierNumber } from "@/lib/sales/service";
 import { AanvraagForm } from "./AanvraagForm";
@@ -15,6 +17,9 @@ export default async function AanvraagPage({
   const t = await getTranslations("Sales");
   const { offertebox } = await searchParams;
   const user = await requireAuthenticated();
+  if (projectLeaderNameForUser(user)) {
+    redirect({ href: "/projectleiding/dashboard", locale: await getLocale() });
+  }
   const projectNumber = await previewDossierNumber();
   const fromBox = offertebox ? await offerteboxPrefill(user, offertebox) : null;
   const lockedSeller = sellerNameForUser(user);

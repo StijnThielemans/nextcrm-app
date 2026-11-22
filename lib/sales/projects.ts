@@ -3,6 +3,7 @@ import { prismadb } from "@/lib/prisma";
 import { writeAuditLog } from "@/lib/audit-log";
 import type { AuthzUser } from "@/lib/authz/session";
 import { opportunityReadScopeWhere } from "@/lib/authz/scopes/crm";
+import { projectLeaderNameForUser } from "./projectbox";
 import { currentDossierStep } from "./dossier-step";
 import { SalesError } from "./errors";
 import { formatProjectNumber, projectCreationAllowed } from "./project-number";
@@ -30,6 +31,12 @@ function denyPartner(user: AuthzUser) {
   if (user.role === "partner") throw new SalesError("forbidden");
 }
 
+/** A projectleider sees every project. A verkoper stays on their own dossiers. */
+function projectReadWhere(user: AuthzUser) {
+  if (projectLeaderNameForUser(user)) return { deletedAt: null };
+  return opportunityReadScopeWhere(user);
+}
+
 export type ProjectListRow = {
   id: string;
   projectNumber: string;
@@ -47,7 +54,7 @@ export async function listProjects(user: AuthzUser): Promise<ProjectListRow[]> {
     where: {
       is_dossier: true,
       execution_project_number: { not: null },
-      ...opportunityReadScopeWhere(user),
+      ...projectReadWhere(user),
     },
     select: {
       id: true,
@@ -160,14 +167,14 @@ export async function getProjectDashboard(user: AuthzUser, now = new Date()): Pr
     is_dossier: true,
     dossier_status: "GEWONNEN" as const,
     execution_project_number: null,
-    ...opportunityReadScopeWhere(user),
+    ...projectReadWhere(user),
   };
   const [rows, waitingCount, waiting] = await Promise.all([
     prismadb.crm_Opportunities.findMany({
       where: {
         is_dossier: true,
         execution_project_number: { not: null },
-        ...opportunityReadScopeWhere(user),
+        ...projectReadWhere(user),
       },
       select: {
         id: true,
@@ -392,7 +399,7 @@ export async function getProjectScreen(user: AuthzUser, projectId: string): Prom
       id: projectId,
       is_dossier: true,
       execution_project_number: { not: null },
-      ...opportunityReadScopeWhere(user),
+      ...projectReadWhere(user),
     },
     select: {
       id: true,

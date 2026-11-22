@@ -7,12 +7,19 @@ import { SalesError } from "./errors";
 import {
   dossierInProjectbox,
   parseProjectLeader,
+  projectLeaderNameForUser,
   type ProjectLeaderName,
   type ProjectboxRow,
 } from "./projectbox";
 
 function denyPartner(user: AuthzUser) {
   if (user.role === "partner") throw new SalesError("forbidden");
+}
+
+/** A projectleider sees every project. A verkoper stays on their own dossiers. */
+function projectReadWhere(user: AuthzUser) {
+  if (projectLeaderNameForUser(user)) return { deletedAt: null };
+  return opportunityReadScopeWhere(user);
 }
 
 async function guardWrite(user: AuthzUser, dossierId: string) {
@@ -31,7 +38,7 @@ export async function listProjectbox(user: AuthzUser): Promise<ProjectboxRow[]> 
       is_dossier: true,
       projectleiding_action: true,
       execution_project_number: { not: null },
-      ...opportunityReadScopeWhere(user),
+      ...projectReadWhere(user),
     },
     select: {
       id: true,
@@ -95,7 +102,7 @@ export async function setProjectleidingAction(user: AuthzUser, dossierId: string
  */
 export async function assignProjectLeader(user: AuthzUser, dossierId: string, leader: string | null) {
   denyPartner(user);
-  await guardWrite(user, dossierId);
+  if (!projectLeaderNameForUser(user)) await guardWrite(user, dossierId);
   let name: ProjectLeaderName | null;
   try {
     name = parseProjectLeader(leader);

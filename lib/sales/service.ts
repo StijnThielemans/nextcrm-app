@@ -55,6 +55,7 @@ import {
   resolveArchitect,
   type ArchitectHit,
 } from "./architects";
+import { projectLeaderNameForUser } from "./projectbox";
 import { parseDossierProjectDraft, type DossierProjectInput } from "./dossier-project";
 import { applyQuoteWin, statusAfterWins, type QuoteWinState } from "./won-quotes";
 
@@ -266,6 +267,7 @@ export async function previewDossierNumber(): Promise<string | null> {
 
 export async function createAanvraag(user: AuthzUser, input: AanvraagInput): Promise<{ id: string; number: string }> {
   denyPartner(user);
+  if (projectLeaderNameForUser(user)) throw new SalesError("forbidden");
   if (!CHANNELS.includes(input.channel)) throw new SalesError("channelRequired");
   const sellerName = sellerOnCreate(user, input.sellerName);
   if (!isSellerName(sellerName)) throw new SalesError("sellerRequired");

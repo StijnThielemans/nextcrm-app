@@ -120,7 +120,9 @@ export function matchSellerUser<T extends { id: string; name: string | null }>(
 
 /**
  * The verkoper this login is. Admin keeps the full desk and still picks a seller.
- * A partner is not a seller. The match ignores word order, same as matchSellerUser.
+ * A partner is not a seller. A projectleider is not a seller: that name stays out of SELLERS,
+ * so a new dossier does not store their display name as verkoper.
+ * The match ignores word order, same as matchSellerUser.
  */
 export function sellerNameForUser(user: { name?: string | null; role?: string | null }): SellerName | null {
   if (user.role === "admin" || user.role === "partner") return null;
