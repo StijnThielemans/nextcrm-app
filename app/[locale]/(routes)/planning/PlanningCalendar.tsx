@@ -1,7 +1,6 @@
 "use client";
 
 import { createContext, useContext, useEffect, useRef, useState, useTransition, type MutableRefObject, type PointerEvent as ReactPointerEvent } from "react";
-import Image from "next/image";
 import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
 import {
   DndContext,
@@ -769,10 +768,9 @@ function CrewOnBlock({
     <div
       className="pointer-events-none absolute flex flex-wrap content-start gap-0.5"
       style={{
-        top: `calc(${top}% + 2px)`,
+        top: `calc(${top}% + 4px)`,
         left: `calc(${laneLeft}% + 2px)`,
-        width: `${Math.min(people.length, 4) * 46}px`,
-        maxWidth: `calc(${100 - laneLeft}% - 4px)`,
+        width: `min(${people.length * 48}px, calc(${100 - laneLeft}% - 4px))`,
         zIndex: 40 + lane.column,
       }}
       data-testid={`planning-heads-${job.id}`}
@@ -843,27 +841,34 @@ function CrewPortrait({
   person,
   className,
 }: {
-  person: { id?: string; image: string; kind: string };
+  person: { id?: string; name?: string; image: string; kind: string };
   className?: string;
 }) {
   const truck = person.kind === "truck";
+  const position = truck ? "center" : person.id === "charlie-chaplin" ? "center 40%" : "center 22%";
   return (
     <span
       className={cn(
-        "relative block shrink-0 overflow-hidden bg-[#f6f3ea] ring-1 ring-black/15",
-        truck ? "rounded-md" : "rounded-xl",
+        "relative block shrink-0 overflow-hidden bg-[#f6f3ea] bg-no-repeat ring-1 ring-black/25",
+        truck ? "rounded-md" : "rounded-full",
         className,
       )}
+      style={{
+        backgroundImage: `url("${person.image}")`,
+        backgroundPosition: position,
+        backgroundSize: truck ? "contain" : "cover",
+      }}
     >
-      <Image
+      <img
         src={person.image}
-        alt=""
-        fill
+        alt={person.name ?? ""}
         draggable={false}
-        unoptimized
-        sizes="72px"
-        style={{ objectPosition: truck ? "center" : person.id === "charlie-chaplin" ? "center 42%" : "center 18%" }}
-        className={truck ? "object-contain" : "object-cover"}
+        loading="eager"
+        decoding="sync"
+        width={72}
+        height={72}
+        className={cn("block size-full", truck ? "object-contain" : "object-cover")}
+        style={{ objectPosition: position }}
       />
     </span>
   );
