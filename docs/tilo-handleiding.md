@@ -60,6 +60,8 @@ Een verkoper ziet alleen de eigen dossiers.
 
 Onder **Offertes** staan de offertes van de offertedossiers, met totaal bruto, of de offerte verstuurd is, en of ze gewonnen is. Zonder opgeslagen totaal bruto staat er geen bedrag.
 
+Op Offertedossiers en Offertes staat naast Project-Nr het projectnummer van 10 cijfers, leeg als er nog geen project is.
+
 ### Offertebox
 
 **Offertebox** heeft twee kolommen:

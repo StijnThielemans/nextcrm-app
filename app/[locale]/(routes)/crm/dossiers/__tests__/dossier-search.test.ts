@@ -3,6 +3,7 @@ import { dossierMatchesSearch, type DossierSearchRow } from "../dossier-search";
 const nicolas: DossierSearchRow = {
   id: "dossier-11",
   number: "OFF-2026-0011",
+  executionProjectNumber: "1000000126",
   name: "Peirlinkc Nicolas",
   status: "OFFERTE_VERSTUURD",
   stepLabel: "Offerte verstuurd",
@@ -38,6 +39,8 @@ describe("offertedossier list search", () => {
     expect(dossierMatchesSearch(nicolas, "Haegeman")).toBe(true);
     expect(dossierMatchesSearch(nicolas, "Offerte verstuurd")).toBe(true);
     expect(dossierMatchesSearch(nicolas, "OFF-2026-0011")).toBe(true);
+    expect(dossierMatchesSearch(nicolas, "1000000126")).toBe(true);
+    expect(dossierMatchesSearch({ ...nicolas, executionProjectNumber: null }, "1000000126")).toBe(false);
   });
 
   it("matches contact type, vat, address parts, architect id, and the follow-up date", () => {

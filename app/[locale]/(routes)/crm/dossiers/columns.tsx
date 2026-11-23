@@ -65,6 +65,17 @@ export const columns: ColumnDef<DossierSearchRow>[] = [
     meta: { labelKey: "projectNumber" },
   },
   {
+    id: "executionProjectNumber",
+    accessorFn: (row) => row.executionProjectNumber ?? "",
+    header: ({ column }) => <SalesHeader column={column} label="executionProjectNumber" />,
+    cell: ({ row }) => (
+      <span className="tabular-nums" data-testid="execution-project-number">
+        {row.original.executionProjectNumber?.trim() ?? ""}
+      </span>
+    ),
+    meta: { labelKey: "executionProjectNumber" },
+  },
+  {
     id: "name",
     accessorFn: (row) => row.name ?? "",
     header: ({ column }) => <SalesHeader column={column} label="projectDescription" />,

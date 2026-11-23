@@ -11,6 +11,7 @@ const amber: OfferteSearchRow = {
   sentAt: "2026-11-19",
   dossierId: "dossier-11",
   dossierNumber: "OFF-2026-0011",
+  executionProjectNumber: "1000000126",
   dossierName: "Peirlinkc Nicolas",
   customer: "Peirlinkc Nicolas",
   seller: "Haegeman Robbe",
@@ -35,6 +36,8 @@ describe("offertes list", () => {
     expect(offerteMatchesSearch(amber, "6220,65")).toBe(true);
     expect(offerteMatchesSearch(amber, "6.220,65")).toBe(true);
     expect(offerteMatchesSearch(amber, "OFF-2026-0011")).toBe(true);
+    expect(offerteMatchesSearch(amber, "1000000126")).toBe(true);
+    expect(offerteMatchesSearch({ ...amber, executionProjectNumber: null }, "1000000126")).toBe(false);
     expect(offerteMatchesSearch(amber, "Haegeman")).toBe(true);
     expect(offerteMatchesSearch(amber, "Gewonnen")).toBe(true);
     expect(offerteMatchesSearch(amber, "2026-11-19")).toBe(true);

@@ -40,6 +40,7 @@ export function offerteMatchesSearch(row: OfferteSearchRow, query: string) {
     row.date,
     row.sentAt,
     row.dossierNumber,
+    row.executionProjectNumber,
     row.dossierName,
     row.customer,
     row.seller,

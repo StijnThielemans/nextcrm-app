@@ -443,6 +443,7 @@ async function createCustomer(tx: Tx, user: AuthzUser, input: NewCustomerInput):
 export type DossierListRow = {
   id: string;
   number: string | null;
+  executionProjectNumber: string | null;
   name: string | null;
   status: string | null;
   stepLabel: string;
@@ -515,6 +516,7 @@ export async function listDossiers(user: AuthzUser): Promise<DossierListRow[]> {
   return rows.map((row) => ({
     id: row.id,
     number: row.dossier_number,
+    executionProjectNumber: row.execution_project_number,
     name: row.name,
     status: row.dossier_status,
     stepLabel: buildDossierStepper({

@@ -13,6 +13,7 @@ export type OfferteSearchRow = {
   sentAt: string | null;
   dossierId: string;
   dossierNumber: string | null;
+  executionProjectNumber: string | null;
   dossierName: string | null;
   customer: string | null;
   seller: string | null;
@@ -61,6 +62,7 @@ export async function listOfferteOverview(user: AuthzUser): Promise<OfferteSearc
               id: true,
               dossier_number: true,
               name: true,
+              execution_project_number: true,
               dossier_status: true,
               seller_name: true,
               accepted_quote_id: true,
@@ -87,6 +89,7 @@ export async function listOfferteOverview(user: AuthzUser): Promise<OfferteSearc
       sentAt: dayString(row.sends[0]?.sent_at),
       dossierId: dossier.id,
       dossierNumber: dossier.dossier_number,
+      executionProjectNumber: dossier.execution_project_number,
       dossierName: dossier.name,
       customer: dossier.assigned_account?.name ?? null,
       seller: dossier.seller_name ?? dossier.assigned_to_user?.name ?? null,

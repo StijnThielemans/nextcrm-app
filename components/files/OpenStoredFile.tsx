@@ -40,6 +40,7 @@ export function OpenStoredFile({
   image = false,
   className,
   testId,
+  title,
   children,
 }: {
   kind: OpenKind;
@@ -49,6 +50,7 @@ export function OpenStoredFile({
   image?: boolean;
   className?: string;
   testId?: string;
+  title?: string;
   children: ReactNode;
 }) {
   const [pending, setPending] = useState(false);
@@ -89,6 +91,7 @@ export function OpenStoredFile({
     <a
       className={className}
       href={href}
+      title={title}
       target="_blank"
       rel="noopener noreferrer"
       data-testid={testId}

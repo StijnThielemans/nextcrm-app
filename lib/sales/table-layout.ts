@@ -6,6 +6,7 @@ export const TABLE_COLUMNS: Record<TableId, readonly string[]> = {
   customers: ["name", "account_role", "office_phone", "mobile_phone", "email", "vat_choice", "vat", "address", "actions"],
   dossiers: [
     "number",
+    "executionProjectNumber",
     "name",
     "customer",
     "contactType",
@@ -22,8 +23,14 @@ export const TABLE_COLUMNS: Record<TableId, readonly string[]> = {
     "status",
     "followUp",
   ],
-  quotes: ["name", "gross", "date", "sent", "dossier", "project", "customer", "seller", "status", "won"],
+  quotes: ["name", "gross", "date", "sent", "dossier", "executionProjectNumber", "project", "customer", "seller", "status", "won"],
   projects: ["projectNumber", "dossierNumber", "name", "customer", "seller"],
+};
+
+/** Keep a newly added column beside its anchor instead of parking it at the end of a saved order. */
+const PIN_AFTER: Partial<Record<TableId, Record<string, string>>> = {
+  dossiers: { executionProjectNumber: "number" },
+  quotes: { executionProjectNumber: "dossier" },
 };
 
 const LOCKED: Record<TableId, readonly string[]> = {
@@ -42,7 +49,7 @@ function isStringList(value: unknown): value is string[] {
   return Array.isArray(value) && value.every((item) => typeof item === "string");
 }
 
-/** Keep only known columns, append any the user has not placed, and never hide a locked column. */
+/** Keep only known columns, pin a new column beside its anchor, append the rest, and never hide a locked column. */
 export function sanitizeLayout(tableId: TableId, input: unknown): SavedLayout | null {
   if (!input || typeof input !== "object") return null;
   const record = input as { order?: unknown; hidden?: unknown };
@@ -56,7 +63,12 @@ export function sanitizeLayout(tableId: TableId, input: unknown): SavedLayout | 
     return true;
   });
   for (const id of allowed) {
-    if (!seen.has(id)) order.push(id);
+    if (seen.has(id)) continue;
+    const after = PIN_AFTER[tableId]?.[id];
+    const index = after ? order.indexOf(after) : -1;
+    if (index >= 0) order.splice(index + 1, 0, id);
+    else order.push(id);
+    seen.add(id);
   }
   const hidden = isStringList(record.hidden)
     ? record.hidden.filter((id) => allowed.includes(id) && !locked.has(id))

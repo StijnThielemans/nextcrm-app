@@ -46,7 +46,8 @@ export const columns: ColumnDef<OfferteSearchRow>[] = [
         id={row.original.pdfId}
         name={row.original.name}
         mimeType="application/pdf"
-        className="underline"
+        className="block max-w-72 truncate underline"
+        title={row.original.name}
       >
         {show(row.original.name)}
       </OpenStoredFile>
@@ -85,6 +86,17 @@ export const columns: ColumnDef<OfferteSearchRow>[] = [
       </Link>
     ),
     meta: { labelKey: "dossier" },
+  },
+  {
+    id: "executionProjectNumber",
+    accessorFn: (row) => row.executionProjectNumber ?? "",
+    header: ({ column }) => <SalesHeader column={column} label="executionProjectNumber" />,
+    cell: ({ row }) => (
+      <span className="tabular-nums" data-testid="execution-project-number">
+        {row.original.executionProjectNumber?.trim() ?? ""}
+      </span>
+    ),
+    meta: { labelKey: "executionProjectNumber" },
   },
   {
     id: "project",

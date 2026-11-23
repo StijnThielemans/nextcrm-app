@@ -10,6 +10,7 @@ import { DOSSIER_STATUS_LABELS, type DossierStatus } from "@/lib/sales/labels";
 export type DossierSearchRow = {
   id: string;
   number: string | null;
+  executionProjectNumber: string | null;
   name: string | null;
   status: string | null;
   stepLabel: string;
@@ -97,6 +98,7 @@ export function dossierMatchesSearch(row: DossierSearchRow, query: string): bool
 
   const haystack = [
     row.number,
+    row.executionProjectNumber,
     row.name,
     row.customer,
     dossierContactType(row.contactType),
