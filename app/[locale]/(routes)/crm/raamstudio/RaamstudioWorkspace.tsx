@@ -26,7 +26,10 @@ import {
   stepFromActiveStep,
   planForStep,
   rotateNormalizedRect,
+  isFacadeDrawing,
+  isFloorDrawing,
   rotatePlanPage,
+  sheetsForStep,
   suggestedDrawingKind,
   suggestedDrawingName,
   workspaceFromPayload,
@@ -42,13 +45,11 @@ const fieldClass =
 const WHOLE_PAGE: NormRect = { x: 0.01, y: 0.01, w: 0.98, h: 0.98 };
 
 function isFacadeClip(drawing: { kind: string; name: string }): boolean {
-  if (drawing.kind === "Gevel" || drawing.kind === "Snede") return true;
-  return /gevel|snede/i.test(drawing.name);
+  return isFacadeDrawing(drawing);
 }
 
 function isFloorClip(drawing: { kind: string; name: string }): boolean {
-  if (isFacadeClip(drawing)) return false;
-  return drawing.kind === "Verdieping / grondplan" || drawing.kind === "Dakplan";
+  return isFloorDrawing(drawing);
 }
 
 function sheetForMark(
@@ -344,7 +345,62 @@ export function RaamstudioWorkspace({
     setSelectedId(`drawing:${index}`);
   }
 
+  function placeOnFileSheet(index: number, localX: number, localY: number) {
+    const role = step === "grondplan" ? "floor" : step === "gevels" ? "facade" : null;
+    if (!role) return;
+    const sheet = sheetsForStep(draft.drawings, pdfs, role).sheets.find((item) => item.fromFile && item.index === index);
+    if (!sheet) return;
+    const point = pagePointInClip(sheet.rect, localX, localY);
+    const page = sheet.page;
+    if (role === "facade") {
+      if (!chosenFacade) {
+        setStatus("Kies links een nummer van het grondplan.");
+        return;
+      }
+      const at = draft.facades.findIndex((item) => (
+        item.number === chosenFacade
+        && item.planName === sheet.planName
+        && (item.page ?? 0) === page
+        && item.x != null
+        && item.y != null
+        && localPointInClip(sheet.rect, item.x, item.y).inside
+      ));
+      const marker = {
+        planName: sheet.planName,
+        number: chosenFacade,
+        ...(page ? { page } : {}),
+        x: point.x,
+        y: point.y,
+      };
+      const facades = draft.facades.slice();
+      if (at >= 0) facades[at] = marker;
+      else facades.push(marker);
+      touch({ ...draft, facades });
+      setSelectedId(`facade:${at >= 0 ? at : facades.length - 1}`);
+      return;
+    }
+    const level = floor.trim() || "0";
+    const same = draft.openings.filter((item) => item.floor === level);
+    const number = nextWindowNumber(same.at(-1)?.number ?? null, level);
+    touch({
+      ...draft,
+      openings: [...draft.openings, {
+        planName: sheet.planName,
+        floor: level,
+        number,
+        ...(page ? { page } : {}),
+        x: point.x,
+        y: point.y,
+      }],
+    });
+    setSelectedId(`opening:${draft.openings.length}`);
+  }
+
   function placeOnClip(index: number, localX: number, localY: number) {
+    if (index < 0) {
+      placeOnFileSheet(index, localX, localY);
+      return;
+    }
     const drawing = draft.drawings[index];
     if (!drawing?.rect) return;
     const point = pagePointInClip(drawing.rect, localX, localY);
@@ -667,6 +723,9 @@ export function RaamstudioWorkspace({
   });
   const mode = step === "tekeningen" ? "draw" : step === "grondplan" ? "opening" : step === "gevels" ? "facade" : "inspect";
   const marks = active ? marksOnPage(draft, active.name, page) : [];
+  const floorShown = sheetsForStep(draft.drawings, pdfs, "floor");
+  const facadeShown = sheetsForStep(draft.drawings, pdfs, "facade");
+  const fileNotice = "Geen opgeslagen selectie. Het planbestand van het dossier staat hier.";
 
   return (
     <section className="overflow-hidden rounded-xl border border-black/10 bg-card" data-testid="raamstudio-program">
@@ -886,37 +945,43 @@ export function RaamstudioWorkspace({
           ) : null}
           {step === "grondplan" ? (
             <ClipBoard
-              clips={visibleClips(draft.drawings, pdfs, isFloorClip)}
+              clips={floorShown.sheets}
               planNames={draft.drawings.map((drawing) => drawing.planName)}
               numbers={clipNumbers(draft)}
               onPlace={placeOnClip}
               onMove={(id, x, y) => moveMark(id, { x, y })}
               onRemove={removeClipNumber}
+              notice={floorShown.fromFile ? fileNotice : undefined}
+              fromFile={floorShown.fromFile}
               emptyText="Duid eerst in stap 1 een grondplan aan. Gevels en snedes staan hier niet."
             />
           ) : step === "gevels" ? (
             <ClipBoard
-              clips={visibleClips(draft.drawings, pdfs, isFacadeClip)}
+              clips={facadeShown.sheets}
               planNames={draft.drawings.map((drawing) => drawing.planName)}
               numbers={clipNumbers(draft)}
               onPlace={placeOnClip}
               onMove={(id, x, y) => moveMark(id, { x, y })}
               onRemove={removeClipNumber}
+              notice={facadeShown.fromFile ? fileNotice : undefined}
+              fromFile={facadeShown.fromFile}
               emptyText="Duid eerst in stap 1 een gevel of snede aan. De grondplannen staan rechts als overzicht."
             />
           ) : step === "maten" ? (
             <ClipBoard
-              clips={visibleClips(draft.drawings, pdfs, isFacadeClip)}
+              clips={facadeShown.sheets}
               planNames={draft.drawings.map((drawing) => drawing.planName)}
               numbers={clipNumbers(draft)}
               measures={facadeMeasures}
               onEditMeasure={setSize}
               onMoveMeasure={setMeasurePlace}
+              notice={facadeShown.fromFile ? fileNotice : undefined}
+              fromFile={facadeShown.fromFile}
               emptyText="Duid eerst in stap 1 een gevel of snede aan. De grondplannen staan rechts als overzicht."
             />
           ) : step === "raaminfo" ? (
             <ClipBoard
-              clips={visibleClips(draft.drawings, pdfs, isFacadeClip)}
+              clips={facadeShown.sheets}
               planNames={draft.drawings.map((drawing) => drawing.planName)}
               numbers={clipNumbers(draft)}
               measures={facadeMeasures}
@@ -925,6 +990,8 @@ export function RaamstudioWorkspace({
               sills={facadeSills}
               onPlaceSill={armedSill ? placeSill : undefined}
               onMoveSill={moveSill}
+              notice={facadeShown.fromFile ? fileNotice : undefined}
+              fromFile={facadeShown.fromFile}
               emptyText="Duid eerst in stap 1 een gevel of snede aan. De grondplannen staan rechts als overzicht."
             />
           ) : step !== "tekeningen" ? (
@@ -970,10 +1037,12 @@ export function RaamstudioWorkspace({
               <p className="text-xs text-muted-foreground">Overzicht met de nummers. Hier plaats je niets.</p>
             </div>
             <ClipBoard
-              clips={visibleClips(draft.drawings, pdfs, isFloorClip)}
+              clips={floorShown.sheets}
               planNames={draft.drawings.map((drawing) => drawing.planName)}
               numbers={clipNumbers(draft)}
               testId="raamstudio-floor-overview-board"
+              notice={floorShown.fromFile ? fileNotice : undefined}
+              fromFile={floorShown.fromFile}
               emptyText="Duid eerst in stap 1 een grondplan aan."
             />
           </aside>

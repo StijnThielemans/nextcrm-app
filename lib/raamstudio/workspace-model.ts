@@ -378,6 +378,94 @@ export function suggestedDrawingName(planName: string): string {
   return "";
 }
 
+/** A marked gevel or snede. The name counts too: a grondplan named "voorgevel" stays on the facade steps. */
+export function isFacadeDrawing(drawing: { kind: string; name: string }): boolean {
+  if (drawing.kind === "Gevel" || drawing.kind === "Snede") return true;
+  return /gevel|snede/i.test(drawing.name);
+}
+
+/** A marked grondplan or dakplan. A sheet that is also a gevel stays off this list. */
+export function isFloorDrawing(drawing: { kind: string; name: string }): boolean {
+  if (isFacadeDrawing(drawing)) return false;
+  return drawing.kind === "Verdieping / grondplan" || drawing.kind === "Dakplan";
+}
+
+/**
+ * What a plan file name says. Unknown stays unknown: "PLAN 01" is not a grondplan
+ * and not a gevel, so it is not labelled as either.
+ */
+export function planFileRole(planName: string): "floor" | "facade" | "unknown" {
+  const name = baseName(planName).toLowerCase();
+  const floor = /grondplan|gelijkvloers|verdiep|kelder|zolder|dakplan|dakvlak|_p_n_/.test(name);
+  const facade = /gevel|snede|doorsnede|section|_g_n_|_s_n_|_vg_|_ag_|_lg_|_rg_|voorgevel|achtergevel|zijgevel/.test(name);
+  if (floor && !facade) return "floor";
+  if (facade && !floor) return "facade";
+  return "unknown";
+}
+
+export type ShownPlanSheet = {
+  index: number;
+  name: string;
+  kind: string;
+  planId: string;
+  planName: string;
+  page: number;
+  rect: NormRect;
+  /** The dossier file itself. There is no saved sheet selection behind this page. */
+  fromFile: boolean;
+};
+
+const FULL_PAGE: NormRect = { x: 0, y: 0, w: 1, h: 1 };
+
+function namedFileKind(planName: string, role: "floor" | "facade"): string {
+  const kind = suggestedDrawingKind(planName);
+  if (role === "floor") return kind === "Dakplan" ? "Dakplan" : "Verdieping / grondplan";
+  return kind === "Snede" ? "Snede" : "Gevel";
+}
+
+/**
+ * Sheets for Grondplan or the facade steps.
+ * Saved knipsels win. With none, the plan PDFs of that step are shown whole.
+ * A file whose name says neither stays available for both steps. Nothing is stored.
+ */
+export function sheetsForStep(
+  drawings: readonly WorkspaceDrawing[],
+  plans: readonly { id: string; name: string }[],
+  role: "floor" | "facade",
+): { sheets: ShownPlanSheet[]; fromFile: boolean } {
+  const accept = role === "floor" ? isFloorDrawing : isFacadeDrawing;
+  const selected: ShownPlanSheet[] = [];
+  drawings.forEach((drawing, index) => {
+    if (!drawing.rect || !accept(drawing)) return;
+    const plan = plans.find((item) => item.name === drawing.planName);
+    if (!plan) return;
+    selected.push({
+      index,
+      name: drawing.name,
+      kind: drawing.kind,
+      planId: plan.id,
+      planName: drawing.planName,
+      page: drawing.page ?? 0,
+      rect: drawing.rect,
+      fromFile: false,
+    });
+  });
+  if (selected.length) return { sheets: selected, fromFile: false };
+  const explicit = plans.filter((plan) => planFileRole(plan.name) === role);
+  const source = explicit.length ? explicit : plans.filter((plan) => planFileRole(plan.name) === "unknown");
+  const sheets = source.map((plan, offset) => ({
+    index: -(offset + 1),
+    name: baseName(plan.name).replace(/\.pdf$/i, ""),
+    kind: explicit.length ? namedFileKind(plan.name, role) : "Plan",
+    planId: plan.id,
+    planName: plan.name,
+    page: 0,
+    rect: FULL_PAGE,
+    fromFile: true,
+  }));
+  return { sheets, fromFile: sheets.length > 0 };
+}
+
 function canonicalPlan(name: string, planNames: readonly string[]): string | null {
   const cleaned = clean(name, 180);
   if (!cleaned) return null;

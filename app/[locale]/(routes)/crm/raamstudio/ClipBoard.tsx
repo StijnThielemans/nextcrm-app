@@ -19,6 +19,7 @@ export type ClipView = {
   name: string;
   kind: string;
   planId: string;
+  planName?: string;
   page: number;
   rect: NormRect;
 };
@@ -65,6 +66,8 @@ export function ClipBoard({
   onPlaceSill,
   onMoveSill,
   fitFrames = false,
+  notice,
+  fromFile = false,
   emptyText = "Duid eerst in stap 1 een gevel, snede of grondplan aan. Die knipsels komen hier.",
   testId = "raamstudio-clip-board",
 }: {
@@ -81,6 +84,8 @@ export function ClipBoard({
   onPlaceSill?: (index: number, x: number, y: number) => void;
   onMoveSill?: (id: string, x: number, y: number) => void;
   fitFrames?: boolean;
+  notice?: string;
+  fromFile?: boolean;
   emptyText?: string;
   testId?: string;
 }) {
@@ -92,12 +97,13 @@ export function ClipBoard({
     );
   }
   return (
-    <div className={fitFrames ? "flex min-h-0 flex-1 flex-col gap-3 overflow-hidden p-3" : "min-h-0 flex-1 space-y-3 overflow-auto p-3"} data-testid={testId} data-fit={fitFrames ? "true" : "false"}>
+    <div className={fitFrames ? "flex min-h-0 flex-1 flex-col gap-3 overflow-hidden p-3" : "min-h-0 flex-1 space-y-3 overflow-auto p-3"} data-testid={testId} data-fit={fitFrames ? "true" : "false"} data-from-file={fromFile ? "true" : "false"}>
+      {notice ? <p className="text-xs text-muted-foreground" data-testid="raamstudio-plan-fallback">{notice}</p> : null}
       {clips.map((clip) => (
         <ClipCard
           key={`${clip.planId}-${clip.page}-${clip.index}`}
           clip={clip}
-          planName={planNames[clip.index] ?? ""}
+          planName={clip.planName || planNames[clip.index] || ""}
           numbers={numbers}
           measures={measures}
           onEditMeasure={onEditMeasure}
