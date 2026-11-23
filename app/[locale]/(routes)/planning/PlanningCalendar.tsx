@@ -5,6 +5,7 @@ import Image from "next/image";
 import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
 import {
   DndContext,
+  DragOverlay,
   PointerSensor,
   pointerWithin,
   useDraggable,
@@ -13,6 +14,7 @@ import {
   useSensors,
   type CollisionDetection,
   type DragEndEvent,
+  type DragStartEvent,
 } from "@dnd-kit/core";
 import { Link, useRouter } from "@/i18n/navigation";
 import { googleMapsSearchUrl } from "@/lib/sales/maps-link";
@@ -79,6 +81,7 @@ export function PlanningCalendar({ data }: { data: PlanningBoardView }) {
   const router = useRouter();
   const suppressClick = useRef(false);
   const [error, setError] = useState<string | null>(null);
+  const [dragCrewId, setDragCrewId] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const [view, setView] = useState<"week" | "day">("week");
   const [focusDay, setFocusDay] = useState(() => (data.days.includes(data.today) ? data.today : data.weekStart));
@@ -109,9 +112,16 @@ export function PlanningCalendar({ data }: { data: PlanningBoardView }) {
     });
   }
 
+  function onDragStart(event: DragStartEvent) {
+    suppressClick.current = true;
+    const current = event.active.data.current;
+    setDragCrewId(current?.type === "crew" && typeof current.resource === "string" ? current.resource : null);
+  }
+
   function onDragEnd(event: DragEndEvent) {
     const activeType = event.active.data.current?.type;
     const over = event.over?.data.current;
+    setDragCrewId(null);
     window.setTimeout(() => {
       suppressClick.current = false;
     }, 0);
@@ -151,11 +161,10 @@ export function PlanningCalendar({ data }: { data: PlanningBoardView }) {
       id={`planning-${data.board}`}
       sensors={sensors}
       collisionDetection={preferTarget}
-      onDragStart={() => {
-        suppressClick.current = true;
-      }}
+      onDragStart={onDragStart}
       onDragCancel={() => {
         suppressClick.current = false;
+        setDragCrewId(null);
       }}
       onDragEnd={onDragEnd}
     >
@@ -255,6 +264,11 @@ export function PlanningCalendar({ data }: { data: PlanningBoardView }) {
           </div>
           {data.board === "buitendienst" && <CrewStrip />}
         </div>
+        <DragOverlay dropAnimation={null}>
+          {dragCrewId && planningCrewById(dragCrewId) ? (
+            <CrewDragPreview person={planningCrewById(dragCrewId)!} />
+          ) : null}
+        </DragOverlay>
       </SuppressClick.Provider>
     </DndContext>
   );
@@ -371,9 +385,16 @@ function DayColumn({
             job={job}
             day={day}
             lane={lanes.get(job.id) ?? { column: 0, columns: 1 }}
+            onDelete={onDelete}
+          />
+        ))}
+        {timed.map((job) => (
+          <CrewOnBlock
+            key={`heads:${job.id}`}
+            job={job}
+            lane={lanes.get(job.id) ?? { column: 0, columns: 1 }}
             assignments={assignments.filter((item) => item.jobId === job.id && item.day === day)}
             onRemoveCrew={onRemoveCrew}
-            onDelete={onDelete}
           />
         ))}
       </div>
@@ -411,15 +432,11 @@ function TimeBlock({
   job,
   day,
   lane,
-  assignments,
-  onRemoveCrew,
   onDelete,
 }: {
   job: PlanningJobView;
   day: string;
   lane: { column: number; columns: number };
-  assignments: PlanningBoardView["assignments"];
-  onRemoveCrew: (id: string) => void;
   onDelete: (jobId: string) => void;
 }) {
   const span = planningDisplaySpan(job);
@@ -463,13 +480,7 @@ function TimeBlock({
         color: job.color.color,
       }}
     >
-      <BlockText
-        job={job}
-        wrap
-        assignments={assignments}
-        onRemoveCrew={onRemoveCrew}
-        onDelete={onDelete}
-      />
+      <BlockText job={job} wrap onDelete={onDelete} />
     </article>
   );
 }
@@ -477,14 +488,10 @@ function TimeBlock({
 function BlockText({
   job,
   wrap = false,
-  assignments,
-  onRemoveCrew,
   onDelete,
 }: {
   job: PlanningJobView;
   wrap?: boolean;
-  assignments: PlanningBoardView["assignments"];
-  onRemoveCrew?: (id: string) => void;
   onDelete?: (jobId: string) => void;
 }) {
   const place = planningPlace(job.place, job.address);
@@ -517,23 +524,6 @@ function BlockText({
         <div className={clip}>{place}</div>
       ))}
       <div className={clip}>{title}</div>
-      {assignments.map((item) => {
-        const person = planningCrewById(item.resource);
-        if (!person) return null;
-        return (
-          <button
-            key={item.id}
-            type="button"
-            data-testid={`planning-assignment-${item.id}`}
-            className={cn("block max-w-full text-left text-[10px] opacity-90", clip)}
-            onPointerDown={holdClick}
-            onClick={() => onRemoveCrew?.(item.id)}
-            aria-label={`Haal ${person.name} van deze dag`}
-          >
-            {person.name}
-          </button>
-        );
-      })}
       {job.kind === "manual" && onDelete && (
         <button
           type="button"
@@ -626,7 +616,7 @@ function ListJob({ job, onDelete }: { job: PlanningJobView; onDelete: (jobId: st
       className={cn("cursor-grab rounded-[2px] border border-l-[3px] px-2 py-1.5 text-[12px] leading-snug", isDragging && "opacity-40")}
       style={{ background: job.color.background, borderColor: job.color.border, color: job.color.color }}
     >
-      <BlockText job={job} assignments={[]} />
+      <BlockText job={job} />
       {job.kind === "manual" && (
         <button type="button" className="mt-1 underline" onPointerDown={holdClick} onClick={() => onDelete(job.id)}>
           Verwijder
@@ -754,13 +744,64 @@ function HandItemForm() {
   );
 }
 
+function CrewOnBlock({
+  job,
+  lane,
+  assignments,
+  onRemoveCrew,
+}: {
+  job: PlanningJobView;
+  lane: { column: number; columns: number };
+  assignments: PlanningBoardView["assignments"];
+  onRemoveCrew: (id: string) => void;
+}) {
+  const people = assignments.flatMap((item) => {
+    const person = planningCrewById(item.resource);
+    return person ? [{ item, person }] : [];
+  });
+  if (people.length === 0) return null;
+  const span = planningDisplaySpan(job);
+  const spanMinutes = PLANNING_GRID_END - PLANNING_GRID_START;
+  const top = ((span.start - PLANNING_GRID_START) / spanMinutes) * 100;
+  const columns = Math.max(lane.columns, 1);
+  const laneLeft = (lane.column / columns) * 100;
+  return (
+    <div
+      className="pointer-events-none absolute flex flex-wrap content-start gap-0.5"
+      style={{
+        top: `calc(${top}% + 2px)`,
+        left: `calc(${laneLeft}% + 2px)`,
+        width: `${Math.min(people.length, 4) * 46}px`,
+        maxWidth: `calc(${100 - laneLeft}% - 4px)`,
+        zIndex: 40 + lane.column,
+      }}
+      data-testid={`planning-heads-${job.id}`}
+    >
+      {people.map(({ item, person }) => (
+        <button
+          key={item.id}
+          type="button"
+          data-testid={`planning-assignment-${item.id}`}
+          title={person.name}
+          aria-label={`Haal ${person.name} van deze dag`}
+          className="pointer-events-auto shrink-0"
+          onPointerDown={holdClick}
+          onClick={() => onRemoveCrew(item.id)}
+        >
+          <CrewPortrait person={person} className="size-11" />
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function CrewStrip() {
   return (
-    <section className="tilo-frame flex shrink-0 items-center gap-2 px-2 py-1" data-testid="planning-crew">
-      <p className="w-36 shrink-0 text-[10px] leading-tight text-muted-foreground">
+    <section className="tilo-frame flex shrink-0 flex-col gap-1.5 px-3 py-2" data-testid="planning-crew">
+      <p className="text-[11px] leading-snug text-muted-foreground">
         Ploeg. Sleep iemand of een vrachtwagen op een job voor die dag.
       </p>
-      <div className="flex min-w-0 flex-1 gap-2 overflow-x-auto pb-0.5">
+      <div className="flex items-end justify-between gap-1">
         {PLANNING_CREW.map((person) => (
           <CrewToken key={person.id} person={person} />
         ))}
@@ -781,21 +822,49 @@ function CrewToken({ person }: { person: (typeof PLANNING_CREW)[number] }) {
       {...attributes}
       role="group"
       data-testid={`planning-crew-${person.id}`}
-      className={cn("w-12 shrink-0 cursor-grab text-center", isDragging && "opacity-40")}
+      className={cn("flex w-16 shrink-0 cursor-grab flex-col items-center gap-1 text-center", isDragging && "opacity-40")}
+    >
+      <CrewPortrait person={person} className="size-[3.75rem]" />
+      <div className="line-clamp-2 w-full text-[10px] leading-tight">{person.name}</div>
+    </div>
+  );
+}
+
+function CrewDragPreview({ person }: { person: (typeof PLANNING_CREW)[number] }) {
+  return (
+    <div className="flex w-[4.5rem] cursor-grabbing flex-col items-center gap-1 text-center">
+      <CrewPortrait person={person} className="size-[4.5rem] shadow-lg" />
+      <div className="line-clamp-2 w-full rounded bg-white/95 px-0.5 text-[10px] leading-tight text-foreground">{person.name}</div>
+    </div>
+  );
+}
+
+function CrewPortrait({
+  person,
+  className,
+}: {
+  person: { id?: string; image: string; kind: string };
+  className?: string;
+}) {
+  const truck = person.kind === "truck";
+  return (
+    <span
+      className={cn(
+        "relative block shrink-0 overflow-hidden bg-[#f6f3ea] ring-1 ring-black/15",
+        truck ? "rounded-md" : "rounded-xl",
+        className,
+      )}
     >
       <Image
         src={person.image}
         alt=""
-        width={32}
-        height={32}
+        fill
         draggable={false}
-        unoptimized={person.kind === "truck"}
-        className={cn(
-          "mx-auto size-8 bg-[#f6f3ea] ring-1 ring-black/10",
-          person.kind === "truck" ? "rounded-sm object-contain" : "rounded-full object-cover",
-        )}
+        unoptimized
+        sizes="72px"
+        style={{ objectPosition: truck ? "center" : person.id === "charlie-chaplin" ? "center 42%" : "center 18%" }}
+        className={truck ? "object-contain" : "object-cover"}
       />
-      <div className="mt-0.5 truncate text-[9px] leading-tight">{person.name}</div>
-    </div>
+    </span>
   );
 }

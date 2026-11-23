@@ -478,7 +478,7 @@ export const PLANNING_CREW = [
   { id: "frida-kahlo", name: "Frida Kahlo", image: "/planning/frida-kahlo.jpg", kind: "person" },
   { id: "leonardo-da-vinci", name: "Leonardo da Vinci", image: "/planning/leonardo-da-vinci.jpg", kind: "person" },
   { id: "amelia-earhart", name: "Amelia Earhart", image: "/planning/amelia-earhart.jpg", kind: "person" },
-  { id: "charlie-chaplin", name: "Charlie Chaplin", image: "/planning/charlie-chaplin.jpg", kind: "person" },
+  { id: "charlie-chaplin", name: "Charlie Chaplin", image: "/planning/charlie-chaplin.png", kind: "person" },
   { id: "audrey-hepburn", name: "Audrey Hepburn", image: "/planning/audrey-hepburn.jpg", kind: "person" },
   { id: "david-bowie", name: "David Bowie", image: "/planning/david-bowie.jpg", kind: "person" },
   { id: "serena-williams", name: "Serena Williams", image: "/planning/serena-williams.jpg", kind: "person" },
