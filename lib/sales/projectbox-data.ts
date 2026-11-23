@@ -1,11 +1,12 @@
 import { prismadb } from "@/lib/prisma";
-import { writeAuditLog } from "@/lib/audit-log";
+import { writeAuditLog, type AuditChange } from "@/lib/audit-log";
 import type { AuthzUser } from "@/lib/authz/session";
 import { AuthorizationError } from "@/lib/authz/errors";
 import { assertCanWriteOpportunity, opportunityReadScopeWhere } from "@/lib/authz/scopes/crm";
 import { SalesError } from "./errors";
 import {
   dossierInProjectbox,
+  dossierListedInProjectbox,
   parseProjectLeader,
   projectLeaderNameForUser,
   type ProjectLeaderName,
@@ -35,10 +36,15 @@ export async function listProjectbox(user: AuthzUser): Promise<ProjectboxRow[]> 
   denyPartner(user);
   const rows = await prismadb.crm_Opportunities.findMany({
     where: {
-      is_dossier: true,
-      projectleiding_action: true,
-      execution_project_number: { not: null },
-      ...projectReadWhere(user),
+      AND: [
+        {
+          is_dossier: true,
+          projectleiding_action: true,
+          execution_project_number: { not: null },
+          OR: [{ projectbox_saved: null }, { projectbox_saved: false }],
+        },
+        projectReadWhere(user),
+      ],
     },
     select: {
       id: true,
@@ -47,13 +53,15 @@ export async function listProjectbox(user: AuthzUser): Promise<ProjectboxRow[]> 
       name: true,
       seller_name: true,
       project_leader: true,
+      projectleiding_action: true,
+      projectbox_saved: true,
       assigned_account: { select: { name: true } },
       assigned_to_user: { select: { name: true } },
     },
     orderBy: [{ project_created_at: "desc" }, { dossier_number: "asc" }],
   });
   return rows.flatMap((row) => {
-    if (!dossierInProjectbox(true, row.execution_project_number) || !row.execution_project_number) return [];
+    if (!dossierListedInProjectbox(row.projectleiding_action, row.execution_project_number, row.projectbox_saved) || !row.execution_project_number) return [];
     let projectLeader: ProjectLeaderName | null = null;
     try {
       projectLeader = parseProjectLeader(row.project_leader);
@@ -78,20 +86,78 @@ export async function setProjectleidingAction(user: AuthzUser, dossierId: string
   await guardWrite(user, dossierId);
   const row = await prismadb.crm_Opportunities.findFirst({
     where: { id: dossierId, is_dossier: true, deletedAt: null },
-    select: { id: true, projectleiding_action: true },
+    select: { id: true, projectleiding_action: true, projectbox_saved: true },
   });
   if (!row) throw new SalesError("notFound");
   const next = checked ? true : null;
   if ((row.projectleiding_action === true) === (next === true)) return;
+  const reopen = next === true && row.projectbox_saved === true;
   await prismadb.crm_Opportunities.update({
     where: { id: dossierId },
-    data: { projectleiding_action: next, updatedBy: user.id },
+    data: {
+      projectleiding_action: next,
+      ...(reopen ? { projectbox_saved: null } : {}),
+      updatedBy: user.id,
+    },
   });
   await writeAuditLog({
     entityType: "opportunity",
     entityId: dossierId,
     action: "updated",
-    changes: [{ field: "projectleiding_action", old: row.projectleiding_action, new: next }],
+    changes: [
+      { field: "projectleiding_action", old: row.projectleiding_action, new: next },
+      ...(reopen ? [{ field: "projectbox_saved", old: row.projectbox_saved, new: null }] : []),
+    ],
+    userId: user.id,
+  });
+}
+
+/**
+ * Stores the chosen name and takes the row out of Projectbox.
+ * Actie projectleiding stays on, so that checkbox still decides how a row enters.
+ * An empty choice does not save and does not clear a name that is already stored.
+ */
+export async function saveProjectbox(user: AuthzUser, dossierId: string, leader: string | null) {
+  denyPartner(user);
+  if (!projectLeaderNameForUser(user)) await guardWrite(user, dossierId);
+  let name: ProjectLeaderName | null;
+  try {
+    name = parseProjectLeader(leader);
+  } catch {
+    throw new SalesError("projectLeaderInvalid");
+  }
+  if (!name) throw new SalesError("projectLeaderInvalid");
+  const row = await prismadb.crm_Opportunities.findFirst({
+    where: { id: dossierId, is_dossier: true, deletedAt: null },
+    select: {
+      id: true,
+      project_leader: true,
+      projectleiding_action: true,
+      projectbox_saved: true,
+      execution_project_number: true,
+    },
+  });
+  if (!row) throw new SalesError("notFound");
+  if (!dossierInProjectbox(row.projectleiding_action, row.execution_project_number)) {
+    throw new SalesError("projectLeaderNeedsBox");
+  }
+  if ((row.project_leader ?? null) === name && row.projectbox_saved === true) return;
+  await prismadb.crm_Opportunities.update({
+    where: { id: dossierId },
+    data: { project_leader: name, projectbox_saved: true, updatedBy: user.id },
+  });
+  const changes: AuditChange[] = [];
+  if ((row.project_leader ?? null) !== name) {
+    changes.push({ field: "project_leader", old: row.project_leader, new: name });
+  }
+  if (row.projectbox_saved !== true) {
+    changes.push({ field: "projectbox_saved", old: row.projectbox_saved, new: true });
+  }
+  await writeAuditLog({
+    entityType: "opportunity",
+    entityId: dossierId,
+    action: "updated",
+    changes,
     userId: user.id,
   });
 }
@@ -99,6 +165,7 @@ export async function setProjectleidingAction(user: AuthzUser, dossierId: string
 /**
  * Stores the chosen name on the project. A name can be set only while the dossier is in Projectbox.
  * Clearing the name is allowed on a project so a trial assignment can be removed.
+ * Choosing a name does not take the row out of the box; that happens on Opslaan.
  */
 export async function assignProjectLeader(user: AuthzUser, dossierId: string, leader: string | null) {
   denyPartner(user);

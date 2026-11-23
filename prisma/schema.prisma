@@ -294,6 +294,8 @@ model crm_Opportunities {
   projectleiding_action Boolean?
   /// Gekozen projectleider, als naam. Leeg tot Projectleiding iemand toewijst.
   project_leader       String?
+  /// Opslaan op Projectbox. De rij verlaat de box; Actie projectleiding en de projectleider blijven.
+  projectbox_saved     Boolean?
   /// Aantal werkdagen chassis. Leeg mag. Nog geen berekening.
   chassis_work_days    Int?
   /// Aantal werkdagen glas. Leeg mag. Nog geen berekening.

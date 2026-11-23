@@ -1398,6 +1398,7 @@
     "projectboxEmpty": "Geen dossiers in Projectbox.",
     "projectboxCount": "Projectbox",
     "projectboxUnassigned": "Niet toegewezen",
+    "projectboxSave": "Opslaan",
     "projectScreen": {
       "title": "Project",
       "type": "Type",

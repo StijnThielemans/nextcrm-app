@@ -60,6 +60,18 @@ export function dossierInProjectbox(
   return action === true && isTenDigitProjectNumber(projectNumber);
 }
 
+/**
+ * Actie projectleiding plus a project number still puts the row in the box.
+ * Opslaan hides it. Choosing a leader does not.
+ */
+export function dossierListedInProjectbox(
+  action: boolean | null | undefined,
+  projectNumber: string | null | undefined,
+  saved: boolean | null | undefined,
+): boolean {
+  return dossierInProjectbox(action, projectNumber) && saved !== true;
+}
+
 export function parseProjectLeader(value: string | null | undefined): ProjectLeaderName | null {
   const name = (value ?? "").trim();
   if (!name) return null;

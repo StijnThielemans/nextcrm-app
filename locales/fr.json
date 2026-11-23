@@ -1294,6 +1294,7 @@
     "projectboxEmpty": "Aucun dossier dans Projectbox.",
     "projectboxCount": "Projectbox",
     "projectboxUnassigned": "Non assigné",
+    "projectboxSave": "Enregistrer",
     "projectScreen": {
       "title": "Projet",
       "type": "Type",

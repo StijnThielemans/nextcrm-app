@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
 import { Link } from "@/i18n/navigation";
-import { assignProjectLeaderAction } from "@/actions/crm/sales/actions";
+import { saveProjectboxAction } from "@/actions/crm/sales/actions";
 import { PROJECT_LEADERS, type ProjectLeaderName, type ProjectboxRow } from "@/lib/sales/projectbox";
 
 function show(value: string | null | undefined) {
@@ -20,16 +20,20 @@ export function ProjectboxList({ rows }: { rows: ProjectboxRow[] }) {
     () => Object.fromEntries(rows.map((row) => [row.id, row.projectLeader])),
   );
 
-  async function assign(row: ProjectboxRow, value: string) {
-    const previous = leaders[row.id] ?? null;
+  function choose(row: ProjectboxRow, value: string) {
     const next = (PROJECT_LEADERS as readonly string[]).includes(value) ? (value as ProjectLeaderName) : null;
     setLeaders((current) => ({ ...current, [row.id]: next }));
+    setError(null);
+  }
+
+  async function save(row: ProjectboxRow) {
+    const next = leaders[row.id] ?? null;
+    if (!next) return;
     setPendingId(row.id);
     setError(null);
-    const saved = await assignProjectLeaderAction(row.id, next);
+    const saved = await saveProjectboxAction(row.id, next);
     setPendingId(null);
     if (saved.error) {
-      setLeaders((current) => ({ ...current, [row.id]: previous }));
       setError(saved.error);
       return;
     }
@@ -71,22 +75,35 @@ export function ProjectboxList({ rows }: { rows: ProjectboxRow[] }) {
               <td className="px-4 py-2">{show(row.customer)}</td>
               <td className="px-4 py-2" data-testid="projectbox-seller">{show(row.seller)}</td>
               <td className="px-4 py-2">
-                <label className="sr-only" htmlFor={`leader-${row.id}`}>{t("projectScreen.projectLeader")}</label>
-                <select
-                  id={`leader-${row.id}`}
-                  className="h-8 max-w-full rounded-full border border-border bg-white px-3 text-sm"
-                  data-testid="projectbox-leader"
-                  value={leaders[row.id] ?? ""}
-                  disabled={pendingId === row.id}
-                  onChange={(event) => {
-                    void assign(row, event.target.value);
-                  }}
-                >
-                  <option value="">{t("projectboxUnassigned")}</option>
-                  {PROJECT_LEADERS.map((name) => (
-                    <option key={name} value={name}>{name}</option>
-                  ))}
-                </select>
+                <div className="flex items-center gap-2">
+                  <label className="sr-only" htmlFor={`leader-${row.id}`}>{t("projectScreen.projectLeader")}</label>
+                  <select
+                    id={`leader-${row.id}`}
+                    className="h-8 max-w-full rounded-full border border-border bg-white px-3 text-sm"
+                    data-testid="projectbox-leader"
+                    value={leaders[row.id] ?? ""}
+                    disabled={pendingId === row.id}
+                    onChange={(event) => {
+                      choose(row, event.target.value);
+                    }}
+                  >
+                    <option value="">{t("projectboxUnassigned")}</option>
+                    {PROJECT_LEADERS.map((name) => (
+                      <option key={name} value={name}>{name}</option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    className="h-8 shrink-0 rounded-full bg-[hsl(var(--tilo))] px-3 text-sm font-medium text-[hsl(190_28%_14%)] disabled:opacity-50"
+                    data-testid="projectbox-save"
+                    disabled={pendingId === row.id || !leaders[row.id]}
+                    onClick={() => {
+                      void save(row);
+                    }}
+                  >
+                    {t("projectboxSave")}
+                  </button>
+                </div>
               </td>
             </tr>
           ))}

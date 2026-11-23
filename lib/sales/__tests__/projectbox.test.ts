@@ -2,6 +2,7 @@ import { SELLERS, sellerNameForUser, sellerOnCreate } from "../aanvraag-fields";
 import {
   PROJECT_LEADERS,
   dossierInProjectbox,
+  dossierListedInProjectbox,
   homeHrefForUser,
   isTenDigitProjectNumber,
   parseProjectLeader,
@@ -26,6 +27,15 @@ describe("Projectbox membership", () => {
     expect(dossierInProjectbox(false, "1000000126")).toBe(false);
     expect(dossierInProjectbox(null, "1000000126")).toBe(false);
     expect(dossierInProjectbox(undefined, "1000000126")).toBe(false);
+  });
+
+  it("keeps the row after a leader is chosen until Opslaan", () => {
+    expect(dossierListedInProjectbox(true, "1000000126", null)).toBe(true);
+    expect(dossierListedInProjectbox(true, "1000000126", false)).toBe(true);
+    expect(dossierListedInProjectbox(true, "1000000126", true)).toBe(false);
+    expect(dossierInProjectbox(true, "1000000126")).toBe(true);
+    expect(dossierListedInProjectbox(false, "1000000126", false)).toBe(false);
+    expect(dossierListedInProjectbox(true, null, false)).toBe(false);
   });
 });
 

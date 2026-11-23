@@ -1294,6 +1294,7 @@
     "projectboxEmpty": "No dossiers in Projectbox.",
     "projectboxCount": "Projectbox",
     "projectboxUnassigned": "Unassigned",
+    "projectboxSave": "Speichern",
     "projectScreen": {
       "title": "Project",
       "type": "Type",
