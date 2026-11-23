@@ -16,6 +16,7 @@ import {
   type DragStartEvent,
 } from "@dnd-kit/core";
 import { Link, useRouter } from "@/i18n/navigation";
+import { CrewPortrait } from "./crew-portraits";
 import { googleMapsSearchUrl } from "@/lib/sales/maps-link";
 import {
   BOARD_TITLE,
@@ -74,6 +75,20 @@ const preferTarget: CollisionDetection = (args) => {
 
 function holdClick(event: ReactPointerEvent) {
   event.stopPropagation();
+}
+
+const LANE_PX = 176;
+
+function columnTrack(day: string, jobs: PlanningJobView[]) {
+  const timed = jobs.filter((job) => job.days.includes(day) && !planningDisplaySpan(job).allDay);
+  const lanes = layoutOverlapLanes(
+    timed.map((job) => {
+      const span = planningDisplaySpan(job);
+      return { id: job.id, start: span.start, end: span.end };
+    }),
+  );
+  const columns = lanes.reduce((max, lane) => Math.max(max, lane.columns), 1);
+  return `minmax(${columns * LANE_PX}px, 1fr)`;
 }
 
 export function PlanningCalendar({ data }: { data: PlanningBoardView }) {
@@ -234,7 +249,7 @@ export function PlanningCalendar({ data }: { data: PlanningBoardView }) {
               {error}
             </p>
           )}
-          <div className="flex min-h-0 flex-1 flex-col gap-2 lg:flex-row">
+          <div className="flex min-h-0 flex-1 flex-col gap-2">
             <UnscheduledList board={data.board} jobs={unscheduled} onDelete={(jobId) => run(() => deletePlanningItemAction(jobId))} />
             <section
               className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-sm border border-[hsl(214_16%_78%)] bg-white text-foreground dark:border-[hsl(210_8%_28%)] dark:bg-[hsl(210_8%_11%)]"
@@ -243,7 +258,11 @@ export function PlanningCalendar({ data }: { data: PlanningBoardView }) {
               <div className="min-h-0 flex-1 overflow-auto" data-testid="planning-scroll">
                 <div
                   className="grid min-h-full"
-                  style={{ gridTemplateColumns: `3.25rem repeat(${shownDays.length}, minmax(0, 1fr))` }}
+                  style={{
+                    gridTemplateColumns: `3.25rem ${shownDays.map((day) => columnTrack(day, data.jobs)).join(" ")}`,
+                    width: "max-content",
+                    minWidth: "100%",
+                  }}
                 >
                   <TimeGutter />
                   {shownDays.map((day) => (
@@ -471,7 +490,6 @@ function TimeBlock({
         height: `${height}%`,
         left: `calc(${(lane.column / lane.columns) * 100}% + 1px)`,
         width: `calc(${100 / lane.columns}% - 3px)`,
-        minWidth: 56,
         background: job.color.background,
         borderColor: job.color.border,
         color: job.color.color,
@@ -496,7 +514,7 @@ function BlockText({
   const maps = googleMapsSearchUrl(job.address || place);
   const title = planningBlockTitle(job.kind, job.workDays, job.text);
   const suppressClick = useContext(SuppressClick);
-  const clip = wrap ? "break-all" : "truncate";
+  const clip = wrap ? "whitespace-normal break-normal" : "truncate";
   return (
     <div className="min-w-0">
       {job.projectId && job.projectNumber && (
@@ -580,15 +598,15 @@ function UnscheduledList({
     <aside
       ref={setNodeRef}
       className={cn(
-        "tilo-frame flex w-full shrink-0 flex-col overflow-hidden lg:w-60",
+        "tilo-frame flex w-full shrink-0 flex-col overflow-hidden",
         isOver && "outline outline-2 outline-[#008080]",
       )}
       data-testid="planning-unscheduled"
     >
       <h2 className="border-b border-[hsl(215_14%_84%)] px-3 py-2 text-[13px] font-semibold dark:border-[hsl(210_8%_26%)]">Nog te plannen</h2>
       {board === "binnendienst" && <HandItemForm />}
-      <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto p-2">
-        {jobs.length === 0 && <p className="px-1 py-6 text-center text-[13px] text-muted-foreground">Niets te plannen.</p>}
+      <div className="flex min-h-12 items-stretch gap-2 overflow-x-auto p-2">
+        {jobs.length === 0 && <p className="px-1 py-2 text-[13px] text-muted-foreground">Niets te plannen.</p>}
         {jobs.map((job) => (
           <ListJob key={job.id} job={job} onDelete={onDelete} />
         ))}
@@ -611,7 +629,7 @@ function ListJob({ job, onDelete }: { job: PlanningJobView; onDelete: (jobId: st
       data-testid={`planning-job-${job.id}`}
       data-kind={job.kind}
       data-color={job.color.id}
-      className={cn("cursor-grab rounded-[2px] border border-l-[3px] px-2 py-1.5 text-[12px] leading-snug", isDragging && "opacity-40")}
+      className={cn("w-56 shrink-0 cursor-grab rounded-[2px] border border-l-[3px] px-2 py-1.5 text-[12px] leading-snug", isDragging && "opacity-40")}
       style={{ background: job.color.background, borderColor: job.color.border, color: job.color.color }}
     >
       <BlockText job={job} />
@@ -763,12 +781,12 @@ function CrewInBlock({
           data-testid={`planning-assignment-${item.id}`}
           title={person.name}
           aria-label={`Haal ${person.name} van deze dag`}
-          className="flex w-11 shrink-0 flex-col items-center gap-0.5"
+          className="flex w-full items-center gap-1 text-left"
           onPointerDown={holdClick}
           onClick={() => onRemoveCrew(item.id)}
         >
-          <CrewPortrait person={person} size={36} />
-          <span className="line-clamp-2 w-full text-center text-[9px] font-semibold leading-[1.05]">{person.name}</span>
+          <CrewPortrait person={person} size={40} />
+          <span className="min-w-0 flex-1 text-[12px] font-semibold leading-tight">{person.name}</span>
         </button>
       ))}
     </div>
@@ -804,7 +822,7 @@ function CrewToken({ person }: { person: (typeof PLANNING_CREW)[number] }) {
       data-testid={`planning-crew-${person.id}`}
       className={cn("flex w-16 shrink-0 cursor-grab flex-col items-center gap-1 text-center", isDragging && "opacity-40")}
     >
-      <CrewPortrait person={person} size={60} />
+      <CrewPortrait person={person} size={52} />
       <div className="line-clamp-2 w-full text-[10px] leading-tight">{person.name}</div>
     </div>
   );
@@ -819,35 +837,3 @@ function CrewDragPreview({ person }: { person: (typeof PLANNING_CREW)[number] })
   );
 }
 
-function CrewPortrait({
-  person,
-  size,
-}: {
-  person: { id?: string; name?: string; image: string; kind: string };
-  size: number;
-}) {
-  const truck = person.kind === "truck";
-  return (
-    <img
-      src={person.image}
-      alt={person.name ?? ""}
-      draggable={false}
-      loading="eager"
-      decoding="sync"
-      width={size}
-      height={size}
-      style={{
-        width: size,
-        height: size,
-        maxWidth: size,
-        display: "block",
-        flexShrink: 0,
-        objectFit: truck ? "contain" : "cover",
-        objectPosition: truck ? "center" : person.id === "charlie-chaplin" ? "center 42%" : "center 20%",
-        borderRadius: truck ? 6 : 9999,
-        background: "#ffffff",
-        boxShadow: "inset 0 0 0 1px rgba(0,0,0,0.28)",
-      }}
-    />
-  );
-}
