@@ -1,4 +1,5 @@
-import type { SheetJpeg } from "@/lib/raamstudio/sheet-pdf";
+import { numberMarkBox } from "@/lib/raamstudio/print-marks";
+import { pageImageFit, type SheetJpeg } from "@/lib/raamstudio/sheet-pdf";
 
 const SILL = { fill: "#e2f0ff", line: "#1769aa", text: "#104b7c" };
 const NUMBER = { fill: "#ffffff", line: "#cd2341", text: "#cd2341" };
@@ -20,6 +21,35 @@ function roundRect(
   ctx.arcTo(x, y + height, x, y, r);
   ctx.arcTo(x, y, x + width, y, r);
   ctx.closePath();
+}
+
+function paintNumber(
+  ctx: CanvasRenderingContext2D,
+  sheet: DOMRect,
+  node: HTMLElement,
+  imageScale: number,
+  fit: number,
+) {
+  const box = node.getBoundingClientRect();
+  const mark = numberMarkBox({
+    centerX: (box.left + box.width / 2 - sheet.left) * imageScale,
+    centerY: (box.top + box.height / 2 - sheet.top) * imageScale,
+    cssWidth: box.width,
+    cssHeight: box.height,
+    imageScale,
+    fit,
+  });
+  ctx.fillStyle = NUMBER.fill;
+  ctx.strokeStyle = NUMBER.line;
+  ctx.lineWidth = Math.max(1, (mark.height * 2) / 28);
+  roundRect(ctx, mark.x, mark.y, mark.width, mark.height, mark.height / 2);
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = NUMBER.text;
+  ctx.font = `${Math.max(8, Math.round((mark.height * 12) / 28))}px sans-serif`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText((node.textContent ?? "").trim(), mark.x + mark.width / 2, mark.y + mark.height / 2);
 }
 
 function paintLabel(
@@ -94,6 +124,7 @@ export async function captureFacadeBoard(root: ParentNode): Promise<SheetJpeg[]>
     }
     const scale = sourceW / sheet.clientWidth;
     const bar = Math.max(22, Math.round(22 * scale));
+    const fit = pageImageFit(sourceW, sourceH + bar);
     const canvas = document.createElement("canvas");
     canvas.width = sourceW;
     canvas.height = sourceH + bar;
@@ -116,7 +147,7 @@ export async function captureFacadeBoard(root: ParentNode): Promise<SheetJpeg[]>
     ctx.save();
     ctx.translate(0, bar);
     for (const node of sheet.querySelectorAll<HTMLElement>("[data-testid='raamstudio-clip-number']")) {
-      paintLabel(ctx, sheetBox, node, NUMBER, 14, scale);
+      paintNumber(ctx, sheetBox, node, scale, fit);
     }
     for (const node of sheet.querySelectorAll<HTMLElement>("[data-testid='raamstudio-facade-width'], [data-testid='raamstudio-facade-height']")) {
       paintLabel(ctx, sheetBox, node, MEASURE, 2, scale);

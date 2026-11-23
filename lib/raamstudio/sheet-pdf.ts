@@ -14,6 +14,11 @@ const PAGE_W = 842;
 const PAGE_H = 595;
 const MARGIN = 28;
 
+/** How many page points one image pixel gets, once the picture sits on the landscape page. */
+export function pageImageFit(width: number, height: number): number {
+  return Math.min((PAGE_W - MARGIN * 2) / width, (PAGE_H - MARGIN * 2) / height);
+}
+
 function fmt(value: number): string {
   return (Math.round(value * 100) / 100).toString();
 }
@@ -68,7 +73,7 @@ export function pdfFromJpegs(pages: readonly SheetJpeg[]): Uint8Array {
     const contentId = pageId + 1;
     const imageId = pageId + 2;
     if (offsets.length !== pageId) throw new Error("pdf");
-    const fit = Math.min((PAGE_W - MARGIN * 2) / page.width, (PAGE_H - MARGIN * 2) / page.height);
+    const fit = pageImageFit(page.width, page.height);
     const drawW = page.width * fit;
     const drawH = page.height * fit;
     const x = (PAGE_W - drawW) / 2;
