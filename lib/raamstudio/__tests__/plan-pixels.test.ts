@@ -1,4 +1,4 @@
-import { bucketPlanPixels, planBitmapLongest } from "../plan-pixels";
+import { bucketPlanPixels, planBitmapLongest, planViewPixels } from "../plan-pixels";
 
 describe("planBitmapLongest", () => {
   it("covers the CSS sheet at two device pixels, including a tall page", () => {
@@ -35,6 +35,12 @@ describe("planBitmapLongest", () => {
       rotation: 270,
       pixelRatio: 2,
     })).toBe(1600);
+  });
+
+  it("draws a clip at least at the sharp floor, and larger when the sheet or the zoom grows", () => {
+    expect(planViewPixels(240, 2)).toBe(4096);
+    expect(planViewPixels(1, 1)).toBe(4096);
+    expect(planViewPixels(1800, 3)).toBe(5400);
   });
 
   it("rounds the requested side up into a cache bucket and never past the cap", () => {

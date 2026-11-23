@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
-import { clipSourceRect, clipViewRect, localPointInClip, pagePointInClip } from "@/lib/raamstudio/plan-edit";
-import { bucketPlanPixels } from "@/lib/raamstudio/plan-pixels";
+import { clipViewRect, localPointInClip, pagePointInClip } from "@/lib/raamstudio/plan-edit";
+import { bucketPlanPixels, planViewPixels } from "@/lib/raamstudio/plan-pixels";
 import type { NormRect } from "@/lib/raamstudio/workspace-model";
 
 const MIN_ZOOM = 0.5;
@@ -162,9 +162,9 @@ function ClipCard({
   const bitmapRef = useRef<ImageBitmap | null>(null);
   const zoomAnchor = useRef<{ relX: number; relY: number; clientX: number; clientY: number } | null>(null);
   const view = clipViewRect(clip.rect);
-  const pageKey = `${clip.planId}:${clip.page}`;
+  const pageKey = `${clip.planId}:${clip.page}:${view.x}:${view.y}:${view.w}:${view.h}`;
   const ready = paint?.pageKey === pageKey ? paint : null;
-  const aspect = ready ? (view.w / view.h) * (ready.w / ready.h) : null;
+  const aspect = ready && ready.h > 0 ? ready.w / ready.h : null;
   const innerWidth = Math.max(1, frameWidth - FRAME_PAD * 2);
   const innerHeight = Math.max(1, frameHeightPx - FRAME_PAD * 2);
   const naturalHeight = aspect ? innerWidth / aspect : innerWidth;
@@ -173,7 +173,8 @@ function ClipCard({
   const sheetWidth = baseWidth * zoom;
   const sheetHeight = aspect ? sheetWidth / aspect : baseWidth;
   const frameHeight = aspect ? innerWidth / aspect + FRAME_PAD * 2 : 320;
-  const pixels = bucketPlanPixels(4096 * Math.max(1, zoom));
+  const pixelRatio = typeof window === "undefined" ? 2 : Math.max(2, window.devicePixelRatio || 1);
+  const pixels = bucketPlanPixels(planViewPixels(Math.max(sheetWidth, sheetHeight), pixelRatio));
 
   useEffect(() => {
     const node = frameRef.current;
@@ -191,13 +192,13 @@ function ClipCard({
   useEffect(() => {
     const planId = clip.planId;
     const page = clip.page;
-    const key = `${planId}:${page}`;
+    const key = pageKey;
     if (!planId) return;
     const controller = new AbortController();
     void (async () => {
       try {
         const response = await fetch(
-          `/api/crm/raamstudio/plan-page?documentId=${encodeURIComponent(planId)}&page=${page + 1}&px=${pixels}`,
+          `/api/crm/raamstudio/plan-page?documentId=${encodeURIComponent(planId)}&page=${page + 1}&px=${pixels}&x=${view.x}&y=${view.y}&w=${view.w}&h=${view.h}`,
           { signal: controller.signal },
         );
         if (!response.ok) throw new Error("render");
@@ -218,7 +219,7 @@ function ClipCard({
       }
     })();
     return () => controller.abort();
-  }, [clip.planId, clip.page, pageKey, pixels]);
+  }, [clip.planId, clip.page, pageKey, pixels, view.x, view.y, view.w, view.h]);
 
   useEffect(() => () => {
     bitmapRef.current?.close();
@@ -241,15 +242,13 @@ function ClipCard({
     const canvas = canvasRef.current;
     const bitmap = bitmapRef.current;
     if (!canvas || !bitmap || !ready) return;
-    const source = clipSourceRect(bitmap.width, bitmap.height, view);
-    const cssWidth = Math.max(1, sheetWidth);
-    const cssHeight = Math.max(1, sheetHeight);
-    const density = Math.min(2, Math.max(1, window.devicePixelRatio || 1));
-    canvas.width = Math.max(1, Math.round(cssWidth * density));
-    canvas.height = Math.max(1, Math.round(cssHeight * density));
+    canvas.width = bitmap.width;
+    canvas.height = bitmap.height;
     const context = canvas.getContext("2d");
     if (!context) return;
-    context.drawImage(bitmap, source.x, source.y, source.w, source.h, 0, 0, canvas.width, canvas.height);
+    context.imageSmoothingEnabled = true;
+    context.imageSmoothingQuality = "high";
+    context.drawImage(bitmap, 0, 0);
     canvas.dataset.bitmapWidth = String(bitmap.width);
     canvas.dataset.bitmapHeight = String(bitmap.height);
   }, [ready, view.x, view.y, view.w, view.h, sheetWidth, sheetHeight]);

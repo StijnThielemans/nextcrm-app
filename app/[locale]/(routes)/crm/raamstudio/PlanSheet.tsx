@@ -95,7 +95,7 @@ export function PlanSheet({
   const zoomAnchor = useRef<{ fracX: number; fracY: number; clientX: number; clientY: number } | null>(null);
   const requestKey = `${pdf ? "pdf" : "img"}:${planId}:${page}`;
   const knownAspect = aspect?.key === requestKey ? aspect : null;
-  const pixelRatio = Math.max(2, typeof window === "undefined" ? 2 : window.devicePixelRatio || 1);
+  const pixelRatio = Math.max(3, typeof window === "undefined" ? 3 : window.devicePixelRatio || 1);
   const wanted = bucketPlanPixels(planBitmapLongest({
     sheetCssWidth: Math.max(1, viewportWidth) * zoom,
     pageWidth: knownAspect?.w ?? 1,
@@ -476,6 +476,8 @@ function TurnedSheet({
     canvas.height = bitmap.height;
     const context = canvas.getContext("2d");
     if (!context) return;
+    context.imageSmoothingEnabled = true;
+    context.imageSmoothingQuality = "high";
     context.drawImage(bitmap, 0, 0);
     canvas.dataset.bitmapWidth = String(bitmap.width);
     canvas.dataset.bitmapHeight = String(bitmap.height);

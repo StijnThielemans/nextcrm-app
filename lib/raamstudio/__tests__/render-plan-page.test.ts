@@ -1,4 +1,4 @@
-import { renderPlanPage } from "../render-plan-page";
+import { renderPlanClip, renderPlanPage } from "../render-plan-page";
 
 function minimalPdf(width: number, height: number): Buffer {
   const stream = "BT /F1 18 Tf 40 80 Td (Scherp) Tj ET\n";
@@ -38,5 +38,13 @@ describe("renderPlanPage", () => {
     expect(Math.max(large.width, large.height)).toBeGreaterThan(1800);
     expect(large.width).toBeGreaterThan(large.height);
     expect(large.png.length).toBeGreaterThan(small.png.length);
+  }, 20_000);
+
+  it("draws a clip at the requested size instead of a slice of a small page", async () => {
+    const clip = await renderPlanClip(pdf, 1, { x: 0, y: 0.15, w: 0.45, h: 0.7 }, 1024);
+    expect(Math.max(clip.width, clip.height)).toBeGreaterThanOrEqual(1000);
+    expect(Math.max(clip.width, clip.height)).toBeLessThanOrEqual(1040);
+    expect(Math.min(clip.width, clip.height)).toBeGreaterThan(400);
+    expect(clip.png.readUInt32BE(0)).toBe(0x89504e47);
   }, 20_000);
 });

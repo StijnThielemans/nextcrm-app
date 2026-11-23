@@ -3,6 +3,8 @@ export const PLAN_PIXEL_RATIO_MIN = 2;
 
 export const PLAN_MIN_PIXELS = 512;
 export const PLAN_MAX_PIXELS = 8192;
+/** A clip is drawn at least this wide, then scaled down. A small card stays readable. */
+export const PLAN_CLIP_FLOOR = 4096;
 
 const PLAN_PIXEL_STEP = 256;
 
@@ -41,4 +43,18 @@ export function planBitmapLongest(input: {
   const quarter = turns % 180 !== 0;
   const longOverMapped = quarter ? Math.max(pageW, pageH) / pageH : Math.max(pageW, pageH) / pageW;
   return Math.ceil(sheet * ratio * longOverMapped);
+}
+
+/**
+ * Longest side of the raster for the visible clip, in pixels.
+ * The whole page is not the picture: only this region is drawn, at least
+ * `PLAN_CLIP_FLOOR` on the long side, and more when the sheet or the zoom grows.
+ */
+export function planViewPixels(sheetCssLongest: number, pixelRatio: number): number {
+  const ratio = Math.max(
+    PLAN_PIXEL_RATIO_MIN,
+    Number.isFinite(pixelRatio) ? pixelRatio : PLAN_PIXEL_RATIO_MIN,
+  );
+  const sheet = Number.isFinite(sheetCssLongest) ? Math.max(1, sheetCssLongest) : 1;
+  return Math.max(PLAN_CLIP_FLOOR, Math.ceil(sheet * ratio));
 }

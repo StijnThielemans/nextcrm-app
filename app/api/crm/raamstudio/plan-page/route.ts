@@ -14,7 +14,7 @@ import { isDocumentKey, isUploadThingUrl, keyFromUrl } from "@/lib/documents/fil
 import { MINIO_BUCKET, MINIO_ENDPOINT, MINIO_PUBLIC_URL, minioClient } from "@/lib/minio";
 import { prismaBase } from "@/lib/prisma-base";
 import { bucketPlanPixels } from "@/lib/raamstudio/plan-pixels";
-import { renderPlanPage } from "@/lib/raamstudio/render-plan-page";
+import { renderPlanClip, renderPlanPage, type PlanClip } from "@/lib/raamstudio/render-plan-page";
 
 export const runtime = "nodejs";
 
@@ -58,13 +58,15 @@ export async function GET(request: NextRequest) {
   }
 
   const px = bucketPlanPixels(Number(request.nextUrl.searchParams.get("px") ?? "4096"));
-  const key = `${documentId}:${page}:${px}:${createHash("sha1").update(bytes).digest("hex").slice(0, 16)}`;
+  const clip = clipQuery(request);
+  const clipKey = clip ? `:${clip.x}:${clip.y}:${clip.w}:${clip.h}` : "";
+  const key = `${documentId}:${page}:${px}${clipKey}:${createHash("sha1").update(bytes).digest("hex").slice(0, 16)}`;
   const cached = cache.get(key);
-  const rendered = cached ?? await renderPlanPage(bytes, page, px).catch(() => null);
+  const rendered = cached ?? await (clip ? renderPlanClip(bytes, page, clip, px) : renderPlanPage(bytes, page, px)).catch(() => null);
   if (!rendered) return NextResponse.json({ error: "De tekening kon niet worden geopend." }, { status: 422 });
   if (!cached) {
     cache.set(key, rendered);
-    while (cache.size > 4) {
+    while (cache.size > 16) {
       const oldest = cache.keys().next().value;
       if (!oldest) break;
       cache.delete(oldest);
@@ -82,6 +84,20 @@ export async function GET(request: NextRequest) {
       "X-Content-Type-Options": "nosniff",
     },
   });
+}
+
+function clipQuery(request: NextRequest): PlanClip | null {
+  const raw = ["x", "y", "w", "h"].map((name) => request.nextUrl.searchParams.get(name));
+  if (raw.every((value) => value == null || value === "")) return null;
+  const [x, y, w, h] = raw.map((value) => Number(value));
+  if (![x, y, w, h].every((value) => Number.isFinite(value))) return null;
+  if (w <= 0 || h <= 0 || x < 0 || y < 0 || x > 1 || y > 1 || x + w > 1.002 || y + h > 1.002) return null;
+  return {
+    x: Math.round(x * 10000) / 10000,
+    y: Math.round(y * 10000) / 10000,
+    w: Math.round(Math.min(1 - x, w) * 10000) / 10000,
+    h: Math.round(Math.min(1 - y, h) * 10000) / 10000,
+  };
 }
 
 async function documentBytes(doc: {
