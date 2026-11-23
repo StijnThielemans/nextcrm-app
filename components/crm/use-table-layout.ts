@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { OnChangeFn, Updater, VisibilityState } from "@tanstack/react-table";
 import { loadTableLayout, saveTableLayout } from "@/actions/crm/table-layout";
-import { TABLE_COLUMNS, type TableId } from "@/lib/sales/table-layout";
+import { TABLE_COLUMNS, sanitizeLayout, type TableId } from "@/lib/sales/table-layout";
 
 function apply<T>(updater: Updater<T>, previous: T): T {
   return typeof updater === "function" ? (updater as (old: T) => T)(previous) : updater;
@@ -28,9 +28,10 @@ export function useTableLayout(tableId: TableId) {
     ready.current = false;
     void loadTableLayout(tableId).then((saved) => {
       if (cancel) return;
-      const order = saved?.order ?? [...defaults];
+      const clean = saved ? sanitizeLayout(tableId, saved) : null;
+      const order = clean?.order ?? [...defaults];
       const visibility: VisibilityState = {};
-      for (const id of saved?.hidden ?? []) visibility[id] = false;
+      for (const id of clean?.hidden ?? []) visibility[id] = false;
       orderRef.current = order;
       visibilityRef.current = visibility;
       setOrder(order);

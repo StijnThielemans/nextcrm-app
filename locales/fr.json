@@ -1001,6 +1001,7 @@
     "automatic": "Automatique",
     "dossierSection": "Dossier d'offre",
     "projectNumber": "N° de projet",
+    "offerteDossierNumber": "N° d'offertedossier",
     "projectDescription": "Description du projet",
     "searchCustomer": "Chercher un client existant",
     "noContactDetails": "Pas de coordonnées",

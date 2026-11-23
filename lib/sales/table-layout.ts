@@ -23,14 +23,14 @@ export const TABLE_COLUMNS: Record<TableId, readonly string[]> = {
     "status",
     "followUp",
   ],
-  quotes: ["name", "gross", "date", "sent", "dossier", "executionProjectNumber", "project", "customer", "seller", "status", "won"],
+  quotes: ["dossier", "executionProjectNumber", "name", "gross", "date", "sent", "project", "customer", "seller", "status", "won"],
   projects: ["projectNumber", "dossierNumber", "name", "customer", "seller"],
 };
 
-/** Keep a newly added column beside its anchor instead of parking it at the end of a saved order. */
-const PIN_AFTER: Partial<Record<TableId, Record<string, string>>> = {
-  dossiers: { executionProjectNumber: "number" },
-  quotes: { executionProjectNumber: "dossier" },
+/** Offertedossiernummer and the 10-digit project number stay the first two columns. */
+const LEADING: Partial<Record<TableId, readonly string[]>> = {
+  dossiers: ["number", "executionProjectNumber"],
+  quotes: ["dossier", "executionProjectNumber"],
 };
 
 const LOCKED: Record<TableId, readonly string[]> = {
@@ -49,13 +49,15 @@ function isStringList(value: unknown): value is string[] {
   return Array.isArray(value) && value.every((item) => typeof item === "string");
 }
 
-/** Keep only known columns, pin a new column beside its anchor, append the rest, and never hide a locked column. */
+/** Keep known columns, keep the two numbers in front, and never hide a locked column. */
 export function sanitizeLayout(tableId: TableId, input: unknown): SavedLayout | null {
   if (!input || typeof input !== "object") return null;
   const record = input as { order?: unknown; hidden?: unknown };
   if (!isStringList(record.order)) return null;
   const allowed = TABLE_COLUMNS[tableId];
   const locked = new Set(LOCKED[tableId]);
+  const leadingIds = LEADING[tableId] ?? [];
+  const leading = new Set(leadingIds);
   const seen = new Set<string>();
   const order = record.order.filter((id) => {
     if (!allowed.includes(id) || seen.has(id)) return false;
@@ -64,14 +66,14 @@ export function sanitizeLayout(tableId: TableId, input: unknown): SavedLayout | 
   });
   for (const id of allowed) {
     if (seen.has(id)) continue;
-    const after = PIN_AFTER[tableId]?.[id];
-    const index = after ? order.indexOf(after) : -1;
-    if (index >= 0) order.splice(index + 1, 0, id);
-    else order.push(id);
+    order.push(id);
     seen.add(id);
   }
+  const ordered = leadingIds.length
+    ? [...leadingIds.filter((id) => seen.has(id)), ...order.filter((id) => !leading.has(id))]
+    : order;
   const hidden = isStringList(record.hidden)
-    ? record.hidden.filter((id) => allowed.includes(id) && !locked.has(id))
+    ? record.hidden.filter((id) => allowed.includes(id) && !locked.has(id) && !leading.has(id))
     : [];
-  return { order, hidden };
+  return { order: ordered, hidden };
 }

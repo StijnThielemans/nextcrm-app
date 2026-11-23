@@ -1004,6 +1004,7 @@
     "automatic": "Automatic",
     "dossierSection": "Quote dossier",
     "projectNumber": "Project no.",
+    "offerteDossierNumber": "Offertedossier number",
     "projectDescription": "Project description",
     "searchCustomer": "Search an existing customer",
     "noContactDetails": "No contact details",

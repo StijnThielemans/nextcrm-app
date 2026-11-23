@@ -79,18 +79,20 @@ export const columns: ColumnDef<OfferteSearchRow>[] = [
   {
     id: "dossier",
     accessorFn: (row) => row.dossierNumber ?? "",
-    header: ({ column }) => <SalesHeader column={column} label="dossier" />,
+    header: ({ column }) => <SalesHeader column={column} label="offerteDossierNumber" />,
+    enableHiding: false,
     cell: ({ row }) => (
       <Link className="underline" href={`/crm/dossiers/${row.original.dossierId}`}>
         {show(row.original.dossierNumber?.trim() ?? "")}
       </Link>
     ),
-    meta: { labelKey: "dossier" },
+    meta: { labelKey: "offerteDossierNumber" },
   },
   {
     id: "executionProjectNumber",
     accessorFn: (row) => row.executionProjectNumber ?? "",
     header: ({ column }) => <SalesHeader column={column} label="executionProjectNumber" />,
+    enableHiding: false,
     cell: ({ row }) => (
       <span className="tabular-nums" data-testid="execution-project-number">
         {row.original.executionProjectNumber?.trim() ?? ""}

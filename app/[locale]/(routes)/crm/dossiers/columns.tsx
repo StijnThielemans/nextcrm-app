@@ -55,19 +55,20 @@ export const columns: ColumnDef<DossierSearchRow>[] = [
   {
     id: "number",
     accessorFn: (row) => row.number ?? "",
-    header: ({ column }) => <SalesHeader column={column} label="projectNumber" />,
+    header: ({ column }) => <SalesHeader column={column} label="offerteDossierNumber" />,
     cell: ({ row }) => (
       <Link className="font-medium underline-offset-4 hover:underline" href={`/crm/dossiers/${row.original.id}`}>
         {show(row.original.number?.trim() ?? "")}
       </Link>
     ),
     enableHiding: false,
-    meta: { labelKey: "projectNumber" },
+    meta: { labelKey: "offerteDossierNumber" },
   },
   {
     id: "executionProjectNumber",
     accessorFn: (row) => row.executionProjectNumber ?? "",
     header: ({ column }) => <SalesHeader column={column} label="executionProjectNumber" />,
+    enableHiding: false,
     cell: ({ row }) => (
       <span className="tabular-nums" data-testid="execution-project-number">
         {row.original.executionProjectNumber?.trim() ?? ""}
