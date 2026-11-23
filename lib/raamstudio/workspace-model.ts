@@ -378,6 +378,17 @@ export function suggestedDrawingName(planName: string): string {
   return "";
 }
 
+/** The name on a new clip. The typed name wins. A whole page still gets a name. */
+export function drawingClipName(planName: string, kind: string, typed: string): string {
+  const name = clean(typed, 120);
+  if (name) return name;
+  const suggested = suggestedDrawingName(planName);
+  if (suggested) return suggested;
+  if (kind === "Verdieping / grondplan") return "Grondplan";
+  const fallback = clean(kind, 40);
+  return fallback || "Tekening";
+}
+
 /** A marked gevel or snede. The name counts too: a grondplan named "voorgevel" stays on the facade steps. */
 export function isFacadeDrawing(drawing: { kind: string; name: string }): boolean {
   if (drawing.kind === "Gevel" || drawing.kind === "Snede") return true;
@@ -469,8 +480,10 @@ export function sheetsForStep(
 function canonicalPlan(name: string, planNames: readonly string[]): string | null {
   const cleaned = clean(name, 180);
   if (!cleaned) return null;
-  return planNames.find((plan) => plan === cleaned)
-    ?? planNames.find((plan) => plan.toLowerCase() === cleaned.toLowerCase())
+  const folded = cleaned.toLowerCase();
+  return planNames.find((plan) => plan === name)
+    ?? planNames.find((plan) => plan === cleaned)
+    ?? planNames.find((plan) => clean(plan, 180).toLowerCase() === folded)
     ?? null;
 }
 
@@ -761,6 +774,87 @@ function placedMarker(
 function planFromSource(source: unknown, planNames: readonly string[]): string | null {
   if (typeof source !== "string") return null;
   return canonicalPlan(baseName(source), planNames);
+}
+
+function sameRect(a: NormRect | undefined, b: NormRect | undefined): boolean {
+  if (!a || !b) return !a && !b;
+  return a.x === b.x && a.y === b.y && a.w === b.w && a.h === b.h;
+}
+
+/**
+ * A mark made before the .tc-raam finished loading must not replace that file.
+ * Saved clips, numbers and sizes stay. Local marks that are not in the file are added.
+ */
+export function mergeWorkspaceDraft(saved: WorkspaceDraft, local: WorkspaceDraft): WorkspaceDraft {
+  const drawings = saved.drawings.slice();
+  for (const drawing of local.drawings) {
+    const duplicate = drawings.some((item) => (
+      item.planName === drawing.planName
+      && item.kind === drawing.kind
+      && item.name === drawing.name
+      && (item.page ?? 0) === (drawing.page ?? 0)
+      && sameRect(item.rect, drawing.rect)
+    ));
+    if (!duplicate) drawings.push(drawing);
+  }
+  const openings = saved.openings.slice();
+  for (const opening of local.openings) {
+    const duplicate = openings.some((item) => (
+      item.planName === opening.planName
+      && item.number === opening.number
+      && item.floor === opening.floor
+      && (item.page ?? 0) === (opening.page ?? 0)
+      && item.x === opening.x
+      && item.y === opening.y
+    ));
+    if (!duplicate) openings.push(opening);
+  }
+  const facades = saved.facades.slice();
+  for (const facade of local.facades) {
+    const duplicate = facades.some((item) => (
+      item.planName === facade.planName
+      && item.number === facade.number
+      && (item.page ?? 0) === (facade.page ?? 0)
+      && item.x === facade.x
+      && item.y === facade.y
+    ));
+    if (!duplicate) facades.push(facade);
+  }
+  const sizes = saved.sizes.slice();
+  for (const size of local.sizes) {
+    if (!sizes.some((item) => item.number === size.number && item.orientation === size.orientation)) sizes.push(size);
+  }
+  const measurePlaces = [...(saved.measurePlaces ?? [])];
+  for (const place of local.measurePlaces ?? []) {
+    if (!measurePlaces.some((item) => item.number === place.number && item.orientation === place.orientation)) {
+      measurePlaces.push(place);
+    }
+  }
+  const sills = [...(saved.sills ?? [])];
+  for (const sill of local.sills ?? []) {
+    const duplicate = sills.some((item) => (
+      item.text === sill.text
+      && item.planName === sill.planName
+      && item.page === sill.page
+      && item.drawingName === sill.drawingName
+      && item.x === sill.x
+      && item.y === sill.y
+    ));
+    if (!duplicate) sills.push(sill);
+  }
+  const raaminfo = saved.raaminfo.slice();
+  for (const item of local.raaminfo) {
+    if (!raaminfo.some((savedItem) => (
+      savedItem.number === item.number && savedItem.category === item.category && savedItem.text === item.text
+    ))) raaminfo.push(item);
+  }
+  const pageRotations = saved.pageRotations.slice();
+  for (const rotation of local.pageRotations) {
+    if (!pageRotations.some((item) => item.planName === rotation.planName && item.page === rotation.page)) {
+      pageRotations.push(rotation);
+    }
+  }
+  return { drawings, openings, facades, sizes, measurePlaces, sills, raaminfo, pageRotations };
 }
 
 /** Restore a workspace from project.json. Unknown plans stay out. */

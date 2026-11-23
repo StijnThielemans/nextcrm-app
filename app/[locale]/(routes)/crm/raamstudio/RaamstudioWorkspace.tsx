@@ -26,8 +26,10 @@ import {
   stepFromActiveStep,
   planForStep,
   rotateNormalizedRect,
+  drawingClipName,
   isFacadeDrawing,
   isFloorDrawing,
+  mergeWorkspaceDraft,
   rotatePlanPage,
   sheetsForStep,
   suggestedDrawingKind,
@@ -43,6 +45,15 @@ const fieldClass =
   "flex h-10 w-full rounded-lg border border-input bg-transparent px-3 text-sm focus-visible:border-[hsl(var(--tilo))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--tilo)/0.35)]";
 
 const WHOLE_PAGE: NormRect = { x: 0.01, y: 0.01, w: 0.98, h: 0.98 };
+
+function openLoadGate(alreadyOpen: boolean): { promise: Promise<boolean>; resolve: (ok: boolean) => void } {
+  let resolve: (ok: boolean) => void = () => {};
+  const promise = new Promise<boolean>((done) => {
+    resolve = done;
+  });
+  if (alreadyOpen) resolve(true);
+  return { promise, resolve };
+}
 
 function isFacadeClip(drawing: { kind: string; name: string }): boolean {
   return isFacadeDrawing(drawing);
@@ -148,6 +159,7 @@ export function RaamstudioWorkspace({
   const [measures, setMeasures] = useState<WindowMeasure[]>([]);
   const pristine = useRef(true);
   const canPersist = useRef(!savedFile);
+  const loadGate = useRef(openLoadGate(!savedFile));
   const draftRef = useRef(draft);
   const saveQueue = useRef(Promise.resolve());
   const planKey = pdfs.map((plan) => plan.name).join("\n");
@@ -178,6 +190,7 @@ export function RaamstudioWorkspace({
     if (!savedId) {
       canPersist.current = true;
       setReady(true);
+      loadGate.current.resolve(true);
       return;
     }
     canPersist.current = false;
@@ -186,25 +199,43 @@ export function RaamstudioWorkspace({
     const fileId = savedId;
     const fileName = savedName ?? "RaamStudio";
     const names = planKey ? planKey.split("\n") : [];
+    const finish = (ok: boolean) => {
+      if (!controller.signal.aborted) loadGate.current.resolve(ok);
+    };
     void (async () => {
       try {
         const response = await fetch(`/api/documents/${fileId}/file`, { signal: controller.signal, cache: "no-store" });
-        if (!response.ok) return;
+        if (controller.signal.aborted) return;
+        if (!response.ok) {
+          setError("Het opgeslagen .tc-raam kon niet worden gelezen.");
+          setReady(true);
+          finish(false);
+          return;
+        }
         const payload = await readRaamstudioPayload(new Uint8Array(await response.arrayBuffer()));
-        if (controller.signal.aborted || !pristine.current) return;
+        if (controller.signal.aborted) return;
         const restored = workspaceFromPayload(payload, names);
-        const savedStep = stepFromActiveStep(payload.active_step) ?? openingStep([]);
-        stepRef.current = savedStep;
-        setStep(savedStep);
-        setDraft(restored);
-        const level = restored.openings.at(-1)?.floor;
-        if (level) setFloor(level);
-        if (restored.openings[0]) setInfoNumber(restored.openings[0].number);
-        setStatus(fileName);
+        const next = pristine.current ? restored : mergeWorkspaceDraft(restored, draftRef.current);
+        draftRef.current = next;
+        setDraft(next);
+        if (pristine.current) {
+          const savedStep = stepFromActiveStep(payload.active_step) ?? openingStep([]);
+          stepRef.current = savedStep;
+          setStep(savedStep);
+          const level = next.openings.at(-1)?.floor;
+          if (level) setFloor(level);
+          if (next.openings[0]) setInfoNumber(next.openings[0].number);
+          setStatus(fileName);
+        }
         canPersist.current = true;
         setReady(true);
+        finish(true);
       } catch {
-        if (!controller.signal.aborted) setError("Het opgeslagen .tc-raam kon niet worden gelezen.");
+        if (!controller.signal.aborted) {
+          setError("Het opgeslagen .tc-raam kon niet worden gelezen.");
+          setReady(true);
+          finish(false);
+        }
       }
     })();
     return () => controller.abort();
@@ -253,26 +284,53 @@ export function RaamstudioWorkspace({
   }
 
   function go(next: WorkspaceStepId) {
-    const changed = stepRef.current !== next;
+    if (stepRef.current === "tekeningen" && next !== "tekeningen") commitPending();
     stepRef.current = next;
     setStep(next);
     setPending(null);
-    if (changed) {
-      pristine.current = false;
-      onDirtyChange?.(true);
-      setStatus("Niet opgeslagen");
-      setError(null);
-    }
     if (next !== "gevels" && next !== "grondplan") return;
+    const current = draftRef.current;
     const preferred = next === "gevels"
-      ? draft.drawings.find((item) => item.kind === "Gevel" || item.kind === "Snede")
-      : draft.drawings.find((item) => item.kind === "Verdieping / grondplan");
+      ? current.drawings.find((item) => isFacadeClip(item))
+      : current.drawings.find((item) => isFloorClip(item));
     const plan = preferred
       ? pdfs.find((item) => item.name === preferred.planName) ?? planForStep(dossier.plans, next)
       : planForStep(dossier.plans, next);
     if (plan && plan.id !== active?.id) suggestFor(plan.name);
     if (plan) setActiveId(plan.id);
     setPage(preferred?.page ?? 0);
+  }
+
+  function commitPending() {
+    if (!active || !pending) return;
+    const name = drawingClipName(active.name, drawingKind, drawingName);
+    if (!name) return;
+    const drawing = {
+      planName: active.name,
+      kind: drawingKind,
+      name,
+      ...(page ? { page } : {}),
+      rect: pending,
+    };
+    touch({ ...draftRef.current, drawings: [...draftRef.current.drawings, drawing] });
+    setPending(null);
+    setSelectedId(`drawing:${draftRef.current.drawings.length - 1}`);
+  }
+
+  function addWholePage() {
+    if (!active) return;
+    const name = drawingClipName(active.name, drawingKind, drawingName);
+    const drawing = {
+      planName: active.name,
+      kind: drawingKind,
+      name,
+      ...(page ? { page } : {}),
+      rect: WHOLE_PAGE,
+    };
+    touch({ ...draftRef.current, drawings: [...draftRef.current.drawings, drawing] });
+    setPending(null);
+    setSelectedId(`drawing:${draftRef.current.drawings.length - 1}`);
+    setDrawingName(suggestedDrawingName(active.name));
   }
 
   function addDrawing() {
@@ -286,8 +344,8 @@ export function RaamstudioWorkspace({
       ...(page ? { page } : {}),
       rect: pending,
     };
-    touch({ ...draft, drawings: [...draft.drawings, drawing] });
-    setSelectedId(`drawing:${draft.drawings.length}`);
+    touch({ ...draftRef.current, drawings: [...draftRef.current.drawings, drawing] });
+    setSelectedId(`drawing:${draftRef.current.drawings.length - 1}`);
     setPending(null);
     setDrawingName(suggestedDrawingName(active.name));
   }
@@ -647,9 +705,16 @@ export function RaamstudioWorkspace({
 
   function persist(refresh: boolean) {
     const run = saveQueue.current.then(async () => {
-      const next = draftRef.current;
       setSaving(true);
       setError(null);
+      const loaded = await loadGate.current.promise;
+      if (!loaded || !canPersist.current) {
+        setSaving(false);
+        setError("Het opgeslagen project kon niet worden geladen. Er is niets overschreven.");
+        setStatus("Niet opgeslagen");
+        return;
+      }
+      const next = draftRef.current;
       try {
         const result = await saveRaamstudioProjectAction(dossier.id, next, stepRef.current);
         setSaving(false);
@@ -675,6 +740,7 @@ export function RaamstudioWorkspace({
   }
 
   async function save() {
+    commitPending();
     await persist(true);
   }
 
@@ -1076,7 +1142,7 @@ export function RaamstudioWorkspace({
                 <Input className="mt-1" value={drawingName} placeholder="bv. Voorgevel, Snede A-A" onChange={(event) => setDrawingName(event.target.value)} aria-label="Naam" />
               </label>
               <div className="flex flex-wrap gap-2">
-                <Button type="button" size="sm" variant="outline" disabled={!active} onClick={() => setPending(WHOLE_PAGE)} data-testid="raamstudio-whole-page">
+                <Button type="button" size="sm" variant="outline" disabled={!active} onClick={addWholePage} data-testid="raamstudio-whole-page">
                   Hele pagina
                 </Button>
                 <Button type="button" size="sm" disabled={!active || !pending || !drawingName.trim()} onClick={addDrawing} data-testid="raamstudio-add-drawing">
