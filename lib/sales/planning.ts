@@ -472,20 +472,20 @@ export function assignJobColors(jobs: readonly { id: string; days: readonly stri
 }
 
 export const PLANNING_CREW = [
-  { id: "albert-einstein", name: "Albert Einstein", image: "/planning/albert-einstein.jpg", kind: "person" },
-  { id: "marie-curie", name: "Marie Curie", image: "/planning/marie-curie.jpg", kind: "person" },
-  { id: "nelson-mandela", name: "Nelson Mandela", image: "/planning/nelson-mandela.jpg", kind: "person" },
-  { id: "frida-kahlo", name: "Frida Kahlo", image: "/planning/frida-kahlo.jpg", kind: "person" },
-  { id: "leonardo-da-vinci", name: "Leonardo da Vinci", image: "/planning/leonardo-da-vinci.jpg", kind: "person" },
-  { id: "amelia-earhart", name: "Amelia Earhart", image: "/planning/amelia-earhart.jpg", kind: "person" },
-  { id: "charlie-chaplin", name: "Charlie Chaplin", image: "/planning/charlie-chaplin.png", kind: "person" },
-  { id: "audrey-hepburn", name: "Audrey Hepburn", image: "/planning/audrey-hepburn.jpg", kind: "person" },
-  { id: "david-bowie", name: "David Bowie", image: "/planning/david-bowie.jpg", kind: "person" },
-  { id: "serena-williams", name: "Serena Williams", image: "/planning/serena-williams.jpg", kind: "person" },
-  { id: "bruce-lee", name: "Bruce Lee", image: "/planning/bruce-lee.jpg", kind: "person" },
-  { id: "ada-lovelace", name: "Ada Lovelace", image: "/planning/ada-lovelace.jpg", kind: "person" },
-  { id: "vrachtwagen-1", name: "Vrachtwagen 1", image: "/planning/vrachtwagen-1.svg", kind: "truck" },
-  { id: "vrachtwagen-2", name: "Vrachtwagen 2", image: "/planning/vrachtwagen-2.svg", kind: "truck" },
+  { id: "albert-einstein", name: "Albert Einstein", image: "/planning/albert-einstein.jpg?v=4", kind: "person" },
+  { id: "marie-curie", name: "Marie Curie", image: "/planning/marie-curie.jpg?v=4", kind: "person" },
+  { id: "nelson-mandela", name: "Nelson Mandela", image: "/planning/nelson-mandela.jpg?v=4", kind: "person" },
+  { id: "frida-kahlo", name: "Frida Kahlo", image: "/planning/frida-kahlo.jpg?v=4", kind: "person" },
+  { id: "leonardo-da-vinci", name: "Leonardo da Vinci", image: "/planning/leonardo-da-vinci.jpg?v=4", kind: "person" },
+  { id: "amelia-earhart", name: "Amelia Earhart", image: "/planning/amelia-earhart.jpg?v=4", kind: "person" },
+  { id: "charlie-chaplin", name: "Charlie Chaplin", image: "/planning/charlie-chaplin.png?v=4", kind: "person" },
+  { id: "audrey-hepburn", name: "Audrey Hepburn", image: "/planning/audrey-hepburn.jpg?v=4", kind: "person" },
+  { id: "david-bowie", name: "David Bowie", image: "/planning/david-bowie.jpg?v=4", kind: "person" },
+  { id: "serena-williams", name: "Serena Williams", image: "/planning/serena-williams.jpg?v=4", kind: "person" },
+  { id: "bruce-lee", name: "Bruce Lee", image: "/planning/bruce-lee.jpg?v=4", kind: "person" },
+  { id: "ada-lovelace", name: "Ada Lovelace", image: "/planning/ada-lovelace.jpg?v=4", kind: "person" },
+  { id: "vrachtwagen-1", name: "Vrachtwagen 1", image: "/planning/vrachtwagen-1.svg?v=4", kind: "truck" },
+  { id: "vrachtwagen-2", name: "Vrachtwagen 2", image: "/planning/vrachtwagen-2.svg?v=4", kind: "truck" },
 ] as const;
 
 export type PlanningCrewId = (typeof PLANNING_CREW)[number]["id"];

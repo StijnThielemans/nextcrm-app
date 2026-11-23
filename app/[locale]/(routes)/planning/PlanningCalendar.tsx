@@ -384,16 +384,9 @@ function DayColumn({
             job={job}
             day={day}
             lane={lanes.get(job.id) ?? { column: 0, columns: 1 }}
-            onDelete={onDelete}
-          />
-        ))}
-        {timed.map((job) => (
-          <CrewOnBlock
-            key={`heads:${job.id}`}
-            job={job}
-            lane={lanes.get(job.id) ?? { column: 0, columns: 1 }}
             assignments={assignments.filter((item) => item.jobId === job.id && item.day === day)}
             onRemoveCrew={onRemoveCrew}
+            onDelete={onDelete}
           />
         ))}
       </div>
@@ -431,11 +424,15 @@ function TimeBlock({
   job,
   day,
   lane,
+  assignments,
+  onRemoveCrew,
   onDelete,
 }: {
   job: PlanningJobView;
   day: string;
   lane: { column: number; columns: number };
+  assignments: PlanningBoardView["assignments"];
+  onRemoveCrew: (id: string) => void;
   onDelete: (jobId: string) => void;
 }) {
   const span = planningDisplaySpan(job);
@@ -465,7 +462,7 @@ function TimeBlock({
       data-lane={lane.column}
       data-lanes={lane.columns}
       className={cn(
-        "absolute z-10 cursor-grab overflow-hidden rounded-[2px] border border-l-[3px] px-1 py-0.5 text-[11px] leading-[1.2]",
+        "absolute z-10 cursor-grab overflow-visible rounded-[2px] border border-l-[3px] px-1 py-0.5 text-[11px] leading-[1.2]",
         drag.isDragging && "opacity-40",
         drop.isOver && "ring-2 ring-[#008080]",
       )}
@@ -474,11 +471,13 @@ function TimeBlock({
         height: `${height}%`,
         left: `calc(${(lane.column / lane.columns) * 100}% + 1px)`,
         width: `calc(${100 / lane.columns}% - 3px)`,
+        minWidth: 56,
         background: job.color.background,
         borderColor: job.color.border,
         color: job.color.color,
       }}
     >
+      <CrewInBlock assignments={assignments} onRemoveCrew={onRemoveCrew} />
       <BlockText job={job} wrap onDelete={onDelete} />
     </article>
   );
@@ -743,14 +742,10 @@ function HandItemForm() {
   );
 }
 
-function CrewOnBlock({
-  job,
-  lane,
+function CrewInBlock({
   assignments,
   onRemoveCrew,
 }: {
-  job: PlanningJobView;
-  lane: { column: number; columns: number };
   assignments: PlanningBoardView["assignments"];
   onRemoveCrew: (id: string) => void;
 }) {
@@ -759,22 +754,8 @@ function CrewOnBlock({
     return person ? [{ item, person }] : [];
   });
   if (people.length === 0) return null;
-  const span = planningDisplaySpan(job);
-  const spanMinutes = PLANNING_GRID_END - PLANNING_GRID_START;
-  const top = ((span.start - PLANNING_GRID_START) / spanMinutes) * 100;
-  const columns = Math.max(lane.columns, 1);
-  const laneLeft = (lane.column / columns) * 100;
   return (
-    <div
-      className="pointer-events-none absolute flex flex-wrap content-start gap-0.5"
-      style={{
-        top: `calc(${top}% + 4px)`,
-        left: `calc(${laneLeft}% + 2px)`,
-        width: `min(${people.length * 48}px, calc(${100 - laneLeft}% - 4px))`,
-        zIndex: 40 + lane.column,
-      }}
-      data-testid={`planning-heads-${job.id}`}
-    >
+    <div className="mb-0.5 flex flex-wrap gap-1" data-testid="planning-heads">
       {people.map(({ item, person }) => (
         <button
           key={item.id}
@@ -782,11 +763,12 @@ function CrewOnBlock({
           data-testid={`planning-assignment-${item.id}`}
           title={person.name}
           aria-label={`Haal ${person.name} van deze dag`}
-          className="pointer-events-auto shrink-0"
+          className="flex w-11 shrink-0 flex-col items-center gap-0.5"
           onPointerDown={holdClick}
           onClick={() => onRemoveCrew(item.id)}
         >
-          <CrewPortrait person={person} className="size-11" />
+          <CrewPortrait person={person} size={36} />
+          <span className="line-clamp-2 w-full text-center text-[9px] font-semibold leading-[1.05]">{person.name}</span>
         </button>
       ))}
     </div>
@@ -822,7 +804,7 @@ function CrewToken({ person }: { person: (typeof PLANNING_CREW)[number] }) {
       data-testid={`planning-crew-${person.id}`}
       className={cn("flex w-16 shrink-0 cursor-grab flex-col items-center gap-1 text-center", isDragging && "opacity-40")}
     >
-      <CrewPortrait person={person} className="size-[3.75rem]" />
+      <CrewPortrait person={person} size={60} />
       <div className="line-clamp-2 w-full text-[10px] leading-tight">{person.name}</div>
     </div>
   );
@@ -831,7 +813,7 @@ function CrewToken({ person }: { person: (typeof PLANNING_CREW)[number] }) {
 function CrewDragPreview({ person }: { person: (typeof PLANNING_CREW)[number] }) {
   return (
     <div className="flex w-[4.5rem] cursor-grabbing flex-col items-center gap-1 text-center">
-      <CrewPortrait person={person} className="size-[4.5rem] shadow-lg" />
+      <CrewPortrait person={person} size={72} />
       <div className="line-clamp-2 w-full rounded bg-white/95 px-0.5 text-[10px] leading-tight text-foreground">{person.name}</div>
     </div>
   );
@@ -839,37 +821,33 @@ function CrewDragPreview({ person }: { person: (typeof PLANNING_CREW)[number] })
 
 function CrewPortrait({
   person,
-  className,
+  size,
 }: {
   person: { id?: string; name?: string; image: string; kind: string };
-  className?: string;
+  size: number;
 }) {
   const truck = person.kind === "truck";
-  const position = truck ? "center" : person.id === "charlie-chaplin" ? "center 40%" : "center 22%";
   return (
-    <span
-      className={cn(
-        "relative block shrink-0 overflow-hidden bg-[#f6f3ea] bg-no-repeat ring-1 ring-black/25",
-        truck ? "rounded-md" : "rounded-full",
-        className,
-      )}
+    <img
+      src={person.image}
+      alt={person.name ?? ""}
+      draggable={false}
+      loading="eager"
+      decoding="sync"
+      width={size}
+      height={size}
       style={{
-        backgroundImage: `url("${person.image}")`,
-        backgroundPosition: position,
-        backgroundSize: truck ? "contain" : "cover",
+        width: size,
+        height: size,
+        maxWidth: size,
+        display: "block",
+        flexShrink: 0,
+        objectFit: truck ? "contain" : "cover",
+        objectPosition: truck ? "center" : person.id === "charlie-chaplin" ? "center 42%" : "center 20%",
+        borderRadius: truck ? 6 : 9999,
+        background: "#ffffff",
+        boxShadow: "inset 0 0 0 1px rgba(0,0,0,0.28)",
       }}
-    >
-      <img
-        src={person.image}
-        alt={person.name ?? ""}
-        draggable={false}
-        loading="eager"
-        decoding="sync"
-        width={72}
-        height={72}
-        className={cn("block size-full", truck ? "object-contain" : "object-cover")}
-        style={{ objectPosition: position }}
-      />
-    </span>
+    />
   );
 }

@@ -136,7 +136,7 @@ Een dossier in Projectbox zonder werkdagen staat links bij binnendienst. Dienst 
 
 Op binnendienst voeg je zelf een item toe. Een offerte of een project mag, de rest is vrije tekst. Het werfadres opent Google Maps. Sleep het item op de kalender.
 
-Onderaan buitendienst staan twaalf tijdelijke portretten — Albert Einstein, Marie Curie, Nelson Mandela, Frida Kahlo, Leonardo da Vinci, Amelia Earhart, Charlie Chaplin, Audrey Hepburn, David Bowie, Serena Williams, Bruce Lee en Ada Lovelace — en Vrachtwagen 1 en Vrachtwagen 2. Sleep een persoon of een vrachtwagen op een job voor die dag. De foto's van de koppen staan op de balk en blijven in het werfblok van die dag zichtbaar nadat je ze neerzet.
+Onderaan buitendienst staan twaalf tijdelijke portretten — Albert Einstein, Marie Curie, Nelson Mandela, Frida Kahlo, Leonardo da Vinci, Amelia Earhart, Charlie Chaplin, Audrey Hepburn, David Bowie, Serena Williams, Bruce Lee en Ada Lovelace — en Vrachtwagen 1 en Vrachtwagen 2. Sleep een persoon of een vrachtwagen op een job voor die dag. In het gekleurde blok staan daarna de foto en de naam, en die blijven staan na herladen.
 
 ## 5. Stroomschema
 
