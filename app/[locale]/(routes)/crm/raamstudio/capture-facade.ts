@@ -122,7 +122,11 @@ export async function captureFacadeBoard(root: ParentNode): Promise<SheetJpeg[]>
       paintLabel(ctx, sheetBox, node, MEASURE, 2, scale);
     }
     for (const node of sheet.querySelectorAll<HTMLElement>("[data-testid='raamstudio-sill']")) {
-      paintLabel(ctx, sheetBox, node, SILL, 3, scale);
+      paintLabel(ctx, sheetBox, node, {
+        fill: node.dataset.pale || SILL.fill,
+        line: node.dataset.line || SILL.line,
+        text: node.dataset.ink || SILL.text,
+      }, 3, scale);
     }
     ctx.restore();
     const blob = await new Promise<Blob>((resolve, reject) => {

@@ -16,9 +16,8 @@ import { readRaamstudioPayload } from "@/lib/raamstudio/read-project";
 import {
   DRAWING_KINDS,
   EMPTY_DRAFT,
-  ONDERAANSLUITINGEN,
+  RAAMINFO_COLORS,
   RAAMINFO_OPTIONS,
-  SILL_COLORS,
   WORKSPACE_STEPS,
   nextWindowNumber,
   openingStep,
@@ -595,15 +594,24 @@ export function RaamstudioWorkspace({
   }
 
   function placeSill(index: number, x: number, y: number) {
-    const text = armedSill;
-    if (!text || !ONDERAANSLUITINGEN.includes(text)) return;
+    const text = armedSill?.trim() ?? "";
+    const chosen = category in RAAMINFO_OPTIONS ? category : "";
+    const allowed = chosen === "Eigen tekst"
+      ? Boolean(text)
+      : (RAAMINFO_OPTIONS[chosen] ?? []).includes(text);
+    if (!text || !chosen || !allowed) return;
     const current = draftRef.current;
     const drawing = current.drawings[index];
     if (!drawing || !isFacadeClip(drawing)) return;
+    const customInfo = chosen === "Eigen tekst" && !(current.customInfo ?? []).includes(text)
+      ? [...(current.customInfo ?? []), text]
+      : current.customInfo;
     touch({
       ...current,
+      ...(customInfo ? { customInfo } : {}),
       sills: [...(current.sills ?? []), {
         text,
+        category: chosen,
         planName: drawing.planName,
         page: drawing.page ?? 0,
         drawingName: drawing.name,
@@ -777,6 +785,9 @@ export function RaamstudioWorkspace({
     ? armed
     : (numbers.find((number) => !draft.facades.some((item) => item.number === number && item.x != null)) ?? numbers[0] ?? "");
   const infoOptions = RAAMINFO_OPTIONS[category] ?? [];
+  const catalogPieces = category === "Eigen tekst"
+    ? [...new Set([...(draft.customInfo ?? []), ...(draft.sills ?? []).filter((sill) => sill.category === "Eigen tekst").map((sill) => sill.text)])]
+    : [...infoOptions];
   const facadeSills: ClipSill[] = (draft.sills ?? []).flatMap((sill, index) => {
     const clipIndex = draft.drawings.findIndex((drawing) => (
       isFacadeClip(drawing)
@@ -785,7 +796,7 @@ export function RaamstudioWorkspace({
       && (drawing.page ?? 0) === sill.page
     ));
     if (clipIndex < 0) return [];
-    return [{ id: String(index), clipIndex, text: sill.text, x: sill.x, y: sill.y }];
+    return [{ id: String(index), clipIndex, text: sill.text, category: sill.category ?? "Onderaansluiting", x: sill.x, y: sill.y }];
   });
   const mode = step === "tekeningen" ? "draw" : step === "grondplan" ? "opening" : step === "gevels" ? "facade" : "inspect";
   const marks = active ? marksOnPage(draft, active.name, page) : [];
@@ -965,32 +976,80 @@ export function RaamstudioWorkspace({
 
         {step === "raaminfo" ? (
           <div className="flex max-h-[calc(100dvh-7.5rem)] min-h-0 flex-col border-black/10 p-3 lg:sticky lg:top-2 lg:border-r" data-testid="raamstudio-sills">
-            <p className="text-sm font-medium">Onderaansluitingen</p>
-            <p className="mt-1 text-xs text-muted-foreground">Klik een type en daarna op de gevel. Dezelfde mag vaker. Sleep het label.</p>
+            <label className="block text-xs text-muted-foreground">
+              Catalogus
+              <select
+                className={cn(fieldClass, "mt-1")}
+                value={category}
+                aria-label="Catalogus"
+                data-testid="raamstudio-catalog"
+                onChange={(event) => {
+                  const next = event.target.value;
+                  setCategory(next);
+                  setArmedSill((current) => {
+                    if (!current) return null;
+                    if (next === "Eigen tekst") return current;
+                    return (RAAMINFO_OPTIONS[next] ?? []).includes(current) ? current : null;
+                  });
+                }}
+              >
+                {Object.keys(RAAMINFO_OPTIONS).map((item) => <option key={item}>{item}</option>)}
+              </select>
+            </label>
+            <p className="mt-2 text-xs text-muted-foreground">Klik een stuk en daarna op de gevel. Dezelfde mag vaker. Sleep het label.</p>
+            {category === "Eigen tekst" ? (
+              <form
+                className="mt-2 flex gap-1"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  const text = customText.trim();
+                  if (!text) return;
+                  const current = draftRef.current;
+                  if (!(current.customInfo ?? []).includes(text)) {
+                    touch({ ...current, customInfo: [...(current.customInfo ?? []), text] });
+                  }
+                  setArmedSill(text);
+                  setCustomText("");
+                }}
+              >
+                <Input
+                  value={customText}
+                  placeholder="Eigen tekst"
+                  aria-label="Eigen tekst"
+                  data-testid="raamstudio-custom-text"
+                  onChange={(event) => setCustomText(event.target.value)}
+                />
+                <Button type="submit" size="sm" variant="outline">Toevoegen</Button>
+              </form>
+            ) : null}
             <ul className="mt-2 min-h-0 flex-1 space-y-1 overflow-auto">
-              {ONDERAANSLUITINGEN.map((option) => (
+              {catalogPieces.map((option) => {
+                const colors = RAAMINFO_COLORS[category] ?? RAAMINFO_COLORS.Onderaansluiting;
+                return (
                 <li key={option}>
                   <button
                     type="button"
                     data-testid="raamstudio-sill-option"
                     data-text={option}
+                    data-category={category}
                     aria-pressed={armedSill === option}
                     className="w-full rounded-[3px] border px-1.5 py-0.5 text-left text-xs"
                     style={armedSill === option
-                      ? { background: SILL_COLORS.line, color: "#ffffff", borderColor: SILL_COLORS.line }
-                      : { background: SILL_COLORS.pale, color: SILL_COLORS.text, borderColor: SILL_COLORS.line }}
+                      ? { background: colors.line, color: "#ffffff", borderColor: colors.line }
+                      : { background: colors.pale, color: colors.text, borderColor: colors.line }}
                     onClick={() => setArmedSill((current) => (current === option ? null : option))}
                   >
                     {option}
                   </button>
                 </li>
-              ))}
+                );
+              })}
             </ul>
             <p className="mt-3 text-xs font-medium">Geplaatst</p>
             <ul className="mt-1 max-h-28 space-y-1 overflow-auto text-xs" data-testid="raamstudio-sill-placed">
               {(draft.sills ?? []).length ? (draft.sills ?? []).map((sill, index) => (
-                <li key={`${sill.drawingName}-${sill.text}-${index}`} className="flex items-center gap-1">
-                  <span className="min-w-0 flex-1 truncate">{sill.text}</span>
+                <li key={`${sill.drawingName}-${sill.text}-${index}`} className="flex items-center gap-1" data-text={sill.text} data-category={sill.category ?? "Onderaansluiting"}>
+                  <span className="min-w-0 flex-1 truncate">{sill.category ?? "Onderaansluiting"} · {sill.text}</span>
                   <button type="button" className="text-[11px] text-muted-foreground underline" data-testid="raamstudio-sill-remove" onClick={() => removeSill(String(index))}>Weg</button>
                 </li>
               )) : <li className="text-muted-foreground">Nog niets op de gevel.</li>}

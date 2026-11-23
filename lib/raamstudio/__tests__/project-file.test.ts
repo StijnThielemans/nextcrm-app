@@ -182,11 +182,38 @@ describe("RaamStudio workspace file", () => {
     expect(payload.dimensions).toEqual([{ number: "0.1", orientation: "width", value_mm: "1200", selection_index: -1 }]);
     expect(payload.project_details).toMatchObject({ seller: "Haegeman Robbe" });
     const restored = workspaceFromPayload(payload, plans);
-    expect(restored.sills).toEqual(placed.sills?.slice(0, 2));
+    expect(restored.sills).toEqual(placed.sills?.slice(0, 2).map((sill) => ({ ...sill, category: "Onderaansluiting" })));
     expect(restored.sizes).toEqual(draft.sizes);
     const turned = rotatePlanPage(placed, plans[1], 0, 90);
     expect(turned.sills?.[0]).toMatchObject({ x: 0.29, y: 0.42 });
     expect(turned.sizes).toEqual(draft.sizes);
+  });
+
+  it("keeps a deur, an extra and the other catalogs on the facade", () => {
+    const placed: WorkspaceDraft = {
+      ...draft,
+      sills: [
+        { text: "Rubber", planName: plans[1], page: 0, drawingName: "Voorgevel", x: 0.2, y: 0.3 },
+        { text: "Motorslot", category: "Deur", planName: plans[1], page: 0, drawingName: "Voorgevel", x: 0.4, y: 0.5 },
+        { text: "Screen", category: "Extra", planName: plans[1], page: 0, drawingName: "Voorgevel", x: 0.5, y: 0.6 },
+        { text: "Glas op glas hoek", category: "Hoek", planName: plans[1], page: 0, drawingName: "Voorgevel", x: 0.55, y: 0.62 },
+        { text: "Kruk+komgreep ZONDER cilinder", category: "Schuifraam", planName: plans[1], page: 0, drawingName: "Voorgevel", x: 0.6, y: 0.66 },
+        { text: "Opstap", category: "Eigen tekst", planName: plans[1], page: 0, drawingName: "Voorgevel", x: 0.7, y: 0.2 },
+        { text: "Verzonnen", category: "Deur", planName: plans[1], page: 0, drawingName: "Voorgevel", x: 0.1, y: 0.1 },
+      ],
+      customInfo: ["Opstap"],
+    };
+    const payload = buildRaamstudioPayload(prefill, placed, plans);
+    const restored = workspaceFromPayload(payload, plans);
+    expect(restored.sills?.map((sill) => sill.text)).toEqual([
+      "Rubber", "Motorslot", "Screen", "Glas op glas hoek", "Kruk+komgreep ZONDER cilinder", "Opstap",
+    ]);
+    expect(restored.sills?.map((sill) => sill.category)).toEqual([
+      "Onderaansluiting", "Deur", "Extra", "Hoek", "Schuifraam", "Eigen tekst",
+    ]);
+    expect(restored.sills?.[0]).toMatchObject({ x: 0.2, y: 0.3 });
+    expect(restored.customInfo).toEqual(["Opstap"]);
+    expect(payload.dimensions).toEqual([{ number: "0.1", orientation: "width", value_mm: "1200", selection_index: -1 }]);
   });
 
   it("keeps a dragged measure label and does not turn it into a new size", () => {

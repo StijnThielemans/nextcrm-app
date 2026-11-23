@@ -3,7 +3,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { clipViewRect, localPointInClip, pagePointInClip } from "@/lib/raamstudio/plan-edit";
 import { bucketPlanPixels, planViewPixels } from "@/lib/raamstudio/plan-pixels";
-import type { NormRect } from "@/lib/raamstudio/workspace-model";
+import { RAAMINFO_COLORS, type NormRect } from "@/lib/raamstudio/workspace-model";
 
 const MIN_ZOOM = 0.5;
 const MAX_ZOOM = 3;
@@ -48,6 +48,7 @@ export type ClipSill = {
   id: string;
   clipIndex: number;
   text: string;
+  category?: string;
   x: number;
   y: number;
 };
@@ -430,6 +431,7 @@ function ClipCard({
             const local = localPointInClip(view, sill.x, sill.y);
             if (!local.inside) return [];
             const at = sillDrag?.id === sill.id ? sillDrag : { x: local.x, y: local.y };
+            const colors = RAAMINFO_COLORS[sill.category ?? "Onderaansluiting"] ?? RAAMINFO_COLORS.Onderaansluiting;
             return [(
               <button
                 key={sill.id}
@@ -437,11 +439,15 @@ function ClipCard({
                 data-testid="raamstudio-sill"
                 data-sill-id={sill.id}
                 data-text={sill.text}
+                data-category={sill.category ?? "Onderaansluiting"}
                 data-x={sill.x}
                 data-y={sill.y}
+                data-line={colors.line}
+                data-pale={colors.pale}
+                data-ink={colors.text}
                 className="absolute z-30 -translate-x-1/2 -translate-y-1/2 cursor-grab touch-none whitespace-nowrap rounded-[3px] border px-1 py-px text-[11px] font-medium active:cursor-grabbing"
-                style={{ left: `${at.x * 100}%`, top: `${at.y * 100}%`, borderColor: "#1769aa", background: "#e2f0ff", color: "#104b7c" }}
-                title="Sleep de onderaansluiting."
+                style={{ left: `${at.x * 100}%`, top: `${at.y * 100}%`, borderColor: colors.line, background: colors.pale, color: colors.text }}
+                title="Sleep het label."
                 onPointerDown={(event) => {
                   event.stopPropagation();
                   event.preventDefault();

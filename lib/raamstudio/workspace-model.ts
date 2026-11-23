@@ -43,15 +43,25 @@ export const RAAMINFO_OPTIONS: Record<string, readonly string[]> = {
 /** WindowInfoWorkspace.OPTIONS_BY_CATEGORY["Onderaansluiting"], in the desktop order. */
 export const ONDERAANSLUITINGEN = RAAMINFO_OPTIONS.Onderaansluiting;
 
+/** WindowInfoWorkspace.CATEGORY_COLORS, in the same order as the desktop combo. */
+export const RAAMINFO_COLORS: Record<string, { line: string; pale: string; text: string }> = {
+  Onderaansluiting: { line: "#1769aa", pale: "#e2f0ff", text: "#104b7c" },
+  Deur: { line: "#bc5a13", pale: "#fff0df", text: "#7b3608" },
+  Extra: { line: "#23834b", pale: "#e5f7e9", text: "#155c32" },
+  Schuifraam: { line: "#bc5a13", pale: "#fff0df", text: "#7b3608" },
+  Hoek: { line: "#bc5a13", pale: "#fff0df", text: "#7b3608" },
+  "Eigen tekst": { line: "#7047a3", pale: "#f0e9fb", text: "#482878" },
+};
+
 /** WindowInfoWorkspace.CATEGORY_COLORS["Onderaansluiting"]. */
-export const SILL_COLORS = { line: "#1769aa", pale: "#e2f0ff", text: "#104b7c" } as const;
+export const SILL_COLORS = RAAMINFO_COLORS.Onderaansluiting;
 
 export const WORKSPACE_STEPS = [
   { id: "tekeningen", label: "Tekeningen", hint: "Sleep een kader rond een gevel, snede of grondplan en geef het een naam." },
   { id: "grondplan", label: "Grondplan", hint: "Alleen de grondplannen. Links staan de nummers. Klik op een grondplan om het volgende nummer te zetten." },
   { id: "gevels", label: "Gevels", hint: "Alleen gevels en snedes. Kies links een nummer van het grondplan en klik op de tekening." },
   { id: "maten", label: "Maten", hint: "Breedte van het grondplan, hoogte van de gevel. Een lege maat is niet gevonden." },
-  { id: "raaminfo", label: "Raaminfo", hint: "Zet een onderaansluiting op de gevel. Dezelfde mag vaker. Sleep ze op hun plaats." },
+  { id: "raaminfo", label: "Raaminfo", hint: "Kies bovenaan een catalogus en zet een stuk op de gevel. Dezelfde mag vaker. Sleep het label." },
 ] as const;
 
 export type WorkspaceStepId = (typeof WORKSPACE_STEPS)[number]["id"];
@@ -74,9 +84,11 @@ export type WorkspaceSize = { number: string; orientation: "width" | "height"; v
 /** Offset of a measure label from the window, as a fraction of the clip. Absent means the default place. */
 export type WorkspaceMeasurePlace = { number: string; orientation: "width" | "height"; dx: number; dy: number };
 export type WorkspaceRaaminfo = { number: string; category: string; text: string };
-/** One placed onderaansluiting. x and y are fractions of the PDF page, the same plane as a facade number. */
+/** One piece placed on a facade. x and y are fractions of the PDF page, the same plane as a facade number. */
 export type WorkspaceSill = {
   text: string;
+  /** Absent on older files. Those pieces are onderaansluitingen. */
+  category?: string;
   planName: string;
   page: number;
   drawingName: string;
@@ -97,6 +109,8 @@ export type WorkspaceDraft = {
   sizes: WorkspaceSize[];
   measurePlaces?: WorkspaceMeasurePlace[];
   sills?: WorkspaceSill[];
+  /** WindowInfoWorkspace custom texts. Empty stays off the file. */
+  customInfo?: string[];
   raaminfo: WorkspaceRaaminfo[];
   pageRotations: PageRotation[];
 };
@@ -561,12 +575,20 @@ export function normalizeDraft(draft: WorkspaceDraft, planNames: readonly string
     const planName = canonicalPlan(sill.planName, planNames);
     const drawingName = clean(sill.drawingName, 120);
     const text = clean(sill.text, 160);
+    const category = catalogOf(sill.category, text);
     const x = unit(sill.x);
     const y = unit(sill.y);
     const page = pageIndex(sill.page);
-    if (!planName || !drawingName || !text || x == null || y == null || page == null) continue;
-    if (!RAAMINFO_OPTIONS.Onderaansluiting.includes(text)) continue;
-    sills.push({ text, planName, page, drawingName, x, y });
+    if (!planName || !drawingName || !text || !category || x == null || y == null || page == null) continue;
+    sills.push({ text, category, planName, page, drawingName, x, y });
+  }
+  const customInfo: string[] = [];
+  const seenCustom = new Set<string>();
+  for (const value of (draft.customInfo ?? []).slice(0, LIMIT)) {
+    const text = clean(value, 160);
+    if (!text || seenCustom.has(text)) continue;
+    seenCustom.add(text);
+    customInfo.push(text);
   }
   const raaminfo: WorkspaceRaaminfo[] = [];
   for (const item of draft.raaminfo.slice(0, LIMIT)) {
@@ -590,7 +612,26 @@ export function normalizeDraft(draft: WorkspaceDraft, planNames: readonly string
     seenRotation.add(key);
     pageRotations.push({ planName, page, degrees });
   }
-  return { drawings, openings, facades, sizes, measurePlaces, sills, raaminfo, pageRotations };
+  return {
+    drawings,
+    openings,
+    facades,
+    sizes,
+    measurePlaces,
+    sills,
+    ...(customInfo.length ? { customInfo } : {}),
+    raaminfo,
+    pageRotations,
+  };
+}
+
+/** A piece belongs to one desktop catalog. A missing category stays an onderaansluiting. */
+function catalogOf(category: unknown, text: string): string | null {
+  if (!text) return null;
+  const named = typeof category === "string" ? clean(category, 40) : "";
+  const chosen = named && named in RAAMINFO_OPTIONS ? named : "Onderaansluiting";
+  if (chosen === "Eigen tekst") return chosen;
+  return RAAMINFO_OPTIONS[chosen].includes(text) ? chosen : null;
 }
 
 function projectType(group: string | null): "Nieuwbouw" | "Renovatie" | null {
@@ -704,7 +745,7 @@ export function buildRaamstudioPayload(
     ...(work.sills?.length ? {
       tilo_sills: work.sills.map((sill) => ({
         text: sill.text,
-        category: "Onderaansluiting",
+        category: sill.category ?? "Onderaansluiting",
         plan_name: sill.planName,
         page: sill.page,
         drawing_name: sill.drawingName,
@@ -719,9 +760,11 @@ export function buildRaamstudioPayload(
       selection_index: -1,
     })),
     window_info_sketches: [],
-    custom_window_info_options: work.raaminfo
-      .filter((item) => item.category === "Eigen tekst")
-      .map((item) => item.text),
+    custom_window_info_options: [...new Set([
+      ...(work.customInfo ?? []),
+      ...work.raaminfo.filter((item) => item.category === "Eigen tekst").map((item) => item.text),
+      ...(work.sills ?? []).filter((sill) => sill.category === "Eigen tekst").map((sill) => sill.text),
+    ])],
     active_floor: work.openings.at(-1)?.floor ?? "0",
     active_step: desktopStepIndex(step),
   };
@@ -854,7 +897,18 @@ export function mergeWorkspaceDraft(saved: WorkspaceDraft, local: WorkspaceDraft
       pageRotations.push(rotation);
     }
   }
-  return { drawings, openings, facades, sizes, measurePlaces, sills, raaminfo, pageRotations };
+  const customInfo = [...new Set([...(saved.customInfo ?? []), ...(local.customInfo ?? [])])];
+  return {
+    drawings,
+    openings,
+    facades,
+    sizes,
+    measurePlaces,
+    sills,
+    ...(customInfo.length ? { customInfo } : {}),
+    raaminfo,
+    pageRotations,
+  };
 }
 
 /** Restore a workspace from project.json. Unknown plans stay out. */
@@ -911,9 +965,13 @@ export function workspaceFromPayload(payload: unknown, planNames: readonly strin
     const y = unit(item.y);
     const page = pageIndex(item.page) ?? 0;
     if (!planName || !drawingName || !text || x == null || y == null) return [];
-    if (item.category != null && item.category !== "Onderaansluiting") return [];
-    if (!RAAMINFO_OPTIONS.Onderaansluiting.includes(text)) return [];
-    return [{ text, planName, page, drawingName, x, y }];
+    const category = catalogOf(item.category, text);
+    if (!category) return [];
+    return [{ text, category, planName, page, drawingName, x, y }];
+  });
+  const customInfo = (Array.isArray(payload.custom_window_info_options) ? payload.custom_window_info_options : []).flatMap((value) => {
+    const text = typeof value === "string" ? clean(value, 160) : "";
+    return text ? [text] : [];
   });
   const raaminfo: WorkspaceRaaminfo[] = records(payload.window_info_annotations).flatMap((item) => {
     const number = clean(item.number, 40);
@@ -932,5 +990,15 @@ export function workspaceFromPayload(payload: unknown, planNames: readonly strin
       return [{ planName, page, degrees }];
     });
   });
-  return normalizeDraft({ drawings, openings, facades, sizes, measurePlaces, sills, raaminfo, pageRotations }, planNames);
+  return normalizeDraft({
+    drawings,
+    openings,
+    facades,
+    sizes,
+    measurePlaces,
+    sills,
+    ...(customInfo.length ? { customInfo } : {}),
+    raaminfo,
+    pageRotations,
+  }, planNames);
 }
