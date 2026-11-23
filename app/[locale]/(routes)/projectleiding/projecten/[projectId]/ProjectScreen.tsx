@@ -13,6 +13,11 @@ function text(value: string | null | undefined) {
   return value?.trim() ?? "";
 }
 
+function planDate(value: string | null) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value ?? "");
+  return match ? `${match[3]}-${match[2]}-${match[1]}` : null;
+}
+
 function Cell({
   label,
   field,
@@ -199,46 +204,30 @@ function Flags({ p }: { p: SalesText }) {
   );
 }
 
-function ProjectTabPanels({
-  label,
-  tabs,
+function ProjectSections({
+  sections,
 }: {
-  label: string;
-  tabs: { id: string; label: string; content: ReactNode }[];
+  sections: { id: string; label: string; content: ReactNode }[];
 }) {
-  const rules = tabs
-    .map((tab) => `.project-tabs:has(#project-tab-${tab.id}:checked) [data-project-panel="${tab.id}"] { display: block; }`)
-    .join("\n");
   return (
-    <div className="project-tabs space-y-3">
-      <div className="tilo-frame overflow-hidden">
-        <div role="radiogroup" aria-label={label} data-testid="project-tabs" className="flex overflow-x-auto bg-white">
-          {tabs.map((tab, index) => (
-            <label
-              key={tab.id}
-              data-testid={`project-tab-${tab.id}`}
-              data-tab-index={index}
-              className="inline-flex shrink-0 cursor-pointer items-center whitespace-nowrap border-b-2 border-transparent bg-white px-2 py-2 text-[12.5px] font-medium text-muted-foreground has-[:checked]:border-[hsl(var(--tilo))] has-[:checked]:bg-[hsl(183_42%_96%)] has-[:checked]:text-[hsl(190_32%_22%)]"
-            >
-              <input
-                id={`project-tab-${tab.id}`}
-                className="sr-only"
-                type="radio"
-                name="project-screen-tab"
-                value={tab.id}
-                defaultChecked={index === 0}
-              />
-              {tab.label}
-            </label>
-          ))}
-        </div>
-      </div>
-      {tabs.map((tab) => (
-        <div key={tab.id} data-testid={`project-panel-${tab.id}`} data-project-panel={tab.id}>
-          {tab.content}
-        </div>
+    <div className="space-y-8" data-testid="project-sections">
+      {sections.map((section) => (
+        <section
+          key={section.id}
+          className="space-y-3"
+          data-testid={`project-section-${section.id}`}
+          aria-labelledby={`project-heading-${section.id}`}
+        >
+          <h2
+            id={`project-heading-${section.id}`}
+            className="flex items-center gap-2 border-b border-[hsl(215_16%_76%)] pb-1.5 text-[13px] font-semibold text-[hsl(190_32%_22%)]"
+          >
+            <span aria-hidden className="h-4 w-[3px] rounded-full bg-[hsl(var(--tilo))]" />
+            {section.label}
+          </h2>
+          <div data-testid={`project-panel-${section.id}`}>{section.content}</div>
+        </section>
       ))}
-      <style>{`.project-tabs [data-project-panel] { display: none; }\n${rules}`}</style>
     </div>
   );
 }
@@ -296,9 +285,8 @@ export async function ProjectScreen({ project }: { project: ProjectScreenData })
         </dl>
       </header>
 
-      <ProjectTabPanels
-        label={p("title")}
-        tabs={[
+      <ProjectSections
+        sections={[
           {
             id: "algemeen",
             label: p("tabs.algemeen"),
@@ -351,6 +339,14 @@ export async function ProjectScreen({ project }: { project: ProjectScreenData })
                   chassis={project.chassisWorkDays}
                   glass={project.glassWorkDays}
                 />
+                <section className="tilo-frame" data-testid="planning-dates">
+                  <dl className="tilo-cells grid-cols-2 lg:grid-cols-4">
+                    <TextCell label={p("planStartChassis")} field="plan-start-chassis" value={planDate(project.chassisPlanStart)} testId="plan-start-chassis" />
+                    <TextCell label={p("planEndChassis")} field="plan-end-chassis" value={planDate(project.chassisPlanEnd)} testId="plan-end-chassis" />
+                    <TextCell label={p("planStartGlass")} field="plan-start-glass" value={planDate(project.glassPlanStart)} testId="plan-start-glass" />
+                    <TextCell label={p("planEndGlass")} field="plan-end-glass" value={planDate(project.glassPlanEnd)} testId="plan-end-glass" />
+                  </dl>
+                </section>
                 <Remark title={p("remarkPlanning")} field="remark-planning" />
               </div>
             ),

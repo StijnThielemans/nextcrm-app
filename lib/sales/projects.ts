@@ -388,6 +388,11 @@ export type ProjectScreenData = {
   /** Whole days for later planning. Empty until someone fills them in. */
   chassisWorkDays: number | null;
   glassWorkDays: number | null;
+  /** Calendar span for chassis and glass. Empty until a job is placed. */
+  chassisPlanStart: string | null;
+  chassisPlanEnd: string | null;
+  glassPlanStart: string | null;
+  glassPlanEnd: string | null;
   projectGroup: string | null;
   priceRequestDate: string | null;
   customerId: string | null;
@@ -427,6 +432,10 @@ export async function getProjectScreen(user: AuthzUser, projectId: string): Prom
       project_leader: true,
       chassis_work_days: true,
       glass_work_days: true,
+      chassis_plan_start: true,
+      chassis_plan_end: true,
+      glass_plan_start: true,
+      glass_plan_end: true,
       project_group: true,
       architect_name: true,
       architect_external_id: true,
@@ -528,6 +537,10 @@ export async function getProjectScreen(user: AuthzUser, projectId: string): Prom
     projectLeader: row.project_leader,
     chassisWorkDays: row.chassis_work_days,
     glassWorkDays: row.glass_work_days,
+    chassisPlanStart: dateKey(row.chassis_plan_start),
+    chassisPlanEnd: dateKey(row.chassis_plan_end),
+    glassPlanStart: dateKey(row.glass_plan_start),
+    glassPlanEnd: dateKey(row.glass_plan_end),
     projectGroup: row.project_group,
     priceRequestDate: dayString(row.price_request_date) ?? dayString(row.request_date),
     customerId: account?.id ?? null,

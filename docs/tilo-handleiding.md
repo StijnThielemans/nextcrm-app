@@ -95,6 +95,8 @@ De lijst toont Projectnummer, Project-Nr, Projectbeschrijving, Klant en Verkoper
 
 De kop toont het projectnummer, het offertedossier, de klant en de verkoper. Zodra een projectleider is toegewezen, staat die naam er als **Projectleider**.
 
+Het projectscherm is één pagina zonder tabbladen: Algemeen tot Projectinhoud staan onder elkaar, met de werkdagen en de plandatums bij Planning.
+
 De tabbladen staan in deze volgorde:
 
 1. Algemeen
