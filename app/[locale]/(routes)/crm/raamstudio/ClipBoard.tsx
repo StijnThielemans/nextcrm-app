@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
-import { clipViewRect, localPointInClip, pagePointInClip } from "@/lib/raamstudio/plan-edit";
+import { useEffect, useLayoutEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { clipSourceRect, clipViewRect, localPointInClip, pagePointInClip } from "@/lib/raamstudio/plan-edit";
 import { bucketPlanPixels } from "@/lib/raamstudio/plan-pixels";
 import type { NormRect } from "@/lib/raamstudio/workspace-model";
 
@@ -150,16 +150,21 @@ function ClipCard({
   onMove?: (id: string, x: number, y: number) => void;
   onRemove?: (id: string) => void;
 }) {
-  const [ratio, setRatio] = useState<number | null>(null);
   const [zoom, setZoom] = useState(1);
   const [frameWidth, setFrameWidth] = useState(0);
   const [frameHeightPx, setFrameHeightPx] = useState(0);
   const [drag, setDrag] = useState<{ id: string; dx: number; dy: number } | null>(null);
   const [sillDrag, setSillDrag] = useState<{ id: string; x: number; y: number } | null>(null);
+  const [failed, setFailed] = useState(false);
+  const [paint, setPaint] = useState<{ pageKey: string; w: number; h: number; id: number } | null>(null);
   const frameRef = useRef<HTMLDivElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const bitmapRef = useRef<ImageBitmap | null>(null);
   const zoomAnchor = useRef<{ relX: number; relY: number; clientX: number; clientY: number } | null>(null);
   const view = clipViewRect(clip.rect);
-  const aspect = ratio ? (view.w / view.h) * ratio : null;
+  const pageKey = `${clip.planId}:${clip.page}`;
+  const ready = paint?.pageKey === pageKey ? paint : null;
+  const aspect = ready ? (view.w / view.h) * (ready.w / ready.h) : null;
   const innerWidth = Math.max(1, frameWidth - FRAME_PAD * 2);
   const innerHeight = Math.max(1, frameHeightPx - FRAME_PAD * 2);
   const naturalHeight = aspect ? innerWidth / aspect : innerWidth;
@@ -173,12 +178,51 @@ function ClipCard({
   useEffect(() => {
     const node = frameRef.current;
     if (!node) return;
-    const observer = new ResizeObserver(() => {
+    const measure = () => {
       setFrameWidth(node.clientWidth);
       setFrameHeightPx(node.clientHeight);
-    });
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
     observer.observe(node);
     return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    const planId = clip.planId;
+    const page = clip.page;
+    const key = `${planId}:${page}`;
+    if (!planId) return;
+    const controller = new AbortController();
+    void (async () => {
+      try {
+        const response = await fetch(
+          `/api/crm/raamstudio/plan-page?documentId=${encodeURIComponent(planId)}&page=${page + 1}&px=${pixels}`,
+          { signal: controller.signal },
+        );
+        if (!response.ok) throw new Error("render");
+        const bitmap = await createImageBitmap(await response.blob());
+        if (controller.signal.aborted) {
+          bitmap.close();
+          return;
+        }
+        const previous = bitmapRef.current;
+        bitmapRef.current = bitmap;
+        previous?.close();
+        setFailed(false);
+        setPaint((current) => ({ pageKey: key, w: bitmap.width, h: bitmap.height, id: (current?.id ?? 0) + 1 }));
+      } catch (error) {
+        if (controller.signal.aborted) return;
+        if (error instanceof DOMException && error.name === "AbortError") return;
+        setFailed(true);
+      }
+    })();
+    return () => controller.abort();
+  }, [clip.planId, clip.page, pageKey, pixels]);
+
+  useEffect(() => () => {
+    bitmapRef.current?.close();
+    bitmapRef.current = null;
   }, []);
 
   useEffect(() => {
@@ -192,6 +236,23 @@ function ClipCard({
     frame.scrollLeft = anchor.relX * sheet.offsetWidth - (anchor.clientX - rect.left);
     frame.scrollTop = anchor.relY * sheet.offsetHeight - (anchor.clientY - rect.top);
   }, [zoom, sheetWidth, sheetHeight]);
+
+  useLayoutEffect(() => {
+    const canvas = canvasRef.current;
+    const bitmap = bitmapRef.current;
+    if (!canvas || !bitmap || !ready) return;
+    const source = clipSourceRect(bitmap.width, bitmap.height, view);
+    const cssWidth = Math.max(1, sheetWidth);
+    const cssHeight = Math.max(1, sheetHeight);
+    const density = Math.min(2, Math.max(1, window.devicePixelRatio || 1));
+    canvas.width = Math.max(1, Math.round(cssWidth * density));
+    canvas.height = Math.max(1, Math.round(cssHeight * density));
+    const context = canvas.getContext("2d");
+    if (!context) return;
+    context.drawImage(bitmap, source.x, source.y, source.w, source.h, 0, 0, canvas.width, canvas.height);
+    canvas.dataset.bitmapWidth = String(bitmap.width);
+    canvas.dataset.bitmapHeight = String(bitmap.height);
+  }, [ready, view.x, view.y, view.w, view.h, sheetWidth, sheetHeight]);
 
   useEffect(() => {
     const onWheel = (event: WheelEvent) => {
@@ -257,31 +318,17 @@ function ClipCard({
       </div>
       <div ref={frameRef} className={fill ? "min-h-0 flex-1 overflow-auto" : "overflow-auto"} style={fill ? { padding: FRAME_PAD } : { height: aspect ? frameHeight : undefined, minHeight: aspect ? undefined : frameHeight, padding: FRAME_PAD }} data-testid="raamstudio-clip-scroll">
       <div className="relative overflow-hidden bg-neutral-100" style={{ width: sheetWidth, height: sheetHeight, marginInline: zoom <= 1 ? "auto" : undefined }} data-testid="raamstudio-clip-sheet" data-zoom={zoom}>
-        {/* The full page is shifted so this knipsel, plus a margin, fills the sheet. */}
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={`/api/crm/raamstudio/plan-page?documentId=${encodeURIComponent(clip.planId)}&page=${clip.page + 1}&px=${pixels}`}
-          alt={clip.name}
-          draggable={false}
-          className="pointer-events-none absolute max-w-none"
-          style={{
-            maxWidth: "none",
-            width: `${100 / view.w}%`,
-            height: `${100 / view.h}%`,
-            left: `${(-view.x / view.w) * 100}%`,
-            top: `${(-view.y / view.h) * 100}%`,
-          }}
-          ref={(node) => {
-            if (node?.complete && node.naturalWidth > 0 && node.naturalHeight > 0) {
-              setRatio(node.naturalWidth / node.naturalHeight);
-            }
-          }}
-          onLoad={(event) => {
-            const width = event.currentTarget.naturalWidth;
-            const height = event.currentTarget.naturalHeight;
-            if (width > 0 && height > 0) setRatio(width / height);
-          }}
+        <canvas
+          ref={canvasRef}
+          aria-label={clip.name}
+          data-testid="raamstudio-clip-bitmap"
+          className="pointer-events-none absolute inset-0 h-full w-full"
         />
+        {!ready ? (
+          <p className="absolute left-3 top-3 text-sm text-muted-foreground" data-testid="raamstudio-clip-loading">
+            {failed ? "De tekening kon niet worden geopend." : "Tekening laden…"}
+          </p>
+        ) : null}
         <div
           className="absolute inset-0"
           data-testid="raamstudio-clip-surface"

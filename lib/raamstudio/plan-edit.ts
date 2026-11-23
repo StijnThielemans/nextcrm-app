@@ -133,6 +133,22 @@ export function pagePointInClip(rect: NormRect, localX: number, localY: number):
   };
 }
 
+/** The part of a rendered page that belongs in the clip frame, in bitmap pixels. */
+export function clipSourceRect(
+  bitmapWidth: number,
+  bitmapHeight: number,
+  view: NormRect,
+): { x: number; y: number; w: number; h: number } {
+  const width = Math.max(1, bitmapWidth);
+  const height = Math.max(1, bitmapHeight);
+  return {
+    x: view.x * width,
+    y: view.y * height,
+    w: Math.max(1, view.w * width),
+    h: Math.max(1, view.h * height),
+  };
+}
+
 /** The selection plus a margin, still inside the page. The stored rectangle stays as it is. */
 export function clipViewRect(rect: NormRect, margin = 0.04): NormRect {
   const extraX = rect.w * margin;

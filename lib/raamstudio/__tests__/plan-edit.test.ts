@@ -1,5 +1,5 @@
 import { buildRaamstudioPayload, workspaceFromPayload, type DossierPrefill, type WorkspaceDraft } from "../workspace-model";
-import { clipViewRect, hitFrame, localPointInClip, moveNormRect, nextSharedNumber, pagePointInClip, reorderItems, resizeNormRect } from "../plan-edit";
+import { clipSourceRect, clipViewRect, hitFrame, localPointInClip, moveNormRect, nextSharedNumber, pagePointInClip, reorderItems, resizeNormRect } from "../plan-edit";
 
 const plans = ["plan.pdf"];
 const prefill: DossierPrefill = {
@@ -50,6 +50,24 @@ describe("plan frame editing", () => {
     expect(localPointInClip(rect, 0.4, 0.225).inside).toBe(true);
     expect(nextSharedNumber(["0.1", "0.2"], new Set(["0.1"]))).toBe("0.2");
     expect(nextSharedNumber(["0.1"], new Set(["0.1"]))).toBeNull();
+  });
+
+  it("keeps a marked ground plan inside the page bitmap that fills the frame", () => {
+    const stored = { x: 0.239, y: 0.3421, w: 0.1758, h: 0.581 };
+    const view = clipViewRect(stored);
+    const source = clipSourceRect(4096, 1276, view);
+    const marked = clipSourceRect(4096, 1276, stored);
+    expect(source.x).toBeGreaterThanOrEqual(0);
+    expect(source.y).toBeGreaterThanOrEqual(0);
+    expect(source.x + source.w).toBeLessThanOrEqual(4096.01);
+    expect(source.y + source.h).toBeLessThanOrEqual(1276.01);
+    expect(source.x).toBeLessThanOrEqual(marked.x);
+    expect(source.y).toBeLessThanOrEqual(marked.y);
+    expect(source.x + source.w).toBeGreaterThanOrEqual(marked.x + marked.w - 0.01);
+    expect(source.y + source.h).toBeGreaterThanOrEqual(marked.y + marked.h - 0.01);
+    expect(source.w).toBeGreaterThan(100);
+    expect(source.h).toBeGreaterThan(100);
+    expect(clipSourceRect(1000, 500, { x: 0, y: 0, w: 1, h: 1 })).toEqual({ x: 0, y: 0, w: 1000, h: 500 });
   });
 
   it("shows a margin around a clip without changing the stored frame", () => {
