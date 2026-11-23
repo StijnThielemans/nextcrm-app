@@ -131,6 +131,7 @@ function jobsOf(row: ProjectRow): PlanningJobDraft[] {
     glassEnd: dateKey(row.glass_plan_end),
     officeStart: dateKey(row.office_plan_start),
     officeEnd: dateKey(row.office_plan_end),
+    place: row.project_city?.trim() || null,
   });
 }
 
@@ -198,6 +199,7 @@ async function manualJobs(user: AuthzUser): Promise<PlanningJobDraft[]> {
       projectNumber,
       customer: dossier?.assigned_account?.name ?? null,
       address: siteAddress(dossier),
+      place: dossier?.project_city?.trim() || null,
       text: text || item.quote?.quote_number || projectNumber,
       workDays: 1,
       start: days[0] ?? null,

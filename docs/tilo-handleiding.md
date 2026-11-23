@@ -126,6 +126,8 @@ Kies in de kolom **Projectleider** één van de vijf projectleiders. Die naam wo
 
 In het menu **Planning** staan **Planning binnendienst**, **Planning buitendienst** en **Planning Dienst Na Verkoop**. Elke pagina is een weekkalender. Links staan de jobs die nog geen dag hebben.
 
+De drie agenda's tonen de week zoals Outlook: bovenaan Vandaag en de periode (bijvoorbeeld 23 - 29 november 2026), de dagen van maandag tot zondag, en een tijdraster van 6:00 tot 19:00. Een werf staat als gekleurd blok op de uren, standaard van 8:00 tot 16:00 als er geen kloktijd is. Blokken die elkaar overlappen staan naast elkaar, en dezelfde werf houdt haar kleur op elke dag.
+
 Een project met werkdagen komt vanzelf links. Chassis staat op buitendienst. Glas staat voorlopig ook op buitendienst, zolang het project geen splitsing heeft. Het projectnummer opent het project. Het adres opent Google Maps. Sleep de job op een dag: de plandatums zijn dat aantal werkdagen, maandag tot vrijdag, vanaf die dag (een weekend begint de maandag erna). Dezelfde job houdt één kleur over al die dagen. Jobs op dezelfde dag krijgen een andere kleur.
 
 Een dossier in Projectbox zonder werkdagen staat links bij binnendienst. Dienst Na Verkoop blijft leeg tot iemand zelf iets zet.

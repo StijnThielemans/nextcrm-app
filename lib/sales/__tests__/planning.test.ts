@@ -2,8 +2,15 @@ import {
   assignJobColors,
   boardForChassis,
   boardForGlass,
+  formatDayLong,
+  formatOutlookDayTitle,
+  formatWeekTitle,
   jobsFromProject,
+  layoutOverlapLanes,
   planSpan,
+  planningBlockTitle,
+  planningDisplaySpan,
+  planningPlace,
   spanDays,
   weekFromParam,
   workDaySpanUpdate,
@@ -115,5 +122,66 @@ describe("work-day span update", () => {
     expect(cleared.glassEnd).toBeNull();
     expect(cleared.chassisDays).toBe("clear");
     expect(cleared.clearOffice).toBe(false);
+  });
+});
+
+describe("outlook week grid", () => {
+  it("writes the week the way Outlook does", () => {
+    expect(formatWeekTitle("2026-11-23")).toBe("23 - 29 november 2026");
+    expect(formatWeekTitle("2026-11-30")).toBe("30 november - 6 december 2026");
+    expect(formatOutlookDayTitle("2026-11-23")).toBe("23 november 2026");
+    expect(formatDayLong("2026-11-23").weekday).toBe("maandag");
+    expect(formatDayLong("2026-11-29").weekday).toBe("zondag");
+  });
+
+  it("draws a dateless werf from 08:00 to 16:00 and does not store that clock", () => {
+    expect(planningDisplaySpan(null)).toEqual({ start: 8 * 60, end: 16 * 60, allDay: false });
+    expect(planningDisplaySpan({ startMinutes: 9 * 60, endMinutes: 11 * 60 })).toEqual({
+      start: 9 * 60,
+      end: 11 * 60,
+      allDay: false,
+    });
+    expect(planningDisplaySpan({ allDay: true }).allDay).toBe(true);
+  });
+
+  it("puts overlapping jobs side by side and a free job across the day", () => {
+    expect(layoutOverlapLanes([
+      { id: "a", start: 480, end: 960 },
+      { id: "b", start: 480, end: 960 },
+    ])).toEqual([
+      { id: "a", column: 0, columns: 2 },
+      { id: "b", column: 1, columns: 2 },
+    ]);
+    expect(layoutOverlapLanes([
+      { id: "a", start: 480, end: 600 },
+      { id: "b", start: 600, end: 960 },
+    ])).toEqual([
+      { id: "a", column: 0, columns: 1 },
+      { id: "b", column: 0, columns: 1 },
+    ]);
+    expect(layoutOverlapLanes([
+      { id: "a", start: 480, end: 900 },
+      { id: "b", start: 600, end: 700 },
+      { id: "c", start: 720, end: 960 },
+    ])).toEqual([
+      { id: "a", column: 0, columns: 2 },
+      { id: "b", column: 1, columns: 2 },
+      { id: "c", column: 1, columns: 2 },
+    ]);
+  });
+
+  it("shows the city and the chassis or glass label", () => {
+    expect(planningPlace(null, "Eeckhoutweg 1, 1785, Merchtem, BE")).toBe("Merchtem");
+    expect(planningPlace("Aalst", "Straat 1, Aalst")).toBe("Aalst");
+    expect(planningBlockTitle("chassis", 2, null)).toBe("Chassis · 2 werkdagen");
+    expect(planningBlockTitle("glass", 4, null)).toBe("Glas · 4 werkdagen");
+    expect(planningBlockTitle("manual", 1, "Bij Stef")).toBe("Bij Stef");
+    const jobs = jobsFromProject(project({
+      place: "Merchtem",
+      chassisWorkDays: 2,
+      chassisStart: "2026-11-24",
+      chassisEnd: "2026-11-25",
+    }));
+    expect(jobs[0]).toMatchObject({ place: "Merchtem", days: ["2026-11-24", "2026-11-25"] });
   });
 });

@@ -17,7 +17,16 @@ const ISO_DAY = /^(\d{4})-(\d{2})-(\d{2})$/;
 const JOB_ID = /^(chassis|glass|office|manual):([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
 
 const WEEKDAYS = ["zo", "ma", "di", "wo", "do", "vr", "za"] as const;
+const WEEKDAYS_LONG = ["zondag", "maandag", "dinsdag", "woensdag", "donderdag", "vrijdag", "zaterdag"] as const;
 const MONTHS = ["jan", "feb", "mrt", "apr", "mei", "jun", "jul", "aug", "sep", "okt", "nov", "dec"] as const;
+const MONTHS_LONG = ["januari", "februari", "maart", "april", "mei", "juni", "juli", "augustus", "september", "oktober", "november", "december"] as const;
+
+/** Visible Outlook ruler. These minutes are display-only and are never written back. */
+export const PLANNING_GRID_START = 6 * 60;
+export const PLANNING_GRID_END = 19 * 60;
+export const PLANNING_DAY_START = 8 * 60;
+export const PLANNING_DAY_END = 16 * 60;
+export const PLANNING_HOUR_PX = 48;
 
 export function boardForChassis(): PlanningBoardId {
   return "buitendienst";
@@ -126,17 +135,111 @@ export function formatDayParts(iso: string): { weekday: string; day: string; mon
   };
 }
 
+export function formatDayLong(iso: string): { weekday: string; day: string; month: string; year: string } {
+  const month = Number(iso.slice(5, 7));
+  return {
+    weekday: WEEKDAYS_LONG[weekdayIndex(iso)] ?? "",
+    day: String(Number(iso.slice(8, 10))),
+    month: MONTHS_LONG[month - 1] ?? "",
+    year: iso.slice(0, 4),
+  };
+}
+
+/** Outlook range, for example "23 - 29 november 2026". */
 export function formatWeekTitle(monday: string): string {
   const sunday = addDays(monday, 6);
-  const start = formatDayParts(monday);
-  const end = formatDayParts(sunday);
+  const start = formatDayLong(monday);
+  const end = formatDayLong(sunday);
   if (start.month === end.month && start.year === end.year) {
-    return `${start.day}–${end.day} ${start.month} ${start.year}`;
+    return `${start.day} - ${end.day} ${start.month} ${start.year}`;
   }
   if (start.year === end.year) {
-    return `${start.day} ${start.month} – ${end.day} ${end.month} ${start.year}`;
+    return `${start.day} ${start.month} - ${end.day} ${end.month} ${start.year}`;
   }
-  return `${start.day} ${start.month} ${start.year} – ${end.day} ${end.month} ${end.year}`;
+  return `${start.day} ${start.month} ${start.year} - ${end.day} ${end.month} ${end.year}`;
+}
+
+export function formatOutlookDayTitle(iso: string): string {
+  const day = formatDayLong(iso);
+  return `${day.day} ${day.month} ${day.year}`;
+}
+
+export function formatPlanningClock(minutes: number): string {
+  const hour = Math.floor(minutes / 60);
+  const minute = minutes % 60;
+  return `${hour}:${String(minute).padStart(2, "0")}`;
+}
+
+export function planningGridPx(): number {
+  return ((PLANNING_GRID_END - PLANNING_GRID_START) / 60) * PLANNING_HOUR_PX;
+}
+
+/**
+ * Where a job is drawn. Dates without a clock become 08:00–16:00 on screen only.
+ * Nothing here is stored.
+ */
+export function planningDisplaySpan(clock?: {
+  startMinutes?: number | null;
+  endMinutes?: number | null;
+  allDay?: boolean | null;
+} | null): { start: number; end: number; allDay: boolean } {
+  if (clock?.allDay) return { start: PLANNING_GRID_START, end: PLANNING_GRID_END, allDay: true };
+  const start = clock?.startMinutes;
+  const end = clock?.endMinutes;
+  if (typeof start === "number" && typeof end === "number" && end > start) {
+    const visibleStart = Math.max(PLANNING_GRID_START, Math.min(start, PLANNING_GRID_END - 15));
+    const visibleEnd = Math.min(PLANNING_GRID_END, Math.max(end, visibleStart + 15));
+    return { start: visibleStart, end: visibleEnd, allDay: false };
+  }
+  return { start: PLANNING_DAY_START, end: PLANNING_DAY_END, allDay: false };
+}
+
+export function planningPlace(place: string | null | undefined, address: string | null | undefined): string | null {
+  const city = place?.trim();
+  if (city) return city;
+  const parts = (address ?? "").split(",").map((part) => part.trim()).filter(Boolean);
+  if (!parts.length) return null;
+  const last = parts[parts.length - 1] ?? "";
+  if (parts.length >= 2 && /^[A-Za-z]{2}$/.test(last)) return parts[parts.length - 2] ?? null;
+  return last;
+}
+
+export function planningBlockTitle(kind: PlanningKind, workDays: number, text: string | null): string {
+  if (kind === "chassis") return workDays > 0 ? `Chassis · ${workDays} werkdagen` : "Chassis";
+  if (kind === "glass") return workDays > 0 ? `Glas · ${workDays} werkdagen` : "Glas";
+  const title = text?.trim();
+  if (title) return title;
+  if (kind === "office") return "Project";
+  return "Afspraak";
+}
+
+export type OverlapLane = { id: string; column: number; columns: number };
+
+/** Outlook overlap: jobs that share a clock range split the day into equal lanes. */
+export function layoutOverlapLanes(items: readonly { id: string; start: number; end: number }[]): OverlapLane[] {
+  const sorted = [...items].sort((a, b) => a.start - b.start || b.end - a.end || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  const placed: OverlapLane[] = [];
+  let cluster: { id: string; end: number; column: number }[] = [];
+  let clusterEnd = Number.NEGATIVE_INFINITY;
+
+  const flush = () => {
+    if (!cluster.length) return;
+    const columns = cluster.reduce((max, item) => Math.max(max, item.column), 0) + 1;
+    for (const item of cluster) placed.push({ id: item.id, column: item.column, columns });
+    cluster = [];
+    clusterEnd = Number.NEGATIVE_INFINITY;
+  };
+
+  for (const item of sorted) {
+    if (cluster.length && item.start >= clusterEnd) flush();
+    const used = new Set(cluster.filter((other) => other.end > item.start).map((other) => other.column));
+    let column = 0;
+    while (used.has(column)) column += 1;
+    cluster.push({ id: item.id, end: item.end, column });
+    clusterEnd = Math.max(clusterEnd, item.end);
+  }
+  flush();
+  return placed;
 }
 
 export function positiveWorkDays(value: number | null | undefined): number | null {
@@ -168,6 +271,7 @@ export type ProjectPlanningInput = {
   glassEnd: string | null;
   officeStart: string | null;
   officeEnd: string | null;
+  place?: string | null;
 };
 
 export type PlanningJobDraft = {
@@ -180,6 +284,12 @@ export type PlanningJobDraft = {
   address: string | null;
   text: string | null;
   workDays: number;
+  /** City, when the dossier has one. The full address stays on `address`. */
+  place: string | null;
+  /** Optional real clock, in minutes from midnight. Null means the 08:00–16:00 display block. */
+  startMinutes?: number | null;
+  endMinutes?: number | null;
+  allDay?: boolean;
   start: string | null;
   end: string | null;
   days: string[];
@@ -219,6 +329,7 @@ export function jobsFromProject(row: ProjectPlanningInput): PlanningJobDraft[] {
       customer: row.customer,
       address: row.address,
       text: null,
+      place: row.place?.trim() || null,
       workDays: chassis,
       start: row.chassisStart,
       end: row.chassisEnd,
@@ -234,6 +345,7 @@ export function jobsFromProject(row: ProjectPlanningInput): PlanningJobDraft[] {
       customer: row.customer,
       address: row.address,
       text: null,
+      place: row.place?.trim() || null,
       workDays: glass,
       start: row.glassStart,
       end: row.glassEnd,
@@ -249,6 +361,7 @@ export function jobsFromProject(row: ProjectPlanningInput): PlanningJobDraft[] {
       customer: row.customer,
       address: row.address,
       text: null,
+      place: row.place?.trim() || null,
       workDays: 1,
       start: row.officeStart,
       end: row.officeEnd,
@@ -310,14 +423,14 @@ export function workDaySpanUpdate(input: {
 
 /** Fixed TILO palette. A job keeps one color; jobs that share a day do not share that color. */
 export const PLANNING_PALETTE = [
-  { id: "teal", background: "#d7f3f1", border: "#008080", color: "#083838" },
-  { id: "clay", background: "#f8e6d6", border: "#b86a3d", color: "#4a2a14" },
-  { id: "ink", background: "#dce7f6", border: "#3d6494", color: "#1c334d" },
-  { id: "rose", background: "#f8dce4", border: "#a84b68", color: "#5a2436" },
-  { id: "moss", background: "#e4f0d4", border: "#5e7d34", color: "#2c4014" },
-  { id: "lilac", background: "#e8e0f6", border: "#6d56a0", color: "#322456" },
-  { id: "sand", background: "#f8efc4", border: "#9a7b16", color: "#4a3c08" },
-  { id: "stone", background: "#e7eaed", border: "#5c6b78", color: "#243038" },
+  { id: "teal", background: "#b7ebe4", border: "#0c7c76", color: "#08332f" },
+  { id: "clay", background: "#f8c9a4", border: "#c45c26", color: "#4a2410" },
+  { id: "ink", background: "#b7d4f8", border: "#2c5e9e", color: "#14283f" },
+  { id: "rose", background: "#f6b3c6", border: "#b4234e", color: "#4e1428" },
+  { id: "moss", background: "#c5e39a", border: "#4e7c24", color: "#24380e" },
+  { id: "lilac", background: "#d2c2f4", border: "#6946a8", color: "#2c1848" },
+  { id: "sand", background: "#ffe56b", border: "#c2960a", color: "#3f3204" },
+  { id: "stone", background: "#d7dee5", border: "#5c6b78", color: "#1e272e" },
 ] as const;
 
 export type PlanningColor = (typeof PLANNING_PALETTE)[number];
