@@ -9,7 +9,7 @@ Raamstudio 2.0 in de verkoopapp (Next.js), naast het bestaande `/crm/raamstudio`
 | Fase | Inhoud | Status |
 | --- | --- | --- |
 | 1 | Analysedocumenten (dit bestand + siblings), master spec placeholder | bezig |
-| 2 start | Navigatie Verkoop → Raamstudio 2.0, dossierselector, plannen uit dossier, hervatten `.tc-raam`, link Calculatie controleren → bestaand RaamStudio | eerste scherm live |
+| 2 start | Navigatie Verkoop → Raamstudio 2.0, dossierselector (nummer, klant, project, werf, verkoper, status), plannen uit map Plannen, calculatiepoort: verderwerken of nieuw project in bestaand RaamStudio | klaar |
 | 2 vervolg | Stappen: tekeningen, grondplan, gevels, maten, raaminfo — hergebruik `lib/raamstudio/` | gepland |
 | 3 | PDF-kwaliteit, self-learning, installatie zonder verkoopapp te breken | gepland |
 

@@ -8,13 +8,26 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { raamstudioDossierMatches } from "@/lib/raamstudio/dossier-list-search";
 import type { RaamstudioDossierOpen } from "@/lib/raamstudio/dossier-plans";
+import { raamstudio2Gate } from "@/lib/raamstudio/raamstudio2-gate";
+import { statusLabel } from "@/lib/sales/labels";
 
 export type Raamstudio2DossierChoice = {
   id: string;
   number: string | null;
   name: string | null;
   customer: string | null;
+  projectNumber: string | null;
+  site: string;
+  seller: string | null;
+  status: string;
 };
+
+const INACTIVE = [
+  "Automatische detectie",
+  "Maten uit de tekening",
+  "Nummering van gevels",
+  "Projectnotities.pdf",
+] as const;
 
 export function Raamstudio2Panel({
   dossiers,
@@ -28,11 +41,10 @@ export function Raamstudio2Panel({
   const router = useRouter();
   const [query, setQuery] = useState("");
   const visible = useMemo(() => dossiers.filter((row) => raamstudioDossierMatches(row, query)), [dossiers, query]);
-  const workFile = selected?.plans.find((plan) => plan.kind === "tc-raam") ?? null;
-  const planPdfs = selected?.plans.filter((plan) => plan.kind === "plan") ?? [];
+  const gate = selected ? raamstudio2Gate({ locked: selected.locked, plans: selected.plans }) : null;
 
   return (
-    <div className={cn("mx-auto flex w-full max-w-4xl flex-col gap-6")}>
+    <div className={cn("mx-auto flex w-full max-w-4xl flex-col gap-4")}>
       <section className="space-y-2">
         <div className="tilo-frame px-3 py-2">
           <h2 className="flex items-center gap-2 text-base font-medium tracking-[-0.02em]">
@@ -40,7 +52,7 @@ export function Raamstudio2Panel({
             Raamstudio 2.0
           </h2>
           <p className="mt-1 text-[13px] text-muted-foreground">
-            Kies een offertedossier. Plannen komen uit de bestaande mappen op het dossier. Het originele RaamStudio blijft beschikbaar.
+            Kies een offertedossier. Plannen komen uit de map Plannen van dat dossier. Het bestaande RaamStudio blijft beschikbaar.
           </p>
         </div>
         {!selected && (
@@ -48,7 +60,7 @@ export function Raamstudio2Panel({
             <Input
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="Zoek dossiernummer, klant …"
+              placeholder="Zoek nummer, klant, project, werf, verkoper of status"
               aria-label="Zoek dossier"
               className="h-9"
               data-testid="raamstudio-2-dossier-search"
@@ -63,10 +75,21 @@ export function Raamstudio2Panel({
                     data-testid={`raamstudio-2-pick-${row.id}`}
                   >
                     <span className="font-semibold">{row.number ?? "—"}</span>
-                    <span className="text-muted-foreground"> · {row.customer ?? row.name ?? "—"}</span>
+                    <span className="text-muted-foreground"> · {row.customer ?? "—"}</span>
+                    <span className="mt-0.5 block text-muted-foreground">
+                      {row.name ?? "—"}
+                      {row.projectNumber ? ` · ${row.projectNumber}` : ""}
+                      {" · "}
+                      {row.site || "geen werf"}
+                      {" · "}
+                      {row.seller ?? "geen verkoper"}
+                      {" · "}
+                      {row.status}
+                    </span>
                   </button>
                 </li>
               ))}
+              {visible.length === 0 ? <li className="text-[13px] text-muted-foreground">Geen dossier met die tekst.</li> : null}
             </ul>
           </>
         )}
@@ -74,36 +97,87 @@ export function Raamstudio2Panel({
 
       {missing && <p className="text-destructive">Dit dossier is niet zichtbaar of bestaat niet.</p>}
 
-      {selected && (
+      {selected && gate && (
         <Card className="space-y-4 p-4" data-testid="raamstudio-2-dossier-panel">
           <RegistrationSummary dossier={selected} />
+
           <section>
-            <h3 className="text-sm font-semibold">Plannen op dit dossier</h3>
-            {planPdfs.length === 0 ? (
-              <p className="text-[13px] text-muted-foreground">Geen plannen in de map Plannen of Calculatie.</p>
+            <h3 className="text-sm font-semibold">Plannen</h3>
+            {gate.planFiles.length === 0 ? (
+              <p className="text-[13px] text-muted-foreground">Geen plannen in de map Plannen.</p>
             ) : (
               <ul className="mt-2 space-y-1 text-[13px]">
-                {planPdfs.map((plan) => (
+                {gate.planFiles.map((plan) => (
                   <li key={plan.id} data-testid={`raamstudio-2-plan-${plan.id}`}>
-                    <span className="font-medium">{plan.folder}:</span> {plan.name}
+                    <a className="underline" href={`/api/documents/${plan.id}/file`} target="_blank" rel="noreferrer">
+                      {plan.name}
+                    </a>
+                    <span className="text-muted-foreground"> · map Plannen</span>
                   </li>
                 ))}
               </ul>
             )}
+            <p className="mt-1 text-[12px] text-muted-foreground">Originele plannen worden niet overschreven en niet opnieuw geüpload.</p>
           </section>
-          <section className="flex flex-wrap gap-2">
-            {workFile ? (
-              <Button asChild size="sm" data-testid="raamstudio-2-resume">
-                <Link href={`/crm/raamstudio?dossier=${selected.id}`}>Hervat werkbestand ({workFile.name})</Link>
-              </Button>
+
+          <section data-testid="raamstudio-2-calculatie">
+            <h3 className="text-sm font-semibold">Calculatie</h3>
+            {gate.calculatieFiles.length === 0 ? (
+              <p className="text-[13px] text-muted-foreground">Geen calculatie-PDF in de map Calculatie.</p>
             ) : (
-              <Button asChild size="sm" data-testid="raamstudio-2-start-calc">
-                <Link href={`/crm/raamstudio?dossier=${selected.id}`}>Calculatie controleren</Link>
-              </Button>
+              <ul className="mt-2 space-y-1 text-[13px]">
+                {gate.calculatieFiles.map((file) => (
+                  <li key={file.id}>
+                    <a className="underline" href={`/api/documents/${file.id}/file`} target="_blank" rel="noreferrer">
+                      {file.name}
+                    </a>
+                  </li>
+                ))}
+              </ul>
             )}
+            {gate.next === "resume" && gate.workFile ? (
+              <p className="mt-2 text-[13px]" data-testid="raamstudio-2-workfile">
+                Werkbestand {gate.workFile.name}. Verderwerken opent het bestaande RaamStudio.
+              </p>
+            ) : null}
+            {gate.next === "prepare" ? (
+              <p className="mt-2 text-[13px]" data-testid="raamstudio-2-prepare">
+                Nog geen werkbestand. Nieuw project voorbereiden opent RaamStudio op de plannen van dit dossier.
+              </p>
+            ) : null}
+            {gate.next === "closed" ? (
+              <p className="mt-2 text-[13px]" data-testid="raamstudio-2-closed">
+                Dit dossier is afgesloten. Er is geen werkbestand en er wordt geen nieuw project aangemaakt.
+              </p>
+            ) : null}
+          </section>
+
+          <section className="flex flex-wrap gap-2">
+            {gate.next === "resume" ? (
+              <Button asChild size="sm" data-testid="raamstudio-2-resume">
+                <Link href={`/crm/raamstudio?dossier=${selected.id}`}>Verderwerken</Link>
+              </Button>
+            ) : null}
+            {gate.next === "prepare" ? (
+              <Button asChild size="sm" data-testid="raamstudio-2-prepare-action">
+                <Link href={`/crm/raamstudio?dossier=${selected.id}`}>Nieuw project voorbereiden</Link>
+              </Button>
+            ) : null}
+            <Button asChild size="sm" variant="outline">
+              <Link href={`/crm/dossiers/${selected.id}`}>Dossier openen</Link>
+            </Button>
             <Button type="button" variant="outline" size="sm" onClick={() => router.push("/crm/raamstudio-2")}>
               Ander dossier
             </Button>
+          </section>
+
+          <section data-testid="raamstudio-2-inactive">
+            <h3 className="text-sm font-semibold">Nog niet actief</h3>
+            <ul className="mt-1 space-y-1 text-[13px] text-muted-foreground">
+              {INACTIVE.map((item) => (
+                <li key={item}>{item} — wacht op training</li>
+              ))}
+            </ul>
           </section>
         </Card>
       )}
@@ -112,19 +186,32 @@ export function Raamstudio2Panel({
 }
 
 function RegistrationSummary({ dossier }: { dossier: RaamstudioDossierOpen }) {
+  const project = [dossier.name, dossier.executionProjectNumber].filter(Boolean).join(" · ") || "—";
   return (
-    <dl className="grid gap-1 text-[13px] sm:grid-cols-2" data-testid="raamstudio-2-dossier-summary">
+    <dl className="grid gap-2 text-[13px] sm:grid-cols-2" data-testid="raamstudio-2-dossier-summary">
       <div>
-        <dt className="text-muted-foreground">Dossier</dt>
+        <dt className="text-muted-foreground">Nummer</dt>
         <dd className="font-semibold">{dossier.number ?? dossier.id}</dd>
       </div>
       <div>
         <dt className="text-muted-foreground">Klant</dt>
         <dd>{dossier.customer ?? "—"}</dd>
       </div>
-      <div className="sm:col-span-2">
+      <div>
+        <dt className="text-muted-foreground">Project</dt>
+        <dd>{project}</dd>
+      </div>
+      <div>
+        <dt className="text-muted-foreground">Status</dt>
+        <dd>{statusLabel(dossier.status)}</dd>
+      </div>
+      <div>
         <dt className="text-muted-foreground">Werf</dt>
         <dd>{dossier.siteAddress || "—"}</dd>
+      </div>
+      <div>
+        <dt className="text-muted-foreground">Verkoper</dt>
+        <dd>{dossier.seller ?? "—"}</dd>
       </div>
     </dl>
   );
