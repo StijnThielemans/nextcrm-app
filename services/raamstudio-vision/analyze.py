@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Read one PDF page and mark windows and doors.
 
-Text comes from pdfplumber, or Tesseract when the page has no text layer.
-Openings come from the CubiCasa5K floor-plan segmenter (window and door).
-pdfplumber and OpenCV rectangles are only used when that model is not installed.
+Text comes from pdfplumber, or Tesseract and PaddleOCR when the page has no
+text layer. On a facade or a floor plan the marks follow the drawing: a glass
+frame on the facade, parallel lines or a swing arc on the plan. The CubiCasa5K
+segmenter is only used when those symbols are not on the sheet.
 Nothing here invents a millimetre size.
 """
 
@@ -102,7 +103,16 @@ def openings_for_page(
     engines: list[str],
     opencv_left: int = 1,
 ) -> tuple[list[dict[str, Any]], list[str]]:
-    """Prefer CubiCasa5K window and door masks. Geometric boxes are the fallback."""
+    """Prefer the drawn window, door and sliding-window symbols."""
+    try:
+        from symbolen import read_symbols
+    except Exception:
+        read_symbols = None
+    if read_symbols is not None:
+        seen = read_symbols(data, page_no, words)
+        if seen.get("ok") and seen.get("boxes"):
+            engines.append("symbolen")
+            return with_archnet(data, page_no, seen["boxes"], engines)
     try:
         from floorplan_windows import read_floorplan
     except Exception:

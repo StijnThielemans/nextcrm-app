@@ -12,7 +12,7 @@ Raamstudio 2.0 in de verkoopapp (Next.js), naast het bestaande `/crm/raamstudio`
 | 2 start | Navigatie Verkoop → Raamstudio 2.0, dossierselector, plannen uit map Plannen, calculatiepoort | klaar |
 | 2 vervolg | Eigen werkruimte: tekeningen, grondplan, gevels, maten, raaminfo, ramenstaat, nummering, fluoriseren, opslag als `.raamstudio` | klaar |
 | 3 | Projectnotities.pdf via pdf-lib, tekstlaag via pdf.js, PDF-kwaliteit | klaar |
-| 4 | Vloerplanmodel voor ramen en deuren, tekst via pdfplumber en Tesseract. Openingen blijven te controleren | bezig |
+| 4 | Gevelkader, schuifraam en deur volgens de tekenafspraak. Grondplanraam zonder lijnbundel nog open. Openingen blijven te controleren | bezig |
 
 ## Randvoorwaarden
 
