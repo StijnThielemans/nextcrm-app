@@ -59,6 +59,8 @@ export type RaamstudioDossierOpen = {
   contact: string;
   seller: string | null;
   projectGroup: string | null;
+  status: string | null;
+  executionProjectNumber: string | null;
   locked: boolean;
   plans: DossierPlanFile[];
 };
@@ -75,6 +77,8 @@ export async function raamstudioPlansForDossier(user: AuthzUser, dossierId: stri
     contact: [dossier.customer.phone, dossier.customer.mobile].filter(Boolean).join(" · "),
     seller: dossier.seller,
     projectGroup: dossier.projectGroup,
+    status: dossier.status,
+    executionProjectNumber: dossier.executionProjectNumber,
     locked: dossier.terminal,
     plans: plansOnDossier(dossier.documents),
   };

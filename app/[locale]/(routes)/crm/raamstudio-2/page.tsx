@@ -1,8 +1,18 @@
 import Container from "@/app/[locale]/(routes)/components/ui/Container";
 import { requireAuthenticated } from "@/lib/authz";
 import { raamstudioPlansForDossier } from "@/lib/raamstudio/dossier-plans";
+import { statusLabel } from "@/lib/sales/labels";
 import { listDossiers } from "@/lib/sales/service";
 import { Raamstudio2Panel } from "./Raamstudio2Panel";
+
+function siteOf(row: {
+  projectStreet: string | null;
+  projectPostalCode: string | null;
+  projectCity: string | null;
+  projectCountry: string | null;
+}): string {
+  return [row.projectStreet, row.projectPostalCode, row.projectCity, row.projectCountry].filter(Boolean).join(", ");
+}
 
 export default async function Raamstudio2Page({
   searchParams,
@@ -22,6 +32,10 @@ export default async function Raamstudio2Page({
           number: row.number,
           name: row.name,
           customer: row.customer,
+          projectNumber: row.executionProjectNumber,
+          site: siteOf(row),
+          seller: row.seller,
+          status: statusLabel(row.status),
         }))}
         selected={selected}
         missing={Boolean(dossierId) && !selected}
