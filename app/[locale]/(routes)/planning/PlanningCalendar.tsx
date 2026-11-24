@@ -463,13 +463,11 @@ function MonthChip({
     id: `slot:${job.id}:${day}`,
     data: { type: "slot", jobId: job.id, day },
   });
-  const suppressClick = useContext(SuppressClick);
-  const label = job.projectNumber ?? planningBlockTitle(job.kind, job.workDays, job.text);
   const names = assignments.flatMap((item) => {
     const person = planningCrewById(item.resource);
     return person ? [person.name] : [];
   });
-  const caption = [planningBlockTitle(job.kind, job.workDays, job.text), ...names].filter(Boolean).join(" · ");
+  const caption = [planningBlockTitle(job.kind, job.workDays, job.text), job.customer, ...names].filter(Boolean).join(" · ");
   return (
     <article
       ref={(node) => {
@@ -483,32 +481,13 @@ function MonthChip({
       data-kind={job.kind}
       data-color={job.color.id}
       className={cn(
-        "truncate rounded-[2px] border border-l-[3px] px-1 text-[10px] leading-4",
+        "rounded-[2px] border border-l-[3px] px-1 py-0.5 text-[11px] leading-tight",
         drag.isDragging && "opacity-40",
         drop.isOver && "ring-2 ring-[#008080]",
       )}
       style={{ background: job.color.background, borderColor: job.color.border, color: job.color.color }}
     >
-      {job.projectId && job.projectNumber ? (
-        <Link
-          href={`/projectleiding/projecten/${job.projectId}`}
-          draggable={false}
-          className="font-semibold underline decoration-current underline-offset-2"
-          onPointerDown={holdClick}
-          onClick={(event) => {
-            if (suppressClick.current) event.preventDefault();
-          }}
-        >
-          {label}
-        </Link>
-      ) : (
-        <span>{label}</span>
-      )}
-      {job.kind === "manual" && (
-        <button type="button" className="ml-1 underline" onPointerDown={holdClick} onClick={() => onDelete(job.id)}>
-          Verwijder
-        </button>
-      )}
+      <BlockText job={job} compact onDelete={onDelete} />
     </article>
   );
 }
@@ -610,10 +589,11 @@ function DayColumn({
           {allDay.map((job) => (
             <span
               key={job.id}
-              className="max-w-full truncate rounded-[2px] border px-1 text-[11px] leading-5"
+              className="inline-flex max-w-full items-baseline gap-1 truncate rounded-[2px] border px-1 text-[11px] leading-5"
               style={{ background: job.color.background, borderColor: job.color.border, color: job.color.color }}
             >
-              {planningBlockTitle(job.kind, job.workDays, job.text)}
+              {job.projectNumber && <span className="font-semibold">{job.projectNumber}</span>}
+              <span className="truncate">{[kindWord(job.kind), daysWord(job)].filter(Boolean).join(" · ") || planningBlockTitle(job.kind, job.workDays, job.text)}</span>
             </span>
           ))}
         </div>
@@ -704,7 +684,7 @@ function TimeBlock({
       data-lane={lane.column}
       data-lanes={lane.columns}
       className={cn(
-        "absolute z-10 flex cursor-grab flex-col overflow-visible rounded-[2px] border border-l-[3px] px-1 py-0.5 text-[11px] leading-[1.2]",
+        "absolute z-10 flex cursor-grab flex-col gap-1 overflow-y-auto rounded-[2px] border border-l-[3px] px-1.5 py-1 text-[12px] leading-tight",
         drag.isDragging && "opacity-40",
         drop.isOver && "ring-2 ring-[#008080]",
       )}
@@ -718,55 +698,73 @@ function TimeBlock({
         color: job.color.color,
       }}
     >
-      <BlockText job={job} wrap onDelete={onDelete} />
+      <BlockText job={job} onDelete={onDelete} />
       <CrewInBlock assignments={assignments} onRemoveCrew={onRemoveCrew} />
     </article>
   );
 }
 
+function kindWord(kind: PlanningJobView["kind"]): string | null {
+  if (kind === "chassis") return "Chassis";
+  if (kind === "glass") return "Glas";
+  if (kind === "office") return "Project";
+  return null;
+}
+
+function daysWord(job: PlanningJobView): string | null {
+  if ((job.kind === "chassis" || job.kind === "glass") && job.workDays > 0) return `${job.workDays} werkdagen`;
+  return null;
+}
+
 function BlockText({
   job,
-  wrap = false,
+  compact = false,
   onDelete,
 }: {
   job: PlanningJobView;
-  wrap?: boolean;
+  compact?: boolean;
   onDelete?: (jobId: string) => void;
 }) {
   const place = planningPlace(job.place, job.address);
   const maps = googleMapsSearchUrl(job.address || place);
-  const title = planningBlockTitle(job.kind, job.workDays, job.text);
-  const suppressClick = useContext(SuppressClick);
-  const clip = wrap ? "whitespace-normal break-normal" : "truncate";
+  const kind = kindWord(job.kind);
+  const days = daysWord(job);
+  const note = job.text?.trim() || null;
+  const headline = job.projectNumber ?? note ?? planningBlockTitle(job.kind, job.workDays, job.text);
+  const line = compact ? "truncate" : "break-words";
+  const second = [place, days].filter(Boolean).join(" · ");
   return (
-    <div className="min-w-0">
-      {job.projectId && job.projectNumber && (
-        <Link
-          href={`/projectleiding/projecten/${job.projectId}`}
-          data-testid={`planning-project-${job.id}`}
-          draggable={false}
-          className={cn("block font-semibold underline decoration-current underline-offset-2", clip)}
-          onPointerDown={holdClick}
-          onClick={(event) => {
-            if (suppressClick.current) event.preventDefault();
-          }}
-        >
-          {job.projectNumber}
-        </Link>
-      )}
-      {job.customer && <div className={clip}>{job.customer}</div>}
-      {place && (maps ? (
-        <MapsAnchor href={maps} testId={`planning-address-${job.id}`} className={cn("block", clip)}>
-          {place}
-        </MapsAnchor>
+    <div className={cn("flex min-w-0 flex-col", compact ? "gap-px" : "gap-0.5")}>
+      <div className={cn("flex gap-x-1.5", compact ? "items-baseline justify-between" : "flex-wrap items-baseline")}>
+        <div className={cn("min-w-0 font-semibold", compact && "flex-1", line)}>
+          {job.projectId && job.projectNumber ? (
+            <ProjectLink job={job}>{job.projectNumber}</ProjectLink>
+          ) : (
+            headline
+          )}
+        </div>
+        {kind && <span className="shrink-0 text-[10px] font-semibold uppercase leading-tight tracking-wide">{kind}</span>}
+      </div>
+      {compact ? (
+        (second || job.customer) && <div className="truncate text-[10px] leading-tight">{second || job.customer}</div>
       ) : (
-        <div className={clip}>{place}</div>
-      ))}
-      <div className={clip}>{title}</div>
+        <>
+          {job.customer && <div className={line}>{job.customer}</div>}
+          {place && (maps ? (
+            <MapsAnchor href={maps} testId={`planning-address-${job.id}`} className={cn("block", line)}>
+              {place}
+            </MapsAnchor>
+          ) : (
+            <div className={line}>{place}</div>
+          ))}
+          {job.projectNumber && note && <div className={line}>{note}</div>}
+          {days && <div className={line}>{days}</div>}
+        </>
+      )}
       {job.kind === "manual" && onDelete && (
         <button
           type="button"
-          className="mt-0.5 underline"
+          className="mt-0.5 self-start underline"
           onPointerDown={holdClick}
           onClick={() => onDelete(job.id)}
         >
@@ -774,6 +772,24 @@ function BlockText({
         </button>
       )}
     </div>
+  );
+}
+
+function ProjectLink({ job, children }: { job: PlanningJobView; children: string }) {
+  const suppressClick = useContext(SuppressClick);
+  return (
+    <Link
+      href={`/projectleiding/projecten/${job.projectId}`}
+      data-testid={`planning-project-${job.id}`}
+      draggable={false}
+      className="underline decoration-current underline-offset-2"
+      onPointerDown={holdClick}
+      onClick={(event) => {
+        if (suppressClick.current) event.preventDefault();
+      }}
+    >
+      {children}
+    </Link>
   );
 }
 
@@ -852,7 +868,7 @@ function ListJob({ job, onDelete }: { job: PlanningJobView; onDelete: (jobId: st
       data-testid={`planning-job-${job.id}`}
       data-kind={job.kind}
       data-color={job.color.id}
-      className={cn("w-full cursor-grab rounded-[2px] border border-l-[3px] px-2 py-1.5 text-[12px] leading-snug", isDragging && "opacity-40")}
+      className={cn("w-full cursor-grab rounded-[2px] border border-l-[3px] px-2 py-1.5 text-[13px] leading-snug", isDragging && "opacity-40")}
       style={{ background: job.color.background, borderColor: job.color.border, color: job.color.color }}
     >
       <BlockText job={job} />
@@ -1004,12 +1020,12 @@ function CrewInBlock({
           data-testid={`planning-assignment-${item.id}`}
           title={person.name}
           aria-label={`Haal ${person.name} van deze dag`}
-          className="flex w-full items-center gap-1 text-left"
+          className="flex min-w-0 max-w-full items-center gap-1 text-left"
           onPointerDown={holdClick}
           onClick={() => onRemoveCrew(item.id)}
         >
-          <CrewPortrait person={person} size={40} />
-          <span className="min-w-0 flex-1 text-[12px] font-semibold leading-tight">{person.name}</span>
+          <CrewPortrait person={person} size={32} />
+          <span className="min-w-0 break-words text-[11px] font-semibold leading-tight">{person.name}</span>
         </button>
       ))}
     </div>
