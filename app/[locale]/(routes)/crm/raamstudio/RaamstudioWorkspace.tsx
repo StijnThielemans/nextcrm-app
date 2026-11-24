@@ -820,10 +820,10 @@ export function RaamstudioWorkspace({
             <span className="font-medium" data-testid="raamstudio-dossier-selected">{shortDossierNumber(dossier.number)}</span>
             <span className="text-muted-foreground"> · {dossier.name ?? "Zonder projectbeschrijving"}</span>
           </Link>
-          <label className="flex items-center gap-1 text-[11px] text-muted-foreground">
+          <label className="flex min-w-0 flex-wrap items-center gap-1 text-sm text-muted-foreground md:text-[11px]">
             Ander dossier
             <select
-              className="h-7 max-w-[14rem] rounded-md border border-input bg-card px-1.5 text-xs text-foreground"
+              className="h-11 max-w-full rounded-md border border-input bg-card px-2 text-base text-foreground md:h-7 md:max-w-[14rem] md:px-1.5 md:text-xs"
               value={dossier.id}
               aria-label="Ander dossier"
               data-testid="raamstudio-dossier-switch"
@@ -841,15 +841,15 @@ export function RaamstudioWorkspace({
               ))}
             </select>
           </label>
-          <Button type="button" size="sm" className="h-7 px-2 text-xs" onClick={() => void save()} disabled={saving || dossier.locked} data-testid="raamstudio-save">
+          <Button type="button" size="sm" className="h-11 px-3 text-sm md:h-7 md:px-2 md:text-xs" onClick={() => void save()} disabled={saving || dossier.locked} data-testid="raamstudio-save">
             {saving ? "Opslaan…" : "Opslaan"}
           </Button>
-          <p className="min-w-0 truncate text-[11px] text-muted-foreground" data-testid="raamstudio-status">{status}</p>
+          <p className="min-w-0 text-sm text-muted-foreground md:truncate md:text-[11px]" data-testid="raamstudio-status">{status}</p>
           <div className="ml-auto flex gap-1">
-            <Button type="button" size="sm" variant="outline" className="h-7 px-2 text-xs" disabled={stepIndex <= 0} onClick={() => go(WORKSPACE_STEPS[stepIndex - 1].id)}>
+            <Button type="button" size="sm" variant="outline" className="h-11 px-3 text-sm md:h-7 md:px-2 md:text-xs" disabled={stepIndex <= 0} onClick={() => go(WORKSPACE_STEPS[stepIndex - 1].id)}>
               ← Vorige
             </Button>
-            <Button type="button" size="sm" className="h-7 px-2 text-xs" disabled={stepIndex >= WORKSPACE_STEPS.length - 1} onClick={() => go(WORKSPACE_STEPS[stepIndex + 1].id)}>
+            <Button type="button" size="sm" className="h-11 px-3 text-sm md:h-7 md:px-2 md:text-xs" disabled={stepIndex >= WORKSPACE_STEPS.length - 1} onClick={() => go(WORKSPACE_STEPS[stepIndex + 1].id)}>
               Volgende →
             </Button>
           </div>
@@ -860,7 +860,7 @@ export function RaamstudioWorkspace({
               key={item.id}
               type="button"
               className={cn(
-                "min-w-0 flex-1 rounded-md px-2 py-1 text-[11px]",
+                "shrink-0 whitespace-nowrap rounded-md px-3 py-2.5 text-sm md:min-w-0 md:flex-1 md:px-2 md:py-1 md:text-[11px]",
                 step === item.id ? "bg-[hsl(var(--tilo))] text-white" : "hover:bg-accent",
               )}
               aria-pressed={step === item.id}

@@ -47,7 +47,7 @@ export function ProjectboxList({ rows }: { rows: ProjectboxRow[] }) {
   return (
     <div className="tilo-frame overflow-x-auto" data-testid="projectbox">
       {error && <p className="px-4 pt-3 text-sm text-destructive" role="alert">{error}</p>}
-      <table className="tilo-grid w-full text-sm">
+      <table className="tilo-grid w-full min-w-[52rem] text-base md:min-w-0 md:text-sm">
         <thead>
           <tr className="text-left text-xs font-medium text-muted-foreground">
             <th className="px-4 py-2 font-medium">{t("executionProjectNumber")}</th>
@@ -79,7 +79,7 @@ export function ProjectboxList({ rows }: { rows: ProjectboxRow[] }) {
                   <label className="sr-only" htmlFor={`leader-${row.id}`}>{t("projectScreen.projectLeader")}</label>
                   <select
                     id={`leader-${row.id}`}
-                    className="h-8 max-w-full rounded-full border border-border bg-white px-3 text-sm"
+                    className="h-11 max-w-full rounded-full border border-border bg-white px-3 text-base md:h-8 md:text-sm"
                     data-testid="projectbox-leader"
                     value={leaders[row.id] ?? ""}
                     disabled={pendingId === row.id}
@@ -94,7 +94,7 @@ export function ProjectboxList({ rows }: { rows: ProjectboxRow[] }) {
                   </select>
                   <button
                     type="button"
-                    className="h-8 shrink-0 rounded-full bg-[hsl(var(--tilo))] px-3 text-sm font-medium text-[hsl(190_28%_14%)] disabled:opacity-50"
+                    className="h-11 shrink-0 rounded-full bg-[hsl(var(--tilo))] px-3 text-base font-medium text-[hsl(190_28%_14%)] disabled:opacity-50 md:h-8 md:text-sm"
                     data-testid="projectbox-save"
                     disabled={pendingId === row.id || !leaders[row.id]}
                     onClick={() => {

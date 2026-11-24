@@ -52,7 +52,7 @@ export function Raamstudio2Panel({
             <span aria-hidden className="h-4 w-[3px] rounded-full bg-[hsl(var(--tilo))]" />
             Raamstudio 2.0
           </h2>
-          <p className="mt-1 text-[13px] text-muted-foreground">
+          <p className="mt-1 text-sm text-muted-foreground md:text-[13px]">
             Kies een offertedossier. Plannen komen uit de map Plannen. Het project wordt een nieuw .raamstudio-bestand.
           </p>
         </div>
@@ -63,7 +63,7 @@ export function Raamstudio2Panel({
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Zoek nummer, klant, project, werf, verkoper of status"
               aria-label="Zoek dossier"
-              className="h-9"
+              className="h-11 text-base md:h-9 md:text-sm"
               data-testid="raamstudio-2-dossier-search"
             />
             <ul className="grid gap-2" data-testid="raamstudio-2-dossier-list">
@@ -71,7 +71,7 @@ export function Raamstudio2Panel({
                 <li key={row.id}>
                   <button
                     type="button"
-                    className="tilo-frame w-full px-3 py-2 text-left text-[13px] hover:bg-accent/40"
+                    className="tilo-frame w-full px-3 py-3 text-left text-base hover:bg-accent/40 md:py-2 md:text-[13px]"
                     onClick={() => router.push(`/crm/raamstudio-2?dossier=${row.id}`)}
                     data-testid={`raamstudio-2-pick-${row.id}`}
                   >
@@ -90,7 +90,7 @@ export function Raamstudio2Panel({
                   </button>
                 </li>
               ))}
-              {visible.length === 0 ? <li className="text-[13px] text-muted-foreground">Geen dossier met die tekst.</li> : null}
+              {visible.length === 0 ? <li className="text-base text-muted-foreground md:text-[13px]">Geen dossier met die tekst.</li> : null}
             </ul>
           </>
         )}

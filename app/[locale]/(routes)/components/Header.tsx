@@ -31,12 +31,15 @@ type Props = {
  */
 const Header = ({ id, lang }: Props) => {
   return (
-    <div className="flex h-14 shrink-0 items-center justify-between gap-3 border-b border-[hsl(215_16%_84%)] bg-card px-4 lg:px-8">
-      <div className="flex min-w-0 items-center gap-2">
-        <SidebarTrigger className="-ml-1 text-muted-foreground" />
+    <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-[hsl(215_16%_84%)] bg-card px-2 py-2 md:h-14 md:flex-nowrap md:gap-3 md:px-4 md:py-0 lg:px-8">
+      <SidebarTrigger
+        className="h-11 w-auto shrink-0 gap-1.5 px-2.5 text-foreground md:size-7 md:px-0 md:text-muted-foreground"
+        aria-label="Menu"
+      />
+      <div className="order-3 min-w-0 w-full md:order-none md:w-auto md:flex-1">
         <FulltextSearch />
       </div>
-      <div className="flex items-center gap-1">
+      <div className="ml-auto flex items-center gap-1">
         <CommandComponent />
         <SetLanguage userId={id} />
         <ThemeToggle />

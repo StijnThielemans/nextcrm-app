@@ -22,8 +22,8 @@ function followUpLabel(channel: string, t: SalesText) {
 function Field({ label, children, testId }: { label: string; children: ReactNode; testId?: string }) {
   return (
     <div className="min-w-0 px-4 py-3" data-testid={testId}>
-      <dt className="text-[0.72rem] text-muted-foreground">{label}</dt>
-      <dd className="mt-1 text-sm leading-snug">{children}</dd>
+      <dt className="text-sm text-muted-foreground md:text-[0.72rem]">{label}</dt>
+      <dd className="mt-1 text-base leading-snug md:text-sm">{children}</dd>
     </div>
   );
 }
@@ -72,7 +72,7 @@ function ProjectCard({ project, t }: { project: ProjectBoardRow; t: SalesText })
       data-dossier-number={project.dossierNumber ?? ""}
     >
       <header className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-border px-4 py-3">
-        <h2 className="flex min-w-0 flex-wrap items-center gap-x-2 text-sm font-medium">
+        <h2 className="flex min-w-0 flex-wrap items-center gap-x-2 text-base font-medium md:text-sm">
           <span aria-hidden className="h-3 w-[3px] shrink-0 rounded-full bg-[hsl(var(--tilo))]" />
           <Link className="tabular-nums underline-offset-4 hover:underline" href={`/projectleiding/projecten/${project.id}`} data-testid="project-number">
             {project.projectNumber}

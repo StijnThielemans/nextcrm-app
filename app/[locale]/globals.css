@@ -324,3 +324,25 @@ section:has(> [data-testid="raamstudio-dossiers"]) {
 [data-testid="raamstudio-positions"] td:last-child {
   border-right: none;
 }
+
+/* Phone: menu rows are tappable, week columns keep a readable width, and the page does not shrink type to fit. */
+@media (max-width: 767px) {
+  [data-mobile="true"] [data-sidebar="menu-button"] {
+    height: 2.75rem;
+    font-size: 1rem;
+  }
+
+  [data-mobile="true"] [data-sidebar="menu-sub-button"] {
+    height: auto;
+    min-height: 2.75rem;
+    font-size: 1rem;
+  }
+
+  [data-testid="planning-scroll"] {
+    --planning-day: 17rem;
+  }
+
+  [data-mobile-app] .tilo-cells.grid-cols-2 {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

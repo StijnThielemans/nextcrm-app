@@ -112,8 +112,8 @@ function Fact({
 }) {
   return (
     <p className="flex flex-col gap-px leading-tight" data-testid={testId} data-dossier-status={status}>
-      <span className="text-[0.72rem] leading-tight text-muted-foreground">{label}</span>
-      <span className="text-[0.95rem] leading-tight">{children}</span>
+      <span className="text-sm leading-snug text-muted-foreground md:text-[0.72rem] md:leading-tight">{label}</span>
+      <span className="text-base leading-snug md:text-[0.95rem] md:leading-tight">{children}</span>
     </p>
   );
 }
@@ -545,8 +545,8 @@ export function DossierPanel({
 
   return (
     <div className="space-y-4">
-      <section className="@container tilo-frame flex min-w-0 items-center gap-x-1.5 px-2 py-1.5" aria-label={t("status")} data-testid="dossier-bar">
-        <h2 className="flex shrink-0 items-center gap-x-1.5 text-[10.5px] font-medium leading-none">
+      <section className="@container tilo-frame flex min-w-0 flex-col gap-3 px-3 py-3 md:flex-row md:flex-wrap md:items-center md:gap-x-1.5 md:px-2 md:py-1.5" aria-label={t("status")} data-testid="dossier-bar">
+        <h2 className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1 text-base font-medium leading-snug md:shrink-0 md:text-[10.5px] md:leading-none">
           <span aria-hidden className="h-3 w-[3px] shrink-0 rounded-full bg-[hsl(var(--tilo))]" />
           {surface === "project" && dossier.executionProjectNumber ? (
             <span className="whitespace-nowrap font-semibold" data-execution-project-number={dossier.executionProjectNumber}>
@@ -570,7 +570,7 @@ export function DossierPanel({
         {dossier.status === "GEWONNEN" && (dossier.wonQuotes.length > 0 || dossier.acceptedQuote) && (
           <AcceptedQuoteName dossier={dossier} />
         )}
-        <ol className="flex flex-1 flex-nowrap items-center">
+        <ol className="flex flex-wrap items-center gap-y-2 md:flex-1 md:flex-nowrap md:gap-y-0">
           {stepper.steps.map((step, index) => (
             <li key={step.id} className={cn("flex items-center", index > 0 && "flex-1")}>
               {index > 0 && <span aria-hidden className="mx-px h-px w-1.5 shrink-0 bg-border" />}
@@ -579,14 +579,14 @@ export function DossierPanel({
                 data-state={step.state}
                 aria-current={step.state === "current" ? "step" : undefined}
                 className={cn(
-                  "inline-flex shrink-0 items-center gap-0.5 whitespace-nowrap text-[10.5px] leading-none",
+                  "inline-flex shrink-0 items-center gap-1 whitespace-nowrap text-sm leading-none md:gap-0.5 md:text-[10.5px]",
                   step.state === "current" && "font-semibold",
                   step.state === "upcoming" && "text-muted-foreground",
                 )}
               >
                 <span
                   className={cn(
-                    "flex size-3 shrink-0 items-center justify-center rounded-full border text-[0.6rem]",
+                    "flex size-6 shrink-0 items-center justify-center rounded-full border text-xs md:size-3 md:text-[0.6rem]",
                     step.state === "current" && "border-transparent bg-[hsl(183_42%_38%)] text-white",
                     step.state === "complete" && "border-[hsl(183_40%_72%)] bg-[hsl(183_42%_94%)] text-[hsl(183_35%_28%)]",
                     step.state === "upcoming" && "border-dashed",
@@ -601,16 +601,16 @@ export function DossierPanel({
         </ol>
         <div className="flex shrink-0 items-center gap-1">
           {acceptedPrice && (
-            <span className="whitespace-nowrap text-[12px] font-semibold tabular-nums leading-none" data-accepted-price="">{acceptedPrice}</span>
+            <span className="whitespace-nowrap text-base font-semibold tabular-nums leading-none md:text-[12px]" data-accepted-price="">{acceptedPrice}</span>
           )}
           {dossier.status === "VERLOREN" && (
-            <Button type="button" size="sm" className="h-6 px-1.5 text-[11px]" disabled={busy} data-testid="reopen-dossier" onClick={() => { void run(() => reopenDossierAction(dossier.id)); }}>{t("reopenDossier")}</Button>
+            <Button type="button" size="sm" className="h-10 px-3 text-sm md:h-6 md:px-1.5 md:text-[11px]" disabled={busy} data-testid="reopen-dossier" onClick={() => { void run(() => reopenDossierAction(dossier.id)); }}>{t("reopenDossier")}</Button>
           )}
           {dossier.status === "GEWONNEN" && !dossier.executionProjectNumber && (
             <Button
               type="button"
               size="sm"
-              className="h-6 px-1.5 text-[11px]"
+              className="h-10 px-3 text-sm md:h-6 md:px-1.5 md:text-[11px]"
               disabled={busy}
               data-testid="make-project"
               onClick={() => {
@@ -631,14 +631,14 @@ export function DossierPanel({
             </Button>
           )}
           {surface !== "project" && dossier.executionProjectNumber && (
-            <Button size="sm" variant="outline" className="h-6 px-1.5 text-[11px]" asChild>
+            <Button size="sm" variant="outline" className="h-10 px-3 text-sm md:h-6 md:px-1.5 md:text-[11px]" asChild>
               <Link href={`/projectleiding/projecten/${dossier.id}`}>{t("openProject")}</Link>
             </Button>
           )}
           {!dossier.terminal && (
             <>
-              <Button type="button" size="sm" className="h-6 px-1.5 text-[11px]" disabled={busy} onClick={() => setCloseMode("won")}>{t("won")}</Button>
-              <Button type="button" size="sm" variant="outline" className="h-6 px-1.5 text-[11px]" disabled={busy} onClick={() => setCloseMode("lost")}>{t("lost")}</Button>
+              <Button type="button" size="sm" className="h-10 px-3 text-sm md:h-6 md:px-1.5 md:text-[11px]" disabled={busy} onClick={() => setCloseMode("won")}>{t("won")}</Button>
+              <Button type="button" size="sm" variant="outline" className="h-10 px-3 text-sm md:h-6 md:px-1.5 md:text-[11px]" disabled={busy} onClick={() => setCloseMode("lost")}>{t("lost")}</Button>
             </>
           )}
         </div>
@@ -821,7 +821,7 @@ export function DossierPanel({
           {quoteRows.length === 0 && <p className="text-muted-foreground">{t("noQuotes")}</p>}
           {quoteRows.length > 0 && (
             <div className="overflow-x-auto">
-              <table className="tilo-grid w-full text-sm">
+              <table className="tilo-grid w-full min-w-[36rem] text-base md:min-w-0 md:text-sm">
                 <thead>
                   <tr className="border-b text-left text-xs font-medium text-muted-foreground">
                     <th className="pb-2 pr-3 font-medium">{t("quote")}</th>
