@@ -2662,3 +2662,28 @@ model crm_PlanningAssignments {
   @@index([item_id, day])
   @@index([day])
 }
+
+/// Maps a TILO planning job to one Google Calendar event (per board).
+model crm_PlanningGoogleLinks {
+  id                 String            @id @default(uuid()) @db.Uuid
+  board              crm_PlanningBoard
+  job_key            String
+  google_event_id    String
+  google_calendar_id String
+  connection_id      String            @db.Uuid
+  etag               String?
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+
+  @@unique([board, job_key], map: "board_job_key")
+  @@index([google_event_id])
+  @@index([connection_id])
+}
+
+/// Last Google pull/push status per planning board.
+model crm_PlanningGoogleSyncMeta {
+  board          crm_PlanningBoard @id
+  last_synced_at DateTime?
+  last_error     String?
+  updatedAt      DateTime          @updatedAt
+}

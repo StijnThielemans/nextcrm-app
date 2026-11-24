@@ -32,6 +32,14 @@ import {
   type WorkDaySpanUpdate,
 } from "./planning";
 import { dossierInProjectbox, projectLeaderNameForUser } from "./projectbox";
+import { planningGoogleInfrastructureReady } from "./planning-google-config";
+import {
+  buildPlanningGoogleStatus,
+  pullPlanningWeekFromGoogle,
+  recordPlanningGoogleSyncMeta,
+  resolvePlanningGoogleConnection,
+} from "./planning-google";
+import { inngest } from "@/inngest/client";
 
 const KIND_TO_ENUM = {
   chassis: "CHASSIS",
@@ -155,7 +163,50 @@ export async function loadPlanningBoard(
   if (board === "binnendienst") jobs.push(...(await manualJobs(user)));
   const painted = paint(jobs);
   const assignments = board === "buitendienst" ? await crewFor(painted, days) : [];
-  return { board, weekStart, today, days, jobs: painted, assignments };
+  let mergedJobs = painted;
+  const googleInactive = !planningGoogleInfrastructureReady(board);
+  let google = {
+    ready: false,
+    reason: "oauth_missing" as const,
+    message: "",
+    accountEmail: null,
+    calendarId: null,
+    lastSyncedAt: null,
+    lastError: null,
+  };
+  if (!googleInactive) {
+    const connection = await resolvePlanningGoogleConnection();
+    const meta = await prismadb.crm_PlanningGoogleSyncMeta.findUnique({
+      where: { board: board === "binnendienst" ? "BINNENDIENST" : board === "buitendienst" ? "BUITENDIENST" : "DIENST_NA_VERKOOP" },
+    }).catch(() => null);
+    google = buildPlanningGoogleStatus(board, {
+      connection,
+      lastSyncedAt: meta?.last_synced_at ?? null,
+      lastError: meta?.last_error ?? null,
+    });
+    if (connection && google.ready) {
+      const pulled = await pullPlanningWeekFromGoogle(board, weekStart, days[days.length - 1] ?? weekStart, painted, assignments);
+      mergedJobs = paint(pulled.jobs);
+      google = pulled.status;
+    }
+  }
+  return { board, weekStart, today, days, jobs: mergedJobs, assignments, google };
+}
+
+async function queuePlanningGooglePush(board: PlanningBoardId, jobKey: string) {
+  try {
+    await inngest.send({
+      name: "planning/google.push",
+      data: { board, jobKey },
+    });
+  } catch (error) {
+    console.error("[planning-google] queue", error);
+  }
+}
+
+async function afterPlanningWrite(board: PlanningBoardId, jobKey: string) {
+  if (!planningGoogleInfrastructureReady(board)) return;
+  await queuePlanningGooglePush(board, jobKey);
 }
 
 async function manualJobs(user: AuthzUser): Promise<PlanningJobDraft[]> {
@@ -327,9 +378,10 @@ export async function createManualPlanningItem(
     });
     if (!row) throw new SalesError("notFound");
   }
+  const id = randomUUID();
   await prismadb.crm_PlanningItems.create({
     data: {
-      id: randomUUID(),
+      id,
       board: "BINNENDIENST",
       text,
       opportunity_id: projectId,
@@ -337,6 +389,7 @@ export async function createManualPlanningItem(
       createdBy: user.id,
     },
   });
+  await afterPlanningWrite("binnendienst", jobId("manual", id));
 }
 
 export async function deleteManualPlanningItem(user: AuthzUser, rawJobId: string) {
@@ -360,6 +413,7 @@ export async function deleteManualPlanningItem(user: AuthzUser, rawJobId: string
     where: { id: item.id },
     data: { deletedAt: new Date(), updatedAt: new Date() },
   });
+  await afterPlanningWrite("binnendienst", rawJobId);
 }
 
 async function loadVisibleProject(user: AuthzUser, projectId: string) {
@@ -409,6 +463,8 @@ export async function placePlanningJob(
     });
     await keepCrewDays(row.id, "GLASS", span ? spanDays(span.start, span.end) : null);
   }
+  const board = parsed.kind === "chassis" ? boardForChassis() : boardForGlass();
+  await afterPlanningWrite(board, rawJobId);
   return { start: span?.start ?? null };
 }
 
@@ -427,6 +483,7 @@ async function placeOffice(user: AuthzUser, row: ProjectRow, day: string | null)
       updatedBy: user.id,
     },
   });
+  await afterPlanningWrite("binnendienst", jobId("office", row.id));
   return { start: span?.start ?? null };
 }
 
@@ -452,6 +509,7 @@ async function placeManual(user: AuthzUser, itemId: string, day: string | null) 
     },
   });
   if (!span) await prismadb.crm_PlanningAssignments.deleteMany({ where: { item_id: item.id } });
+  await afterPlanningWrite("binnendienst", jobId("manual", item.id));
   return { start: span?.start ?? null };
 }
 
@@ -519,6 +577,7 @@ export async function assignPlanningCrew(
       createdBy: user.id,
     },
   });
+  await afterPlanningWrite("buitendienst", input.jobId);
 }
 
 export async function removePlanningCrew(user: AuthzUser, assignmentId: string) {
@@ -531,4 +590,5 @@ export async function removePlanningCrew(user: AuthzUser, assignmentId: string) 
   await loadVisibleProject(user, row.opportunity_id);
   await canWriteProject(user, row.opportunity_id);
   await prismadb.crm_PlanningAssignments.delete({ where: { id: row.id } });
+  await afterPlanningWrite("buitendienst", jobId(row.kind === "CHASSIS" ? "chassis" : "glass", row.opportunity_id));
 }

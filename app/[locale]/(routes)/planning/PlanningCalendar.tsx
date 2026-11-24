@@ -48,6 +48,7 @@ import {
   searchPlanningLinksAction,
 } from "@/actions/crm/planning/actions";
 import { cn } from "@/lib/utils";
+import { PlanningGoogleStatus } from "./PlanningGoogleStatus";
 
 const SuppressClick = createContext<MutableRefObject<boolean>>({ current: false });
 
@@ -238,6 +239,7 @@ export function PlanningCalendar({ data }: { data: PlanningBoardView }) {
             </p>
           )}
           <div className="flex min-h-0 flex-1 flex-col gap-2">
+            {data.google.ready ? <PlanningGoogleStatus google={data.google} /> : null}
             <UnscheduledList board={data.board} jobs={unscheduled} onDelete={(jobId) => run(() => deletePlanningItemAction(jobId))} />
             <section
               className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-sm border border-[hsl(214_16%_78%)] bg-white text-foreground dark:border-[hsl(210_8%_28%)] dark:bg-[hsl(210_8%_11%)]"

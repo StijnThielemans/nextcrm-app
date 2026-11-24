@@ -35,6 +35,7 @@ export const getCrmMenuItem = ({ localizations }: Props): NavItem => {
       { title: localizations.quotes, url: "/crm/offertes" },
       { title: localizations.offertebox, url: "/crm/offertebox" },
       { title: "RaamStudio", url: "/crm/raamstudio" },
+      { title: "Raamstudio 2.0", url: "/crm/raamstudio-2" },
     ],
   };
 };
