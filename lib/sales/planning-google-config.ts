@@ -37,6 +37,13 @@ export type PlanningGoogleSetup = {
   mode: "per-board" | "single" | "missing";
 };
 
+/** True when server env is set to use Google as planning backbone (OAuth + account + calendar for this board). */
+export function planningGoogleInfrastructureReady(board: PlanningBoardId): boolean {
+  if (!planningGoogleOAuthConfigured()) return false;
+  if (!planningGoogleAccountEmail()) return false;
+  return Boolean(planningGoogleCalendarId(board));
+}
+
 export function describePlanningGoogleSetup(): PlanningGoogleSetup {
   const single = planningGoogleSingleCalendarId();
   const calendars: Record<PlanningBoardId, string | null> = {

@@ -2,6 +2,7 @@ import { describe, expect, it, beforeEach, afterEach } from "@jest/globals";
 import {
   describePlanningGoogleSetup,
   planningGoogleCalendarId,
+  planningGoogleInfrastructureReady,
   planningGoogleSingleCalendarId,
 } from "../planning-google-config";
 
@@ -34,5 +35,15 @@ describe("planning google config", () => {
     expect(planningGoogleCalendarId("buitendienst")).toBe("buiten@group.calendar.google.com");
     expect(planningGoogleCalendarId("binnendienst")).toBeNull();
     expect(describePlanningGoogleSetup().mode).toBe("per-board");
+  });
+
+  it("treats planning as local when Google infrastructure env is incomplete", () => {
+    expect(planningGoogleInfrastructureReady("buitendienst")).toBe(false);
+    process.env.GOOGLE_CALENDAR_CLIENT_ID = "id";
+    process.env.GOOGLE_CALENDAR_CLIENT_SECRET = "secret";
+    process.env.PLANNING_GOOGLE_ACCOUNT_EMAIL = "plan@thielemans.be";
+    process.env.PLANNING_GOOGLE_CALENDAR_BUITENDIENST = "cal@google.com";
+    expect(planningGoogleInfrastructureReady("buitendienst")).toBe(true);
+    expect(planningGoogleInfrastructureReady("binnendienst")).toBe(false);
   });
 });

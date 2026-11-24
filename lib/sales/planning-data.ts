@@ -32,6 +32,7 @@ import {
   type WorkDaySpanUpdate,
 } from "./planning";
 import { dossierInProjectbox, projectLeaderNameForUser } from "./projectbox";
+import { planningGoogleInfrastructureReady } from "./planning-google-config";
 import {
   buildPlanningGoogleStatus,
   pullPlanningWeekFromGoogle,
@@ -162,20 +163,32 @@ export async function loadPlanningBoard(
   if (board === "binnendienst") jobs.push(...(await manualJobs(user)));
   const painted = paint(jobs);
   const assignments = board === "buitendienst" ? await crewFor(painted, days) : [];
-  const connection = await resolvePlanningGoogleConnection();
-  const meta = await prismadb.crm_PlanningGoogleSyncMeta.findUnique({
-    where: { board: board === "binnendienst" ? "BINNENDIENST" : board === "buitendienst" ? "BUITENDIENST" : "DIENST_NA_VERKOOP" },
-  }).catch(() => null);
   let mergedJobs = painted;
-  let google = buildPlanningGoogleStatus(board, {
-    connection,
-    lastSyncedAt: meta?.last_synced_at ?? null,
-    lastError: meta?.last_error ?? null,
-  });
-  if (connection && google.reason !== "oauth_missing" && google.reason !== "calendar_missing") {
-    const pulled = await pullPlanningWeekFromGoogle(board, weekStart, days[days.length - 1] ?? weekStart, painted, assignments);
-    mergedJobs = paint(pulled.jobs);
-    google = pulled.status;
+  const googleInactive = !planningGoogleInfrastructureReady(board);
+  let google = {
+    ready: false,
+    reason: "oauth_missing" as const,
+    message: "",
+    accountEmail: null,
+    calendarId: null,
+    lastSyncedAt: null,
+    lastError: null,
+  };
+  if (!googleInactive) {
+    const connection = await resolvePlanningGoogleConnection();
+    const meta = await prismadb.crm_PlanningGoogleSyncMeta.findUnique({
+      where: { board: board === "binnendienst" ? "BINNENDIENST" : board === "buitendienst" ? "BUITENDIENST" : "DIENST_NA_VERKOOP" },
+    }).catch(() => null);
+    google = buildPlanningGoogleStatus(board, {
+      connection,
+      lastSyncedAt: meta?.last_synced_at ?? null,
+      lastError: meta?.last_error ?? null,
+    });
+    if (connection && google.ready) {
+      const pulled = await pullPlanningWeekFromGoogle(board, weekStart, days[days.length - 1] ?? weekStart, painted, assignments);
+      mergedJobs = paint(pulled.jobs);
+      google = pulled.status;
+    }
   }
   return { board, weekStart, today, days, jobs: mergedJobs, assignments, google };
 }
@@ -192,6 +205,7 @@ async function queuePlanningGooglePush(board: PlanningBoardId, jobKey: string) {
 }
 
 async function afterPlanningWrite(board: PlanningBoardId, jobKey: string) {
+  if (!planningGoogleInfrastructureReady(board)) return;
   await queuePlanningGooglePush(board, jobKey);
 }
 
