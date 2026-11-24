@@ -1,3 +1,7 @@
+# RAAMSTUDIO 2.0 — Installatie
+
+`pdf-lib` staat in `package.json`. De planweergave gebruikt de al aanwezige Poppler-programma's `pdfinfo` en `pdftocairo`, met pdf.js als reserve. Er worden geen modelgewichten gedownload.
+
 # RAAMSTUDIO 2.0 — Installatie (fase 1)
 
 ## Ontwikkelaar

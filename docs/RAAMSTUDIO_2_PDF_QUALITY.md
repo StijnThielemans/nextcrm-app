@@ -4,6 +4,10 @@
 
 Bij inzoomen werden clip-regio’s soms opnieuw gerasterd uit een te kleine bitmap → wazige gevels.
 
+## Export
+
+`pdf-lib` kopieert de originele PDF-pagina naar Projectnotities.pdf en tekent daar vectortekst en een transparante fluorisering op. De bron-PDF in de map Plannen wordt niet overschreven. Een eerdere Projectnotities.pdf is geen bron.
+
 ## Richting voor 2.0
 
 1. Plan-PDF altijd via server route met vaste `px`-schaal (bestaand `plan-page` patroon).

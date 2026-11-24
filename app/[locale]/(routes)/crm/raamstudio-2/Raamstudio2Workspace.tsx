@@ -8,13 +8,14 @@ import type { DossierPlanFile } from "@/lib/raamstudio/dossier-plans";
 import { RAAMINFO_CATALOG, RAAMINFO_CATEGORIES } from "@/lib/raamstudio2/catalog";
 import {
   DRAWING_KINDS,
+  assignThielemansNumbers,
   emptyProject,
   nextFacadeSide,
   nextOpeningNumber,
   type DrawingKind,
   type Rs2Project,
 } from "@/lib/raamstudio2/project";
-import { saveRaamstudio2Action } from "@/actions/crm/raamstudio2/actions";
+import { generateProjectnotitiesAction, readPlanLayerAction, saveRaamstudio2Action } from "@/actions/crm/raamstudio2/actions";
 
 const STEPS = [
   { id: "tekeningen", label: "Tekeningen" },
@@ -22,6 +23,7 @@ const STEPS = [
   { id: "gevels", label: "Gevels" },
   { id: "maten", label: "Maten" },
   { id: "raaminfo", label: "Raaminfo" },
+  { id: "ramenstaat", label: "Ramenstaat" },
 ] as const;
 
 type StepId = (typeof STEPS)[number]["id"];
@@ -42,7 +44,7 @@ export function Raamstudio2Workspace({
   fileName: string | null;
 }) {
   const [step, setStep] = useState<StepId>("tekeningen");
-  const [project, setProject] = useState<Rs2Project>(initial ?? emptyProject());
+  const [project, setProject] = useState<Rs2Project>(initial ? { ...emptyProject(), ...initial, highlights: initial.highlights ?? [] } : emptyProject());
   const [status, setStatus] = useState(loadError ?? (fileName ? fileName : "Nog niet opgeslagen"));
   const [saving, setSaving] = useState(false);
   const [planId, setPlanId] = useState(plans[0]?.id ?? "");
@@ -59,6 +61,10 @@ export function Raamstudio2Workspace({
   const [category, setCategory] = useState(RAAMINFO_CATEGORIES[0] ?? "Onderaansluiting");
   const [infoText, setInfoText] = useState(RAAMINFO_CATALOG[RAAMINFO_CATEGORIES[0] ?? ""]?.[0] ?? "");
   const [customText, setCustomText] = useState("");
+  const [openingSide, setOpeningSide] = useState<FacadeSide>("voorgevel");
+  const [fluor, setFluor] = useState(false);
+  const [scanText, setScanText] = useState("");
+  const [notesHref, setNotesHref] = useState<string | null>(null);
 
   const activePlan = plans.find((plan) => plan.id === planId) ?? null;
   const openingsOnFloor = project.openings.filter((opening) => opening.floor === floor.trim());
@@ -103,6 +109,23 @@ export function Raamstudio2Workspace({
     const x = clamp((event.clientX - rect.left) / rect.width);
     const y = clamp((event.clientY - rect.top) / rect.height);
     if (!activePlan) return;
+    if (step === "grondplan" && fluor) {
+      const id = crypto.randomUUID();
+      setProject((current) => ({
+        ...current,
+        highlights: [...current.highlights, {
+          id,
+          planId: activePlan.id,
+          planName: activePlan.name,
+          page,
+          x: clamp(x - 0.03),
+          y: clamp(y - 0.02),
+          w: Math.min(0.06, 1 - clamp(x - 0.03)),
+          h: Math.min(0.04, 1 - clamp(y - 0.02)),
+        }],
+      }));
+      return;
+    }
     if (step === "grondplan") {
       const number = (typedNumber.trim() || suggested).trim();
       if (!number || project.openings.some((opening) => opening.number === number)) {
@@ -112,7 +135,7 @@ export function Raamstudio2Workspace({
       const id = crypto.randomUUID();
       setProject((current) => ({
         ...current,
-        openings: [...current.openings, { id, number, floor: floor.trim() || "0", planId: activePlan.id, planName: activePlan.name, page, x, y }],
+        openings: [...current.openings, { id, number, floor: floor.trim() || "0", side: openingSide, planId: activePlan.id, planName: activePlan.name, page, x, y }],
       }));
       setTypedNumber("");
       setOpeningId(id);
@@ -172,6 +195,64 @@ export function Raamstudio2Workspace({
     else setStatus(`Opgeslagen in Calculatie: ${result.fileName}`);
   }
 
+  function numberAll() {
+    const assigned = assignThielemansNumbers(project.openings.map((opening) => ({
+      id: opening.id,
+      floor: opening.floor,
+      side: opening.side,
+      along: opening.x,
+    })));
+    setProject((current) => ({
+      ...current,
+      openings: current.openings.map((opening) => ({ ...opening, number: assigned.get(opening.id) ?? opening.number })),
+      facades: current.facades.map((mark) => {
+        const opening = current.openings.find((item) => item.number === mark.openingNumber);
+        const next = opening ? assigned.get(opening.id) : undefined;
+        return next ? { ...mark, openingNumber: next } : mark;
+      }),
+    }));
+    setStatus("Genummerd: voorgevel, rechtergevel, achtergevel, linkergevel. Per verdieping opnieuw bij 1.");
+  }
+
+  async function scan() {
+    if (!activePlan) return;
+    const result = await readPlanLayerAction(activePlan.id, page);
+    if ("error" in result) {
+      setScanText(result.error ?? "De tekstlaag kon niet worden gelezen.");
+      return;
+    }
+    const figures = result.figures.length ? result.figures.join(", ") : "geen geschreven cijfers";
+    const labels = result.labels.length ? result.labels.join(", ") : "geen gevel- of verdiepingswoorden";
+    setScanText(`Tekstlaag: ${figures}. Benamingen: ${labels}. Dit zijn geen nieuwe ramen.`);
+  }
+
+  async function notes() {
+    setSaving(true);
+    const result = await generateProjectnotitiesAction(dossierId, project);
+    setSaving(false);
+    if ("error" in result) {
+      setStatus(result.error ?? "Projectnotities konden niet worden gemaakt.");
+      return;
+    }
+    setNotesHref(`/api/documents/${result.id}/file`);
+    setStatus(`Projectnotities.pdf staat in Calculatie: ${result.fileName}`);
+  }
+
+  function downloadSchedule() {
+    const header = "nummer;verdieping;gevel;breedte_mm;hoogte_mm";
+    const lines = project.openings.map((opening) => {
+      const measure = project.measures.find((item) => item.number === opening.number);
+      return [opening.number, opening.floor, opening.side ?? "", measure?.widthMm ?? "", measure?.heightMm ?? ""].join(";");
+    });
+    const blob = new Blob([[header, ...lines].join("\n")], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "ramenstaat.csv";
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
   return (
     <section className="space-y-3" data-testid="raamstudio-2-workspace">
       <div className="flex flex-wrap items-center gap-2">
@@ -180,13 +261,22 @@ export function Raamstudio2Workspace({
             {item.label}
           </Button>
         ))}
+        <Button type="button" size="sm" variant="outline" disabled={locked || Boolean(loadError)} data-testid="raamstudio-2-number" onClick={numberAll}>
+          Automatisch nummeren
+        </Button>
+        <Button type="button" size="sm" variant="outline" disabled={!activePlan} data-testid="raamstudio-2-scan" onClick={() => void scan()}>
+          Tekstlaag lezen
+        </Button>
+        <Button type="button" size="sm" variant="outline" disabled={saving || locked || Boolean(loadError)} data-testid="raamstudio-2-notes" onClick={() => void notes()}>
+          Projectnotities genereren
+        </Button>
         <Button type="button" size="sm" disabled={saving || locked || Boolean(loadError)} data-testid="raamstudio-2-save" onClick={() => void save()}>
-          Opslaan als .rs2
+          Opslaan als .raamstudio
         </Button>
         <p className="text-[12px] text-muted-foreground" data-testid="raamstudio-2-save-status">{status}</p>
       </div>
       <p className="text-[12px] text-muted-foreground">
-        Bestandstype .rs2. Originele plannen blijven onaangeroerd. Maten komen alleen uit wat je zelf invult.
+        Bestandstype .raamstudio. Originele plannen blijven onaangeroerd. Projectnotities.pdf wordt opgebouwd uit die originelen plus vectortekst. Maten komen alleen uit wat je zelf invult of uit cijfers die al op het plan staan.
       </p>
 
       {plans.length === 0 ? <p className="text-[13px] text-muted-foreground">Geen plannen in de map Plannen. Zonder plan kan je nog geen tekening aanduiden.</p> : null}
@@ -230,6 +320,16 @@ export function Raamstudio2Workspace({
                 Verdieping
                 <Input className="mt-1" value={floor} onChange={(event) => setFloor(event.target.value)} data-testid="raamstudio-2-floor" />
               </label>
+              <label className="block">
+                Gevel voor de nummering
+                <select className="mt-1 h-9 w-full rounded-md border bg-background px-2" value={openingSide} onChange={(event) => setOpeningSide(event.target.value as FacadeSide)} data-testid="raamstudio-2-opening-side">
+                  {FACADE_ORDER.map((item) => <option key={item}>{item}</option>)}
+                </select>
+              </label>
+              <label className="flex items-center gap-2">
+                <input type="checkbox" checked={fluor} onChange={(event) => setFluor(event.target.checked)} data-testid="raamstudio-2-fluor" />
+                Fluoriseer in plaats van nummeren
+              </label>
               <p>Volgende nummer: {suggested}. 0.1 en 0.10 blijven verschillend.</p>
               <Input value={typedNumber} onChange={(event) => setTypedNumber(event.target.value)} placeholder="Of typ een nummer, bijvoorbeeld 0.10" aria-label="Nummer" data-testid="raamstudio-2-number" />
               <ul data-testid="raamstudio-2-openings">
@@ -261,6 +361,17 @@ export function Raamstudio2Workspace({
               </label>
               <p className="text-muted-foreground">Op verdieping {floor || "0"}: {openingsOnFloor.map((opening) => opening.number).join(", ") || "nog geen nummers"}.</p>
             </>
+          ) : null}
+          {step === "ramenstaat" ? (
+            <div data-testid="raamstudio-2-schedule">
+              <Button type="button" size="sm" variant="outline" onClick={downloadSchedule}>Excel (CSV)</Button>
+              <ul className="mt-2 space-y-1">
+                {project.openings.map((opening) => {
+                  const measure = project.measures.find((item) => item.number === opening.number);
+                  return <li key={opening.id}>{opening.number} · {opening.side ?? "geen gevel"} · {measure?.widthMm || "—"} × {measure?.heightMm || "—"} mm</li>;
+                })}
+              </ul>
+            </div>
           ) : null}
           {step === "maten" ? (
             <ul className="space-y-2" data-testid="raamstudio-2-measures">
@@ -323,6 +434,9 @@ export function Raamstudio2Workspace({
               // eslint-disable-next-line @next/next/no-img-element
               <img src={image} alt={activePlan?.name ?? "Plan"} className="max-h-[70vh] max-w-full" onClick={place} data-testid="raamstudio-2-sheet" />
             ) : <p className="p-6 text-[13px] text-muted-foreground">Tekening laden…</p>}
+            {(project.highlights ?? []).filter((mark) => mark.planId === planId && mark.page === page).map((mark) => (
+              <span key={mark.id} className="pointer-events-none absolute bg-yellow-300/50" style={{ left: `${mark.x * 100}%`, top: `${mark.y * 100}%`, width: `${mark.w * 100}%`, height: `${mark.h * 100}%` }} data-testid="raamstudio-2-highlight" />
+            ))}
             {marks.map((mark) => (
               <span key={mark.id} className="pointer-events-none absolute -translate-x-1/2 -translate-y-1/2 rounded-full bg-white px-1 text-[11px] font-semibold text-red-700 ring-1 ring-red-700" style={{ left: `${mark.x * 100}%`, top: `${mark.y * 100}%` }}>
                 {mark.label}
@@ -332,9 +446,10 @@ export function Raamstudio2Workspace({
         </div>
       </div>
       <ul className="text-[12px] text-muted-foreground" data-testid="raamstudio-2-inactive">
-        <li>Automatische detectie — nog niet actief, wacht op training</li>
-        <li>Maten uit de tekening — nog niet actief, wacht op training</li>
-        <li>Projectnotities.pdf — nog niet actief</li>
+        <li>Automatische raamdetectie — nog niet actief. Er zijn geen getrainde gewichten voor Belgische plannen. Er worden geen ramen verzonnen.</li>
+        <li>Zelflerende modeltraining — nog niet actief. Correcties blijven in het .raamstudio-bestand.</li>
+        {scanText ? <li data-testid="raamstudio-2-scan-result">{scanText}</li> : null}
+        {notesHref ? <li><a className="underline" href={notesHref}>Projectnotities.pdf openen</a></li> : null}
       </ul>
     </section>
   );

@@ -9,5 +9,6 @@
 | 2026-11-24 | Dossiervelden, plannen uit map Plannen, calculatiepoort verderwerken of nieuw project | klaar op `cursor/raamstudio-2-start-d023` |
 | 2026-11-24 | Eigen werkruimte en bestandstype `.rs2`, los van `.tc-raam` | klaar op `cursor/raamstudio-2-start-d023` |
 | 2026-11-24 | Fase-1 analysedocs | klaar |
-| — | `RAAMSTUDIO_2_MASTER_SPEC.md` verbatim | wacht op coordinator-bestand |
-| — | Volledige 2.0-workflow (gevels/maten/raaminfo) | gepland |
+| 2026-11-24 | Bestandstype `.raamstudio`, nummering, fluoriseren, tekstlaag, Projectnotities.pdf via pdf-lib | klaar op `cursor/raamstudio-2-rs2-d023` |
+| 2026-11-24 | `RAAMSTUDIO_2_MASTER_SPEC.md` woordelijke prompt | klaar |
+| — | Raamdetectie, modeltraining, visueel geheugen | wacht op gewichten en Belgische trainingsdata |

@@ -53,7 +53,7 @@ export function Raamstudio2Panel({
             Raamstudio 2.0
           </h2>
           <p className="mt-1 text-[13px] text-muted-foreground">
-            Kies een offertedossier. Plannen komen uit de map Plannen. Het project wordt een nieuw .rs2-bestand.
+            Kies een offertedossier. Plannen komen uit de map Plannen. Het project wordt een nieuw .raamstudio-bestand.
           </p>
         </div>
         {!selected && (
@@ -138,17 +138,17 @@ export function Raamstudio2Panel({
             )}
             {gate.next === "resume" && gate.workFile ? (
               <p className="mt-2 text-[13px]" data-testid="raamstudio-2-workfile">
-                Werkbestand {gate.workFile.name}. Verderwerken gebeurt hier, in het .rs2-bestand.
+                Werkbestand {gate.workFile.name}. Verderwerken gebeurt hier, in het .raamstudio-bestand.
               </p>
             ) : null}
             {gate.next === "prepare" ? (
               <p className="mt-2 text-[13px]" data-testid="raamstudio-2-prepare">
-                Nog geen .rs2-bestand. Hieronder bereid je een nieuw project voor. Opslaan maakt dat bestand in Calculatie.
+                Nog geen .raamstudio-bestand. Hieronder bereid je een nieuw project voor. Opslaan maakt dat bestand in Calculatie.
               </p>
             ) : null}
             {gate.next === "closed" ? (
               <p className="mt-2 text-[13px]" data-testid="raamstudio-2-closed">
-                Dit dossier is afgesloten. Er is geen .rs2-bestand en er wordt geen nieuw project aangemaakt.
+                Dit dossier is afgesloten. Er is geen .raamstudio-bestand en er wordt geen nieuw project aangemaakt.
               </p>
             ) : null}
           </section>

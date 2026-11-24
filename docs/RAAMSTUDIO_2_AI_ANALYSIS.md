@@ -2,7 +2,7 @@
 
 ## Scope nu
 
-Geen mock-detecties. Geen verzonnen maten. Geen “AI knop” zonder backend.
+Geen mock-detecties. Geen verzonnen maten. De knop Tekstlaag lezen haalt cijfers en gevelwoorden uit de bestaande PDF-tekstlaag (pdf.js). Dat maakt geen ramen. Automatische raamdetectie blijft uit tot er getrainde gewichten voor Belgische plannen zijn. YOLO en PyMuPDF zijn niet geïnstalleerd wegens de AGPL-licentie.
 
 ## Later (na master spec)
 

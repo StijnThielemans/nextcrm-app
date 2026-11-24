@@ -3,6 +3,9 @@ import { FACADE_ORDER, type FacadeSide, normalizeOpeningNumber } from "@/lib/raa
 export const RS2_FORMAT = "thielemans-raamstudio-2";
 export const RS2_VERSION = "2.0.0";
 export const RS2_DESCRIPTION = "Raamstudio-2-project";
+export const PROJECT_FILE_NAME = "Raamstudio 2.0.raamstudio";
+export const PROJECT_NOTES_NAME = "Projectnotities.pdf";
+export const PROJECT_NOTES_DESCRIPTION = "Raamstudio-2-projectnotities";
 
 export const DRAWING_KINDS = ["Grondplan", "Gevel", "Snede"] as const;
 export type DrawingKind = (typeof DRAWING_KINDS)[number];
@@ -22,11 +25,25 @@ export type Rs2Opening = {
   /** String, never a float: "0.1" and "0.10" stay different. */
   number: string;
   floor: string;
+  /** Gevel used by the fixed numbering order. Null until the user sets it. */
+  side: FacadeSide | null;
   planId: string;
   planName: string;
   page: number;
   x: number;
   y: number;
+};
+
+/** Yellow marker on a ground plan. Fractions of the page, from the top-left. */
+export type Rs2Highlight = {
+  id: string;
+  planId: string;
+  planName: string;
+  page: number;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
 };
 
 export type Rs2FacadeMark = {
@@ -58,18 +75,53 @@ export type Rs2Project = {
   version: string;
   drawings: Rs2Drawing[];
   openings: Rs2Opening[];
+  highlights: Rs2Highlight[];
   facades: Rs2FacadeMark[];
   measures: Rs2Measure[];
   raaminfo: Rs2Info[];
 };
 
 export function emptyProject(): Rs2Project {
-  return { format: RS2_FORMAT, version: RS2_VERSION, drawings: [], openings: [], facades: [], measures: [], raaminfo: [] };
+  return { format: RS2_FORMAT, version: RS2_VERSION, drawings: [], openings: [], highlights: [], facades: [], measures: [], raaminfo: [] };
 }
 
-export function raamstudio2FileName(number: string | null): string {
-  const safe = (number ?? "").trim().replace(/[<>:"/\\|?*]/g, "_") || "dossier";
-  return `Raamstudio2 ${safe}.rs2`;
+/** One project file per dossier, under Calculatie. Not a .tc-raam. */
+export function raamstudio2FileName(_number?: string | null): string {
+  return PROJECT_FILE_NAME;
+}
+
+export type NumberSeed = {
+  id: string;
+  floor: string;
+  side: FacadeSide | null;
+  /** Order along one facade. Lower comes first. */
+  along: number;
+};
+
+/**
+ * Numbering runs across the four facades of one floor and restarts at 1 on the next floor.
+ * The suffix is text: the tenth window is "0.10", not "0.1".
+ */
+export function assignThielemansNumbers(items: readonly NumberSeed[]): Map<string, string> {
+  const byFloor = new Map<string, NumberSeed[]>();
+  for (const item of items) {
+    const floor = item.floor.trim() || "0";
+    const list = byFloor.get(floor) ?? [];
+    list.push(item);
+    byFloor.set(floor, list);
+  }
+  const assigned = new Map<string, string>();
+  const floors = [...byFloor.keys()].sort((a, b) => a.localeCompare(b, "nl", { numeric: true }));
+  for (const floor of floors) {
+    const list = [...(byFloor.get(floor) ?? [])].sort((a, b) => {
+      const left = a.side ? FACADE_ORDER.indexOf(a.side) : FACADE_ORDER.length;
+      const right = b.side ? FACADE_ORDER.indexOf(b.side) : FACADE_ORDER.length;
+      if (left !== right) return left - right;
+      return a.along - b.along;
+    });
+    list.forEach((item, index) => assigned.set(item.id, `${floor}.${index + 1}`));
+  }
+  return assigned;
 }
 
 /**
@@ -104,16 +156,17 @@ export function parseRs2(text: string): Rs2Project {
   try {
     raw = JSON.parse(text);
   } catch {
-    throw new Error("Dit .rs2-bestand is geen geldige tekst.");
+    throw new Error("Dit .raamstudio-bestand is geen geldige tekst.");
   }
   if (!raw || typeof raw !== "object") throw new Error("Dit is geen Raamstudio 2-project.");
   const record = raw as Record<string, unknown>;
-  if (record.format !== RS2_FORMAT) throw new Error("Dit bestand is geen Raamstudio 2-project (.rs2).");
+  if (record.format !== RS2_FORMAT) throw new Error("Dit bestand is geen Raamstudio 2-project (.raamstudio).");
   return normalizeProject({
     format: RS2_FORMAT,
     version: typeof record.version === "string" ? record.version : RS2_VERSION,
     drawings: asArray(record.drawings).map(readDrawing).filter((item): item is Rs2Drawing => item != null),
     openings: asArray(record.openings).map(readOpening).filter((item): item is Rs2Opening => item != null),
+    highlights: asArray(record.highlights).map(readHighlight).filter((item): item is Rs2Highlight => item != null),
     facades: asArray(record.facades).map(readFacade).filter((item): item is Rs2FacadeMark => item != null),
     measures: asArray(record.measures).map(readMeasure).filter((item): item is Rs2Measure => item != null),
     raaminfo: asArray(record.raaminfo).map(readInfo).filter((item): item is Rs2Info => item != null),
@@ -125,7 +178,8 @@ function normalizeProject(project: Rs2Project): Rs2Project {
     format: RS2_FORMAT,
     version: project.version || RS2_VERSION,
     drawings: project.drawings,
-    openings: project.openings.map((opening) => ({ ...opening, number: normalizeOpeningNumber(opening.number) })),
+    openings: project.openings.map((opening) => ({ ...opening, number: normalizeOpeningNumber(opening.number), side: opening.side })),
+    highlights: project.highlights,
     facades: project.facades.map((mark) => ({ ...mark, openingNumber: normalizeOpeningNumber(mark.openingNumber) })),
     measures: project.measures.map((measure) => ({
       number: normalizeOpeningNumber(measure.number),
@@ -159,6 +213,20 @@ function readDrawing(value: unknown): Rs2Drawing | null {
   };
 }
 
+function readHighlight(value: unknown): Rs2Highlight | null {
+  const row = object(value);
+  const planId = text(row.planId);
+  const box = fractionBox(row.x, row.y, row.w, row.h);
+  if (!planId || !box) return null;
+  return {
+    id: text(row.id) || planId,
+    planId,
+    planName: text(row.planName),
+    page: pageOf(row.page),
+    ...box,
+  };
+}
+
 function readOpening(value: unknown): Rs2Opening | null {
   const row = object(value);
   const number = normalizeOpeningNumber(text(row.number));
@@ -170,6 +238,7 @@ function readOpening(value: unknown): Rs2Opening | null {
     id: text(row.id) || number,
     number,
     floor: text(row.floor) || number.split(".")[0] || "0",
+    side: facadeSide(row.side),
     planId,
     planName: text(row.planName),
     page: pageOf(row.page),
@@ -226,6 +295,14 @@ function pageOf(value: unknown): number {
   const page = typeof value === "number" ? value : Number(value);
   if (!Number.isInteger(page) || page < 1 || page > 400) return 1;
   return page;
+}
+
+function fractionBox(xValue: unknown, yValue: unknown, wValue: unknown, hValue: unknown): { x: number; y: number; w: number; h: number } | null {
+  const point = fraction(xValue, yValue);
+  const w = typeof wValue === "number" ? wValue : Number(wValue);
+  const h = typeof hValue === "number" ? hValue : Number(hValue);
+  if (!point || !(w > 0) || !(h > 0) || point.x + w > 1.002 || point.y + h > 1.002) return null;
+  return { x: point.x, y: point.y, w: Math.min(w, 1 - point.x), h: Math.min(h, 1 - point.y) };
 }
 
 function fraction(xValue: unknown, yValue: unknown): { x: number; y: number } | null {

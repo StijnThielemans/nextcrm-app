@@ -17,7 +17,24 @@ PySide6, PyMuPDF, Pillow, **pytesseract**, opencv-python-headless — alleen in 
 - Geen extra AGPL-Python in de Node-app.
 - Geen packages die `next build` of bestaande CRM-tests breken.
 
+## Geselecteerd en geïnstalleerd
+
+| Pakket | Licentie | Gebruik |
+| --- | --- | --- |
+| `pdf-lib` 1.17.1 | MIT | Projectnotities.pdf: originele PDF-pagina's kopiëren en vectortekst toevoegen |
+| `pdfjs-dist` via `pdf-parse` | Apache-2.0 | Tekstlaag van een plan lezen. Geen raamdetectie |
+| Poppler `pdfinfo` / `pdftocairo` | GPL-2.0 als los systeemprogramma, niet in de JS-bundle | Bestaande scherpe planweergave |
+
+## Afgewezen
+
+| Pakket | Reden |
+| --- | --- |
+| Ultralytics YOLO | AGPL-3.0, besmet de applicatie |
+| PyMuPDF | AGPL/commerciële licentie, niet in de Next-app |
+| RF-DETR, Detectron2, PaddleOCR, SAM, Grounding DINO | Geen getrainde gewichten voor Belgische plannen. Installeren zonder gewichten zou geen echte detectie geven |
+
 ## Integratie met TILO-dossier
 
 - `listDossiers`, `getDossier`, `raamstudioPlansForDossier`.
-- Opslag werkbestand: `.tc-raam` via bestaande documentflow (zip-extensie uitbreiding later, niet op deze stap).
+- Werkbestand: `Raamstudio 2.0.raamstudio` in Calculatie. Geen `.tc-raam`.
+- Einddocument: `Projectnotities.pdf` in Calculatie, opgebouwd uit de originele plan-PDF's.
