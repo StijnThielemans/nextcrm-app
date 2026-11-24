@@ -14,4 +14,5 @@
 | 2026-11-24 | pdfplumber, pypdfium2, OpenCV en Tesseract voor kaders en tekst. Kaders blijven te controleren | klaar op `cursor/raamstudio-2-rs2-d023` |
 | 2026-11-24 | Dossier openen werkt alle plannen uit: kaders, nummering, geschreven maten, Projectnotities | klaar op `cursor/raamstudio-2-rs2-d023` |
 | 2026-11-24 | Ramen en deuren via het CubiCasa5K-vloerplanmodel. COCO-modellen tekenen geen ramen | klaar op `cursor/raamstudio-2-auto-d023` |
+| 2026-11-24 | PaddleOCR leest benamingen zonder tekstlaag. ArchNetv2 wacht op een commercieel checkpoint | klaar op `cursor/raamstudio-2-auto-d023` |
 | — | Fijnafstelling op Belgische lijnsymbolen, visueel geheugen | wacht op Belgische trainingsdata |

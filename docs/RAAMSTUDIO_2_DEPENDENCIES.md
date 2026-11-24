@@ -32,6 +32,7 @@ PySide6, PyMuPDF, Pillow, **pytesseract**, opencv-python-headless — alleen in 
 | shapely 2.1.1 | BSD-3-Clause | Aanwezig voor geometrie. De kaderfilter gebruikt eigen overlapberekening |
 | torch 2.15.0+cpu en torchvision 0.29.2+cpu | BSD-3-Clause | CPU-inferentie van het vloerplanmodel |
 | segmentation-models-pytorch 0.5.0 | MIT | UNet-ResNet34. Gewichten `M2_DA_FT_v2_best.pt`, getraind op CubiCasa5K, klassen muur, raam en deur |
+| rapidocr-onnxruntime 1.4.4 | Apache-2.0 | PaddleOCR PP-OCR op CPU. Leest benamingen en geschreven maten als de tekstlaag leeg is |
 
 ## Afgewezen
 
@@ -41,6 +42,7 @@ PySide6, PyMuPDF, Pillow, **pytesseract**, opencv-python-headless — alleen in 
 | PyMuPDF | AGPL/commerciële licentie, niet in de Next-app |
 | Officiële CubiCasa5K-gewichten | CC BY-NC 4.0, geen commercieel gebruik. Het MIT-model dat op die dataset is getraind doet de raam- en deurmarkering |
 | RF-DETR, Detectron2, MMDetection, YOLO op COCO | Geen raamklasse. Een COCO-detectie wordt niet als raam getoond |
+| ArchNetv2-gewichten | Geen publieke commerciële gewichten. Het artikel is CC BY-NC en het net is een aangepaste YOLOv8 (AGPL). De module laadt alleen een lokaal checkpoint met een raam- of deurklasse |
 
 ## Integratie met TILO-dossier
 

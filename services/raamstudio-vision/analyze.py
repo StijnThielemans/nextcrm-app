@@ -55,6 +55,7 @@ def analyze(data: bytes, page_no: int) -> dict[str, Any]:
             engines.extend(["pypdfium2", "tesseract"])
             words = ocr["words"]
             text_source = "tesseract"
+    words, engines, text_source = add_paddle(data, page_no, words, engines, text_source)
 
     boxes, engines = openings_for_page(data, page_no, words, boxes, engines)
     return finish_page(words, boxes, engines, text_source)
@@ -83,6 +84,7 @@ def analyze_all(data: bytes) -> dict[str, Any]:
                         engines.extend(["pypdfium2", "tesseract"])
                         words = ocr["words"]
                         text_source = "tesseract"
+                words, engines, text_source = add_paddle(data, index + 1, words, engines, text_source)
                 boxes, engines = openings_for_page(data, index + 1, words, boxes, engines, opencv_left)
                 if "opencv" in engines:
                     opencv_left -= 1
@@ -111,7 +113,7 @@ def openings_for_page(
             if "pypdfium2" not in engines:
                 engines.append("pypdfium2")
             engines.append("cubicasa5k")
-            return seen["boxes"], engines
+            return with_archnet(data, page_no, seen["boxes"], engines)
     if boxes:
         return boxes, engines
     if opencv_left <= 0:
@@ -123,6 +125,50 @@ def openings_for_page(
         engines.append("opencv")
         return seen["boxes"], engines
     return [], engines
+
+
+def add_paddle(
+    data: bytes,
+    page_no: int,
+    words: list[dict[str, Any]],
+    engines: list[str],
+    text_source: str | None,
+) -> tuple[list[dict[str, Any]], list[str], str | None]:
+    if text_is_useful(words):
+        return words, engines, text_source
+    try:
+        from paddle_ocr import read_paddle
+    except Exception:
+        return words, engines, text_source
+    seen = read_paddle(data, page_no)
+    if not seen.get("ok") or not seen.get("words"):
+        return words, engines, text_source
+    engines.append("paddleocr")
+    return words + seen["words"], engines, text_source or "paddleocr"
+
+
+def text_is_useful(words: list[dict[str, Any]]) -> bool:
+    hits = 0
+    for word in words:
+        text = str(word.get("text") or "")
+        if re.search(r"[A-Za-zÀ-ÿ]{4,}", text) or re.search(r"\d{3,4}", text):
+            hits += 1
+    return hits >= 2
+
+
+def with_archnet(data: bytes, page_no: int, boxes: list[dict[str, Any]], engines: list[str]) -> tuple[list[dict[str, Any]], list[str]]:
+    try:
+        from archnetv2 import read_archnet
+    except Exception:
+        engines.append("archnetv2-geen-gewichten")
+        return boxes, engines
+    seen = read_archnet(data, page_no)
+    if seen.get("ok") and seen.get("boxes"):
+        engines.append("archnetv2")
+        return boxes + seen["boxes"], engines
+    reason = str(seen.get("reason") or "geen-gewichten")
+    engines.append(f"archnetv2-{reason}")
+    return boxes, engines
 
 
 def finish_page(words: list[dict[str, Any]], boxes: list[dict[str, Any]], engines: list[str], text_source: str | None) -> dict[str, Any]:

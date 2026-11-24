@@ -36,6 +36,8 @@ describe("automatic studio", () => {
       () => `id-${n++}`,
     );
     expect(classifyKind("snede-a.pdf", [])).toBe("Snede");
+    expect(classifyKind("blad.pdf", ["achtergevel", "gelijkvloers"])).toBe("Grondplan");
+    expect(classifyKind("voorgevel.pdf", [])).toBe("Gevel");
     expect(project.drawings.map((drawing) => drawing.kind)).toEqual(["Grondplan", "Gevel"]);
     expect(project.openings.map((opening) => opening.number)).toEqual(["0.1", "0.2"]);
     expect(project.openings[0]?.review).toBe("te controleren");

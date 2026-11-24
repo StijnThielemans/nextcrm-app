@@ -15,8 +15,12 @@ const SIDES = new Set<FacadeSide>(["voorgevel", "rechtergevel", "achtergevel", "
 /** Snede and gevel win over a ground plan when the name or the page says so. Other plan pages stay ground plans. */
 export function classifyKind(planName: string, labels: readonly string[]): DrawingKind {
   const text = `${planName} ${labels.join(" ")}`.toLowerCase();
-  if (/snede|coupe|doorsnede|\bsection\b/.test(text)) return "Snede";
-  if (/gevel|façade|facade|aanzicht|elevation/.test(text)) return "Gevel";
+  const section = /snede|coupe|doorsnede|\bsection\b/.test(text);
+  const facade = /gevel|façade|facade|aanzicht|elevation/.test(text);
+  const plan = /grondplan|gelijkvloers|verdiep|étage|etage|\bplan\b/.test(text);
+  if (plan && (facade || section)) return "Grondplan";
+  if (section) return "Snede";
+  if (facade) return "Gevel";
   return "Grondplan";
 }
 

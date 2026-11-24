@@ -328,7 +328,7 @@ export function Raamstudio2Workspace({
         <p className="text-[12px] text-muted-foreground" data-testid="raamstudio-2-save-status">{status}</p>
       </div>
       <p className="text-[12px] text-muted-foreground">
-        AI-analyse starten leest alle plannen in de map Plannen, duidt ramen en deuren aan met het vloerplanmodel, nummert ze en maakt Projectnotities.pdf. Een geschreven maat naast een opening wordt overgenomen. Een maat die er niet staat, wordt niet ingevuld.
+        AI-analyse starten leest alle plannen in de map Plannen, duidt ramen en deuren aan met het vloerplanmodel, nummert ze en maakt Projectnotities.pdf. PaddleOCR leest de benamingen als het plan geen tekstlaag heeft. Een geschreven maat naast een opening wordt overgenomen. Een maat die er niet staat, wordt niet ingevuld.
       </p>
 
       {plans.length === 0 ? <p className="text-[13px] text-muted-foreground">Geen plannen in de map Plannen. Zonder plan kan je nog geen tekening aanduiden.</p> : null}
