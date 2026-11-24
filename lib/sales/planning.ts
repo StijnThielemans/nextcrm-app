@@ -1,4 +1,5 @@
 import { dossierInProjectbox } from "./projectbox";
+import type { PlanningGoogleBoardStatus } from "./planning-google-types";
 
 /** Week calendars under Planning. Glass has no split in the data, so it stays on buitendienst. */
 export const PLANNING_BOARDS = ["binnendienst", "buitendienst", "dienst-na-verkoop"] as const;
@@ -503,6 +504,8 @@ export type PlanningAssignmentView = {
   jobId: string;
 };
 
+export type { PlanningGoogleBoardStatus } from "./planning-google-types";
+
 export type PlanningBoardView = {
   board: PlanningBoardId;
   weekStart: string;
@@ -510,6 +513,7 @@ export type PlanningBoardView = {
   days: string[];
   jobs: PlanningJobView[];
   assignments: PlanningAssignmentView[];
+  google: PlanningGoogleBoardStatus;
 };
 
 export type PlanningLinkHit = {
