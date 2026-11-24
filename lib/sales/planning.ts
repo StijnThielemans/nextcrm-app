@@ -126,6 +126,66 @@ export function weekFromParam(value: string | undefined, today = todayIso()): st
   return mondayOf(today);
 }
 
+export const PLANNING_VIEWS = ["day", "workweek", "week", "month"] as const;
+
+export type PlanningView = (typeof PLANNING_VIEWS)[number];
+
+export function planningViewFromParam(value: string | undefined): PlanningView {
+  if (value === "day" || value === "workweek" || value === "week" || value === "month") return value;
+  return "week";
+}
+
+/** Monday–Friday of the week that starts on `monday`. */
+export function workWeekDays(monday: string): string[] {
+  return weekDays(monday).filter((iso) => {
+    const day = weekdayIndex(iso);
+    return day !== 0 && day !== 6;
+  });
+}
+
+export function firstOfMonth(iso: string): string {
+  return `${iso.slice(0, 7)}-01`;
+}
+
+export function lastOfMonth(iso: string): string {
+  const [year, month] = iso.split("-").map(Number);
+  const last = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  return `${iso.slice(0, 7)}-${String(last).padStart(2, "0")}`;
+}
+
+export function addMonths(iso: string, count: number): string {
+  const [year, month, day] = iso.split("-").map(Number);
+  const target = new Date(Date.UTC(year, month - 1 + count, 1));
+  const last = new Date(Date.UTC(target.getUTCFullYear(), target.getUTCMonth() + 1, 0)).getUTCDate();
+  const clamped = Math.min(day, last);
+  return new Date(Date.UTC(target.getUTCFullYear(), target.getUTCMonth(), clamped)).toISOString().slice(0, 10);
+}
+
+/** First Monday that still falls inside the month of `iso`. */
+export function firstMondayOfMonth(iso: string): string {
+  const first = firstOfMonth(iso);
+  const day = weekdayIndex(first);
+  if (day === 1) return first;
+  const delta = day === 0 ? 1 : 8 - day;
+  return addDays(first, delta);
+}
+
+/**
+ * Monday-start cells for the month of `iso`, including the leading and trailing
+ * days a month grid shows. Display only: planning spans stay on weekdays.
+ */
+export function monthGridDays(iso: string): string[] {
+  const start = mondayOf(firstOfMonth(iso));
+  const end = addDays(mondayOf(lastOfMonth(iso)), 6);
+  const days: string[] = [];
+  let cursor = start;
+  while (cursor <= end && days.length < 42) {
+    days.push(cursor);
+    cursor = addDays(cursor, 1);
+  }
+  return days;
+}
+
 export function formatDayParts(iso: string): { weekday: string; day: string; month: string; year: string } {
   const month = Number(iso.slice(5, 7));
   return {
@@ -146,11 +206,9 @@ export function formatDayLong(iso: string): { weekday: string; day: string; mont
   };
 }
 
-/** Outlook range, for example "23 - 29 november 2026". */
-export function formatWeekTitle(monday: string): string {
-  const sunday = addDays(monday, 6);
-  const start = formatDayLong(monday);
-  const end = formatDayLong(sunday);
+function formatRangeTitle(startIso: string, endIso: string): string {
+  const start = formatDayLong(startIso);
+  const end = formatDayLong(endIso);
   if (start.month === end.month && start.year === end.year) {
     return `${start.day} - ${end.day} ${start.month} ${start.year}`;
   }
@@ -158,6 +216,21 @@ export function formatWeekTitle(monday: string): string {
     return `${start.day} ${start.month} - ${end.day} ${end.month} ${start.year}`;
   }
   return `${start.day} ${start.month} ${start.year} - ${end.day} ${end.month} ${end.year}`;
+}
+
+/** Outlook range, for example "23 - 29 november 2026". */
+export function formatWeekTitle(monday: string): string {
+  return formatRangeTitle(monday, addDays(monday, 6));
+}
+
+/** Monday–Friday of that week, for example "23 - 27 november 2026". */
+export function formatWorkWeekTitle(monday: string): string {
+  return formatRangeTitle(monday, addDays(monday, 4));
+}
+
+export function formatMonthTitle(iso: string): string {
+  const day = formatDayLong(firstOfMonth(iso));
+  return `${day.month} ${day.year}`;
 }
 
 export function formatOutlookDayTitle(iso: string): string {
@@ -508,6 +581,7 @@ export type { PlanningGoogleBoardStatus } from "./planning-google-types";
 
 export type PlanningBoardView = {
   board: PlanningBoardId;
+  view: PlanningView;
   weekStart: string;
   today: string;
   days: string[];

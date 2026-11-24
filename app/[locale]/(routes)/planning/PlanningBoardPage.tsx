@@ -7,12 +7,14 @@ import { PlanningCalendar } from "./PlanningCalendar";
 export async function PlanningBoardPage({
   board,
   week,
+  view,
 }: {
   board: PlanningBoardId;
   week?: string;
+  view?: string;
 }) {
   const user = await requireAuthenticated();
-  const data = await loadPlanningBoard(user, board, week);
+  const data = await loadPlanningBoard(user, board, week, new Date(), view);
   return (
     <Container bare>
       <PlanningCalendar data={data} />

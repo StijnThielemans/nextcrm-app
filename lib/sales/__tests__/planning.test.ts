@@ -2,9 +2,16 @@ import {
   assignJobColors,
   boardForChassis,
   boardForGlass,
+  addMonths,
+  firstMondayOfMonth,
   formatDayLong,
+  formatMonthTitle,
   formatOutlookDayTitle,
   formatWeekTitle,
+  formatWorkWeekTitle,
+  monthGridDays,
+  planningViewFromParam,
+  workWeekDays,
   jobsFromProject,
   layoutOverlapLanes,
   planSpan,
@@ -183,5 +190,43 @@ describe("outlook week grid", () => {
       chassisEnd: "2026-11-25",
     }));
     expect(jobs[0]).toMatchObject({ place: "Merchtem", days: ["2026-11-24", "2026-11-25"] });
+  });
+});
+
+describe("planning views", () => {
+  it("reads the four views and defaults to week", () => {
+    expect(planningViewFromParam("day")).toBe("day");
+    expect(planningViewFromParam("workweek")).toBe("workweek");
+    expect(planningViewFromParam("week")).toBe("week");
+    expect(planningViewFromParam("month")).toBe("month");
+    expect(planningViewFromParam("gantt")).toBe("week");
+    expect(planningViewFromParam(undefined)).toBe("week");
+  });
+
+  it("keeps Monday to Friday for the work week", () => {
+    expect(workWeekDays("2026-11-23")).toEqual([
+      "2026-11-23",
+      "2026-11-24",
+      "2026-11-25",
+      "2026-11-26",
+      "2026-11-27",
+    ]);
+    expect(formatWorkWeekTitle("2026-11-23")).toBe("23 - 27 november 2026");
+    expect(formatWorkWeekTitle("2026-11-30")).toBe("30 november - 4 december 2026");
+  });
+
+  it("builds a Monday grid for the month and steps months from a Monday inside that month", () => {
+    const days = monthGridDays("2026-11-18");
+    expect(days[0]).toBe("2026-10-26");
+    expect(days.at(-1)).toBe("2026-12-06");
+    expect(days).toHaveLength(42);
+    expect(formatMonthTitle("2026-11-18")).toBe("november 2026");
+    expect(firstMondayOfMonth("2026-11-01")).toBe("2026-11-02");
+    expect(firstMondayOfMonth("2026-12-01")).toBe("2026-12-07");
+    expect(monthGridDays(firstMondayOfMonth("2026-12-01"))[0]?.slice(0, 7)).toBe("2026-11");
+    expect(firstMondayOfMonth("2026-12-01").slice(0, 7)).toBe("2026-12");
+    expect(addMonths("2026-11-01", 1)).toBe("2026-12-01");
+    expect(addMonths("2026-01-31", 1)).toBe("2026-02-28");
+    expect(addMonths("2026-03-31", -1)).toBe("2026-02-28");
   });
 });

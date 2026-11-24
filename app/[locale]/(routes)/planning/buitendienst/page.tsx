@@ -1,6 +1,6 @@
 import { PlanningBoardPage } from "../PlanningBoardPage";
 
-export default async function Page(props: { searchParams: Promise<{ week?: string }> }) {
-  const { week } = await props.searchParams;
-  return <PlanningBoardPage board="buitendienst" week={week} />;
+export default async function Page(props: { searchParams: Promise<{ week?: string; view?: string }> }) {
+  const { week, view } = await props.searchParams;
+  return <PlanningBoardPage board="buitendienst" week={week} view={view} />;
 }
