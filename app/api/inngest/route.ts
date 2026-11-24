@@ -31,6 +31,7 @@ import { calendarOutboundSync } from "@/inngest/functions/calendar/outbound-sync
 import { enrichDocument } from "@/inngest/functions/documents/enrich-document";
 import { generateDocumentThumbnail } from "@/inngest/functions/documents/generate-thumbnail";
 import { syncExchangeRates } from "@/inngest/functions/ecb/sync-exchange-rates";
+import { planningGooglePush } from "@/inngest/functions/planning/google-push";
 import { getPluginFunctions } from "@/lib/plugins/inngest";
 
 export const { GET, POST, PUT } = serve({
@@ -67,6 +68,7 @@ export const { GET, POST, PUT } = serve({
     enrichDocument,
     generateDocumentThumbnail,
     syncExchangeRates,
+    planningGooglePush,
     ...getPluginFunctions(),
   ],
 });
