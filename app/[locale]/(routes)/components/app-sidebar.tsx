@@ -10,7 +10,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import Image from "next/image";
-import { Puzzle } from "lucide-react";
+import { Puzzle, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { NavMain } from "./nav-main";
 import { NavUser } from "./nav-user";
@@ -88,8 +88,8 @@ export function AppSidebar({
   appName = "TILO",
   ...props
 }: AppSidebarProps) {
-  const { state } = useSidebar();
-  const isExpanded = state === "expanded";
+  const { state, isMobile, setOpenMobile } = useSidebar();
+  const isExpanded = isMobile || state === "expanded";
 
   const navItems = [
     getCrmMenuItem({ localizations: dict.crm, role: session?.user?.role ?? undefined }),
@@ -124,14 +124,14 @@ export function AppSidebar({
       <SidebarHeader className="border-b border-sidebar-border">
         <div
           className={cn(
-            "flex items-center py-2",
+            "flex items-center gap-1 py-2",
             isExpanded ? "px-1" : "justify-center",
           )}
         >
           <div
             className={cn(
               "flex items-center justify-center overflow-hidden rounded-lg bg-white ring-1 ring-black/[0.06]",
-              isExpanded ? "h-12 w-full px-2" : "size-9",
+              isExpanded ? "h-12 min-w-0 flex-1 px-2" : "size-9",
             )}
           >
             <Image
@@ -146,6 +146,16 @@ export function AppSidebar({
               )}
             />
           </div>
+          {isMobile ? (
+            <button
+              type="button"
+              className="grid size-11 shrink-0 place-items-center rounded-md text-sidebar-foreground"
+              aria-label="Sluit menu"
+              onClick={() => setOpenMobile(false)}
+            >
+              <X className="size-5" />
+            </button>
+          ) : null}
         </div>
       </SidebarHeader>
 

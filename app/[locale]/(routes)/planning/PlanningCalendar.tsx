@@ -97,6 +97,7 @@ export function PlanningCalendar({ data }: { data: PlanningBoardView }) {
   const [pending, startTransition] = useTransition();
   const view = data.view;
   const [focusDay, setFocusDay] = useState(() => (data.days.includes(data.today) ? data.today : data.weekStart));
+  const phoneDayChosen = useRef(false);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
   const title = BOARD_TITLE[data.board];
   const unscheduled = data.jobs.filter((job) => job.days.length === 0);
@@ -116,6 +117,16 @@ export function PlanningCalendar({ data }: { data: PlanningBoardView }) {
     if (nextView !== "week") params.set("view", nextView);
     return `/planning/${data.board}?${params.toString()}`;
   }
+
+  useEffect(() => {
+    if (phoneDayChosen.current) return;
+    const narrow = window.matchMedia?.("(max-width: 767px)")?.matches ?? false;
+    if (!narrow) return;
+    phoneDayChosen.current = true;
+    const params = new URLSearchParams(window.location.search);
+    if (params.has("view") || view === "day") return;
+    router.replace(href(data.weekStart, "day"));
+  }, [data.weekStart, view]);
 
   function showView(next: PlanningView) {
     if (next === view) return;
@@ -220,7 +231,7 @@ export function PlanningCalendar({ data }: { data: PlanningBoardView }) {
               <button
                 type="button"
                 onClick={goToday}
-                className="h-8 rounded border border-[hsl(214_16%_76%)] bg-white px-3 text-[13px] hover:bg-[hsl(210_16%_96%)] dark:border-[hsl(210_8%_30%)] dark:bg-[hsl(210_8%_14%)] dark:hover:bg-[hsl(210_8%_18%)]"
+                className="h-11 rounded border border-[hsl(214_16%_76%)] bg-white px-3 text-sm hover:bg-[hsl(210_16%_96%)] md:h-8 md:text-[13px] dark:border-[hsl(210_8%_30%)] dark:bg-[hsl(210_8%_14%)] dark:hover:bg-[hsl(210_8%_18%)]"
               >
                 Vandaag
               </button>
@@ -228,7 +239,7 @@ export function PlanningCalendar({ data }: { data: PlanningBoardView }) {
                 type="button"
                 aria-label="Vorige"
                 onClick={() => shift(-1)}
-                className="grid size-8 place-items-center rounded border border-[hsl(214_16%_76%)] bg-white hover:bg-[hsl(210_16%_96%)] dark:border-[hsl(210_8%_30%)] dark:bg-[hsl(210_8%_14%)] dark:hover:bg-[hsl(210_8%_18%)]"
+                className="grid size-11 place-items-center rounded border border-[hsl(214_16%_76%)] bg-white hover:bg-[hsl(210_16%_96%)] md:size-8 dark:border-[hsl(210_8%_30%)] dark:bg-[hsl(210_8%_14%)] dark:hover:bg-[hsl(210_8%_18%)]"
               >
                 <ChevronLeft className="size-4" />
               </button>
@@ -236,14 +247,14 @@ export function PlanningCalendar({ data }: { data: PlanningBoardView }) {
                 type="button"
                 aria-label="Volgende"
                 onClick={() => shift(1)}
-                className="grid size-8 place-items-center rounded border border-[hsl(214_16%_76%)] bg-white hover:bg-[hsl(210_16%_96%)] dark:border-[hsl(210_8%_30%)] dark:bg-[hsl(210_8%_14%)] dark:hover:bg-[hsl(210_8%_18%)]"
+                className="grid size-11 place-items-center rounded border border-[hsl(214_16%_76%)] bg-white hover:bg-[hsl(210_16%_96%)] md:size-8 dark:border-[hsl(210_8%_30%)] dark:bg-[hsl(210_8%_14%)] dark:hover:bg-[hsl(210_8%_18%)]"
               >
                 <ChevronRight className="size-4" />
               </button>
-              <span className="px-2 text-[18px] font-semibold tracking-tight" data-testid="planning-week">
+              <span className="px-2 text-base font-semibold tracking-tight md:text-[18px]" data-testid="planning-week">
                 {range}
               </span>
-              <div className="ml-auto flex items-center overflow-hidden rounded border border-[hsl(214_16%_76%)] bg-white text-[13px] dark:border-[hsl(210_8%_30%)] dark:bg-[hsl(210_8%_14%)]">
+              <div className="flex w-full items-center overflow-hidden rounded border border-[hsl(214_16%_76%)] bg-white text-sm md:ml-auto md:w-auto md:text-[13px] dark:border-[hsl(210_8%_30%)] dark:bg-[hsl(210_8%_14%)]">
                 <CalendarDays className="ml-2 size-4 text-muted-foreground" aria-hidden />
                 <ViewButton current={view} id="day" label="Dag" onShow={showView} />
                 <ViewButton current={view} id="workweek" label="Werkweek" onShow={showView} testId="planning-view-workweek" />
@@ -259,15 +270,16 @@ export function PlanningCalendar({ data }: { data: PlanningBoardView }) {
           )}
           {data.google.ready ? <PlanningGoogleStatus google={data.google} /> : null}
           <div className="flex min-h-0 flex-1 flex-col gap-2 md:flex-row">
-            <div className="flex max-h-[38%] min-h-0 w-full shrink-0 flex-col gap-2 md:max-h-none md:w-64">
+            <div className="flex max-h-[46%] min-h-0 w-full shrink-0 flex-col gap-2 md:max-h-none md:w-64">
               <UnscheduledList board={data.board} jobs={unscheduled} onDelete={(jobId) => run(() => deletePlanningItemAction(jobId))} />
               {data.board === "buitendienst" && <CrewStrip />}
             </div>
             <section
-              className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-sm border border-[hsl(214_16%_78%)] bg-white text-foreground dark:border-[hsl(210_8%_28%)] dark:bg-[hsl(210_8%_11%)]"
+              className="flex min-h-0 min-w-0 flex-1 flex-col overflow-auto rounded-sm border border-[hsl(214_16%_78%)] bg-white text-foreground dark:border-[hsl(210_8%_28%)] dark:bg-[hsl(210_8%_11%)]"
               aria-label={title}
             >
               {view === "month" ? (
+                <div className="min-w-[48rem] md:min-w-0">
                 <MonthGrid
                   anchor={data.weekStart}
                   today={data.today}
@@ -275,12 +287,16 @@ export function PlanningCalendar({ data }: { data: PlanningBoardView }) {
                   assignments={data.assignments}
                   onDelete={(jobId) => run(() => deletePlanningItemAction(jobId))}
                 />
+                </div>
               ) : (
-                <div className="min-h-0 flex-1 overflow-hidden" data-testid="planning-scroll">
+                <div className="min-h-0 min-w-0 flex-1 overflow-auto" data-testid="planning-scroll">
                   <div
-                    className="grid h-full w-full"
+                    className="grid h-full min-w-full"
                     style={{
-                      gridTemplateColumns: `3.25rem ${shownDays.map(() => "minmax(0, 1fr)").join(" ")}`,
+                      width: shownDays.length > 1
+                        ? `max(100%, calc(3.25rem + var(--planning-day, 0px) * ${shownDays.length}))`
+                        : "100%",
+                      gridTemplateColumns: `3.25rem repeat(${shownDays.length}, minmax(var(--planning-day, 0px), 1fr))`,
                     }}
                   >
                     <TimeGutter />
@@ -331,7 +347,7 @@ function ViewButton({
       data-testid={testId}
       onClick={() => onShow(id)}
       className={cn(
-        "border-l border-[hsl(214_16%_76%)] px-2.5 py-1.5 first:border-l-0 dark:border-[hsl(210_8%_30%)]",
+        "min-h-11 flex-1 border-l border-[hsl(214_16%_76%)] px-2 py-2 first:border-l-0 md:min-h-0 md:flex-none md:px-2.5 md:py-1.5 dark:border-[hsl(210_8%_30%)]",
         current === id && "bg-[hsl(210_16%_93%)] font-semibold dark:bg-white/10",
       )}
     >
@@ -422,7 +438,7 @@ function MonthCell({
     >
       <div
         className={cn(
-          "flex size-5 shrink-0 items-center justify-center text-[11px] leading-none",
+          "flex size-6 shrink-0 items-center justify-center text-sm leading-none md:size-5 md:text-[11px]",
           isToday && "rounded-full bg-[#107c10] font-semibold text-white",
           !isToday && outside && "text-muted-foreground",
         )}
@@ -483,7 +499,7 @@ function MonthChip({
       data-kind={job.kind}
       data-color={job.color.id}
       className={cn(
-        "truncate rounded-[2px] border border-l-[3px] px-1 text-[10px] leading-4",
+        "truncate rounded-[2px] border border-l-[3px] px-1 text-[13px] leading-5 md:text-[10px] md:leading-4",
         drag.isDragging && "opacity-40",
         drop.isOver && "ring-2 ring-[#008080]",
       )}
@@ -528,7 +544,7 @@ function TimeGutter() {
           return (
             <div
               key={hour}
-              className="absolute right-1 text-[11px] leading-none text-muted-foreground"
+              className="absolute right-1 text-[13px] leading-none text-muted-foreground"
               style={{
                 top: minutesTopPercent(hour * 60),
                 transform: atEnd ? "translateY(-100%)" : "translateY(-50%)",
@@ -590,7 +606,7 @@ function DayColumn({
       {isToday && <span aria-hidden className="pointer-events-none absolute inset-y-0 left-0 z-30 w-[3px] bg-[#107c10]" />}
       <div className={cn("shrink-0 border-b border-[hsl(214_18%_84%)] dark:border-[hsl(210_8%_28%)]", paper)}>
         <div className="flex flex-col justify-center px-2" style={{ height: HEADER_PX }}>
-          <div className={cn("text-[12px] leading-none", isToday ? "font-semibold text-[#107c10]" : "text-muted-foreground")}>
+          <div className={cn("text-sm leading-none", isToday ? "font-semibold text-[#107c10]" : "text-muted-foreground")}>
             {parts.weekday}
           </div>
           <div
@@ -610,7 +626,7 @@ function DayColumn({
           {allDay.map((job) => (
             <span
               key={job.id}
-              className="max-w-full truncate rounded-[2px] border px-1 text-[11px] leading-5"
+              className="max-w-full truncate rounded-[2px] border px-1 text-[13px] leading-5"
               style={{ background: job.color.background, borderColor: job.color.border, color: job.color.color }}
             >
               {planningBlockTitle(job.kind, job.workDays, job.text)}
@@ -704,7 +720,7 @@ function TimeBlock({
       data-lane={lane.column}
       data-lanes={lane.columns}
       className={cn(
-        "absolute z-10 flex cursor-grab flex-col overflow-visible rounded-[2px] border border-l-[3px] px-1 py-0.5 text-[11px] leading-[1.2]",
+        "absolute z-10 flex cursor-grab flex-col overflow-visible rounded-[2px] border border-l-[3px] px-1 py-0.5 text-[13px] leading-[1.25]",
         drag.isDragging && "opacity-40",
         drop.isOver && "ring-2 ring-[#008080]",
       )}
@@ -852,7 +868,7 @@ function ListJob({ job, onDelete }: { job: PlanningJobView; onDelete: (jobId: st
       data-testid={`planning-job-${job.id}`}
       data-kind={job.kind}
       data-color={job.color.id}
-      className={cn("w-full cursor-grab rounded-[2px] border border-l-[3px] px-2 py-1.5 text-[12px] leading-snug", isDragging && "opacity-40")}
+      className={cn("w-full cursor-grab rounded-[2px] border border-l-[3px] px-2 py-2 text-sm leading-snug md:py-1.5 md:text-[12px]", isDragging && "opacity-40")}
       style={{ background: job.color.background, borderColor: job.color.border, color: job.color.color }}
     >
       <BlockText job={job} />
@@ -928,7 +944,7 @@ function HandItemForm() {
         value={text}
         onChange={(event) => setText(event.target.value)}
         placeholder="Vrije tekst"
-        className="h-8 w-full rounded-md border border-[hsl(215_16%_76%)] bg-background px-2 text-[13px] outline-none focus:border-[#008080] dark:border-[hsl(210_8%_30%)]"
+        className="h-11 w-full rounded-md border border-[hsl(215_16%_76%)] bg-background px-2 text-base outline-none focus:border-[#008080] md:h-8 md:text-[13px] dark:border-[hsl(210_8%_30%)]"
       />
       <div className="relative">
         <input
@@ -940,7 +956,7 @@ function HandItemForm() {
             setQuery(event.target.value);
             setOpen(true);
           }}
-          className="h-8 w-full rounded-md border border-[hsl(215_16%_76%)] bg-background px-2 text-[13px] outline-none focus:border-[#008080] dark:border-[hsl(210_8%_30%)]"
+          className="h-11 w-full rounded-md border border-[hsl(215_16%_76%)] bg-background px-2 text-base outline-none focus:border-[#008080] md:h-8 md:text-[13px] dark:border-[hsl(210_8%_30%)]"
         />
         {open && hits.length > 0 && (
           <ul className="absolute z-10 mt-1 max-h-52 w-full overflow-auto rounded-md border border-[hsl(215_16%_76%)] bg-popover py-1 text-popover-foreground shadow-sm">
@@ -975,7 +991,7 @@ function HandItemForm() {
       <button
         type="submit"
         disabled={pending}
-        className="h-8 rounded-md bg-[#008080] px-3 text-[13px] font-medium text-white disabled:opacity-60"
+        className="h-11 rounded-md bg-[#008080] px-3 text-base font-medium text-white disabled:opacity-60 md:h-8 md:text-[13px]"
       >
         Toevoegen
       </button>
@@ -1009,7 +1025,7 @@ function CrewInBlock({
           onClick={() => onRemoveCrew(item.id)}
         >
           <CrewPortrait person={person} size={40} />
-          <span className="min-w-0 flex-1 text-[12px] font-semibold leading-tight">{person.name}</span>
+          <span className="min-w-0 flex-1 text-[13px] font-semibold leading-tight">{person.name}</span>
         </button>
       ))}
     </div>
@@ -1018,11 +1034,11 @@ function CrewInBlock({
 
 function CrewStrip() {
   return (
-    <section className="tilo-frame flex min-h-0 flex-1 basis-0 flex-col gap-1.5 overflow-hidden px-2 py-2" data-testid="planning-crew">
-      <p className="shrink-0 text-[11px] leading-snug text-muted-foreground">
+    <section className="tilo-frame flex min-h-[7.75rem] shrink-0 flex-col gap-1.5 overflow-hidden px-2 py-2 md:min-h-0 md:flex-1 md:basis-0" data-testid="planning-crew">
+      <p className="shrink-0 text-sm leading-snug text-muted-foreground md:text-[11px]">
         Ploeg. Sleep iemand of een vrachtwagen op een job voor die dag.
       </p>
-      <div className="grid min-h-0 flex-1 grid-cols-3 content-start gap-1 overflow-y-auto">
+      <div className="flex min-h-0 flex-1 gap-2 overflow-x-auto md:grid md:grid-cols-3 md:content-start md:gap-1 md:overflow-y-auto">
         {PLANNING_CREW.map((person) => (
           <CrewToken key={person.id} person={person} />
         ))}
@@ -1043,10 +1059,10 @@ function CrewToken({ person }: { person: (typeof PLANNING_CREW)[number] }) {
       {...attributes}
       role="group"
       data-testid={`planning-crew-${person.id}`}
-      className={cn("flex min-w-0 cursor-grab flex-col items-center gap-1 text-center", isDragging && "opacity-40")}
+      className={cn("flex w-16 shrink-0 cursor-grab flex-col items-center gap-1 text-center md:w-auto md:min-w-0", isDragging && "opacity-40")}
     >
       <CrewPortrait person={person} size={40} />
-      <div className="line-clamp-2 w-full text-[10px] leading-tight">{person.name}</div>
+      <div className="line-clamp-2 w-full text-[13px] leading-tight md:text-[12px]">{person.name}</div>
     </div>
   );
 }

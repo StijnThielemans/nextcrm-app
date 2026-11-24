@@ -23,22 +23,22 @@ export function DataTablePagination<TData>({
   table,
 }: DataTablePaginationProps<TData>) {
   return (
-    <div className="flex items-center justify-between gap-4 pt-2">
-      <div className="flex-1 text-sm text-muted-foreground">
+    <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
+      <div className="min-w-0 flex-1 text-sm text-muted-foreground md:text-sm">
         {table.getFilteredSelectedRowModel().rows.length > 0
           ? `${table.getFilteredSelectedRowModel().rows.length} van ${table.getFilteredRowModel().rows.length} geselecteerd`
           : null}
       </div>
-      <div className="flex items-center space-x-6 lg:space-x-8">
+      <div className="flex flex-wrap items-center gap-3 lg:gap-8">
         <div className="flex items-center space-x-2">
-          <p className="text-sm text-muted-foreground">Rijen</p>
+          <p className="text-base text-muted-foreground md:text-sm">Rijen</p>
           <Select
             value={`${table.getState().pagination.pageSize}`}
             onValueChange={(value) => {
               table.setPageSize(Number(value));
             }}
           >
-            <SelectTrigger className="h-8 w-[70px] rounded-full">
+            <SelectTrigger className="h-11 w-[4.75rem] rounded-full text-base md:h-8 md:w-[70px] md:text-sm">
               <SelectValue placeholder={table.getState().pagination.pageSize} />
             </SelectTrigger>
             <SelectContent side="top">
@@ -50,7 +50,7 @@ export function DataTablePagination<TData>({
             </SelectContent>
           </Select>
         </div>
-        <div className="flex w-[7.5rem] items-center justify-center text-sm text-muted-foreground">
+        <div className="flex items-center justify-center text-base text-muted-foreground md:w-[7.5rem] md:text-sm">
           Pagina {table.getState().pagination.pageIndex + 1} van{" "}
           {table.getPageCount()}
         </div>
@@ -66,7 +66,7 @@ export function DataTablePagination<TData>({
           </Button>
           <Button
             variant="outline"
-            className="h-8 w-8 rounded-full p-0"
+            className="h-11 w-11 rounded-full p-0 md:h-8 md:w-8"
             onClick={() => table.previousPage()}
             disabled={!table.getCanPreviousPage()}
           >
@@ -75,7 +75,7 @@ export function DataTablePagination<TData>({
           </Button>
           <Button
             variant="outline"
-            className="h-8 w-8 rounded-full p-0"
+            className="h-11 w-11 rounded-full p-0 md:h-8 md:w-8"
             onClick={() => table.nextPage()}
             disabled={!table.getCanNextPage()}
           >

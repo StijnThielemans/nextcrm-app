@@ -40,14 +40,14 @@ export function DataTableToolbar<TData>({
   const isFiltered = table.getState().columnFilters.length > 0 || globalFilter.length > 0;
 
   return (
-    <div className="flex items-center gap-2 overflow-x-auto">
+    <div className="flex flex-wrap items-center gap-2">
       {title ? <ListPageTitle title={title} /> : null}
-      <div className="flex shrink-0 items-center gap-2">
+      <div className="flex w-full items-center gap-2 md:w-auto md:shrink-0">
         <Input
           placeholder={t("search")}
           value={globalFilter}
           onChange={(event) => table.setGlobalFilter(event.target.value)}
-          className="h-8 w-52 rounded-full bg-[hsl(var(--canvas))] px-3 text-xs sm:w-64"
+          className="h-11 w-full min-w-0 rounded-full bg-[hsl(var(--canvas))] px-3 text-base sm:w-64 md:h-8 md:w-52 md:text-xs"
           data-testid={searchTestId}
         />
         {/*         <Input

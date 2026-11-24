@@ -121,7 +121,7 @@ function OpportunityCard({ opportunity, router, onThumbsDown, stage, salesStages
           </div>
         </div>
       </CardTitle>
-      <CardContent className="text-xs text-muted-foreground">
+      <CardContent className="text-sm text-muted-foreground md:text-xs">
         <div className="flex flex-col space-y-1">
           <div className="overflow-hidden">
             <HoverCard>
@@ -158,8 +158,8 @@ function OpportunityCard({ opportunity, router, onThumbsDown, stage, salesStages
         </div>
       </CardContent>
       <CardFooter className="flex justify-between">
-        <div className="flex text-xs items-center gap-2">
-          <Avatar className="w-6 h-6">
+        <div className="flex items-center gap-2 text-sm md:text-xs">
+          <Avatar className="h-8 w-8 md:h-6 md:w-6">
             <AvatarImage
               src={
                 opportunity.assigned_to_user?.avatar
@@ -168,7 +168,7 @@ function OpportunityCard({ opportunity, router, onThumbsDown, stage, salesStages
               }
             />
           </Avatar>
-          <span className="text-xs">{opportunity.assigned_to_user?.name}</span>
+          <span className="text-sm md:text-xs">{opportunity.assigned_to_user?.name}</span>
         </div>
         <div className="flex space-x-2">
           {stage.probability !==
@@ -368,7 +368,7 @@ const CRMKanban = ({
   return (
     <>
       <Dialog open={isDialogOpen} onOpenChange={() => setIsDialogOpen(false)}>
-        <DialogContent className="min-w-[1000px] py-10 overflow-auto">
+        <DialogContent className="w-[min(1000px,calc(100vw-1.5rem))] max-w-[calc(100vw-1.5rem)] min-w-0 overflow-auto py-10">
           <NewOpportunityForm
             accounts={accounts}
             contacts={contacts}
@@ -441,7 +441,7 @@ const CRMKanban = ({
                   <CardTitle className="p-2 text-sm">
                     <span className="font-bold">{opportunity?.name}</span>
                   </CardTitle>
-                  <CardContent className="text-xs text-muted-foreground">
+                  <CardContent className="text-sm text-muted-foreground md:text-xs">
                     <div className="flex flex-col space-y-1">
                       <div>{opportunity.description?.substring(0, 200)}</div>
                       <div className="space-x-1">

@@ -39,7 +39,7 @@ function SortableHead({ id, children }: { id: string; children: React.ReactNode 
   return (
     <TableHead
       ref={setNodeRef}
-      className="h-8 px-2"
+      className="h-12 px-3 text-base md:h-8 md:px-2 md:text-sm"
       style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.6 : 1 }}
     >
       <div className="flex items-center gap-1">
@@ -184,7 +184,7 @@ export function CrmListTable<TData>({
                         data-project-number={tableId === "projects" ? String((row.original as { projectNumber?: string }).projectNumber ?? "") : undefined}
                       >
                         {row.getVisibleCells().map((cell) => (
-                          <TableCell key={cell.id} className="whitespace-nowrap px-2.5 py-1.5 text-[0.8125rem]">
+                          <TableCell key={cell.id} className="whitespace-nowrap px-3 py-3 text-base md:px-2.5 md:py-1.5 md:text-[0.8125rem]">
                             {flexRender(cell.column.columnDef.cell, cell.getContext())}
                           </TableCell>
                         ))}

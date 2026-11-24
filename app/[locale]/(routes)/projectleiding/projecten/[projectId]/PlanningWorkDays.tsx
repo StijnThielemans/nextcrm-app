@@ -147,7 +147,7 @@ function WorkDayField({
 }) {
   return (
     <div className="min-w-0 px-3 py-2" data-field={field} data-empty={value === "" ? "true" : "false"}>
-      <label className="block text-[11px] leading-tight text-muted-foreground" htmlFor={testId}>
+      <label className="block text-sm leading-snug text-muted-foreground md:text-[11px] md:leading-tight" htmlFor={testId}>
         {label}
       </label>
       <input
@@ -164,7 +164,7 @@ function WorkDayField({
         onKeyDown={(event) => {
           if (event.key === "Enter") event.currentTarget.blur();
         }}
-        className="mt-1 h-7 w-full max-w-[8rem] rounded-md border border-[hsl(215_16%_76%)] bg-transparent px-2 text-[13px] tabular-nums outline-none focus:border-[hsl(var(--tilo))] disabled:opacity-60"
+        className="mt-1 h-11 w-full max-w-[10rem] rounded-md border border-[hsl(215_16%_76%)] bg-transparent px-2 text-base tabular-nums outline-none focus:border-[hsl(var(--tilo))] disabled:opacity-60 md:h-7 md:max-w-[8rem] md:text-[13px]"
       />
     </div>
   );

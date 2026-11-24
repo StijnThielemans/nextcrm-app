@@ -131,13 +131,13 @@ export default async function AppLayout({
         pluginNav={pluginNav}
         appName="TILO"
       />
-      <SidebarInset className="bg-[hsl(210_16%_97%)] dark:bg-[hsl(210_12%_7%)]">
+      <SidebarInset className="min-w-0 overflow-x-hidden bg-[hsl(210_16%_97%)] dark:bg-[hsl(210_12%_7%)]">
         <Header
           id={session.user.id as string}
           lang={session.user.userLanguage as string}
         />
-        <div className="flex h-full min-h-0 w-full min-w-0 flex-1 flex-col overflow-y-auto">
-          <div className="w-full min-w-0 flex-1 px-6 py-8 lg:px-10 lg:py-10">
+        <div className="flex h-full min-h-0 w-full min-w-0 flex-1 flex-col overflow-y-auto overflow-x-hidden" data-mobile-app="">
+          <div className="w-full min-w-0 flex-1 px-3 py-4 md:px-6 md:py-8 lg:px-10 lg:py-10">
             {children}
           </div>
           <Footer />

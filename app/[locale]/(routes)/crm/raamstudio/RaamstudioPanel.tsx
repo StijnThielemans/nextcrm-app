@@ -64,7 +64,7 @@ export function RaamstudioPanel({
       {selected ? null : (
       <section className="space-y-2">
         <div className="tilo-frame px-3 py-2">
-          <div className="flex items-center gap-2 overflow-x-auto">
+          <div className="flex flex-wrap items-center gap-2">
             <h2 className="flex shrink-0 items-center gap-2 text-base font-medium leading-none tracking-[-0.02em]">
               <span aria-hidden className="h-4 w-[3px] shrink-0 rounded-full bg-[hsl(var(--tilo))]" />
               RaamStudio
@@ -74,7 +74,7 @@ export function RaamstudioPanel({
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Zoeken …"
               aria-label="Zoeken"
-              className="h-8 w-52 rounded-full bg-[hsl(var(--canvas))] px-3 text-xs sm:w-64"
+              className="h-11 w-full rounded-full bg-[hsl(var(--canvas))] px-3 text-base sm:w-64 md:h-8 md:w-52 md:text-xs"
               data-testid="raamstudio-dossier-search"
             />
           </div>
@@ -87,11 +87,11 @@ export function RaamstudioPanel({
                 <li key={dossier.id}>
                   <Link
                     href={`/crm/raamstudio?dossier=${dossier.id}`}
-                    className="block px-4 py-3 text-sm hover:bg-accent"
+                    className="block px-4 py-3 text-base hover:bg-accent md:text-sm"
                   >
                     <span className="font-medium">{dossier.number ?? "Zonder nummer"}</span>
                     <span className="text-muted-foreground"> · {dossier.name ?? "Zonder projectbeschrijving"}</span>
-                    {dossier.customer ? <span className="mt-1 block text-xs text-muted-foreground">{dossier.customer}</span> : null}
+                    {dossier.customer ? <span className="mt-1 block text-sm text-muted-foreground md:text-xs">{dossier.customer}</span> : null}
                   </Link>
                 </li>
               ))}

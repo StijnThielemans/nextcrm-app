@@ -285,7 +285,7 @@ export function Raamstudio2Workspace({
 
   return (
     <section className="space-y-3" data-testid="raamstudio-2-workspace">
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2 [&_button]:h-11 [&_button]:px-3 [&_button]:text-sm md:[&_button]:h-8 md:[&_button]:text-xs">
         {STEPS.map((item) => (
           <Button key={item.id} type="button" size="sm" variant={step === item.id ? "default" : "outline"} data-testid={`raamstudio-2-step-${item.id}`} onClick={() => setStep(item.id)}>
             {item.label}
@@ -306,19 +306,19 @@ export function Raamstudio2Workspace({
         <Button type="button" size="sm" disabled={saving || locked || Boolean(loadError)} data-testid="raamstudio-2-save" onClick={() => void save()}>
           Opslaan als .raamstudio
         </Button>
-        <p className="text-[12px] text-muted-foreground" data-testid="raamstudio-2-save-status">{status}</p>
+        <p className="text-sm text-muted-foreground md:text-[12px]" data-testid="raamstudio-2-save-status">{status}</p>
       </div>
-      <p className="text-[12px] text-muted-foreground">
+      <p className="text-sm text-muted-foreground md:text-[12px]">
         Bestandstype .raamstudio. Originele plannen blijven onaangeroerd. Projectnotities.pdf wordt opgebouwd uit die originelen plus vectortekst. Maten komen alleen uit wat je zelf invult of uit cijfers die al op het plan staan.
       </p>
 
       {plans.length === 0 ? <p className="text-[13px] text-muted-foreground">Geen plannen in de map Plannen. Zonder plan kan je nog geen tekening aanduiden.</p> : null}
 
       <div className="grid gap-3 lg:grid-cols-[220px_minmax(0,1fr)]">
-        <div className="space-y-2 text-[13px]">
+        <div className="space-y-2 text-base md:text-[13px]">
           <label className="block">
             Plan
-            <select className="mt-1 h-9 w-full rounded-md border bg-background px-2" value={planId} onChange={(event) => { setPlanId(event.target.value); setPage(1); }} data-testid="raamstudio-2-plan-select">
+            <select className="mt-1 h-11 w-full rounded-md border bg-background px-2 text-base md:h-9 md:text-[13px]" value={planId} onChange={(event) => { setPlanId(event.target.value); setPage(1); }} data-testid="raamstudio-2-plan-select">
               {plans.map((plan) => <option key={plan.id} value={plan.id}>{plan.name}</option>)}
             </select>
           </label>
@@ -326,14 +326,14 @@ export function Raamstudio2Workspace({
             <>
               <label className="block">
                 Soort
-                <select className="mt-1 h-9 w-full rounded-md border bg-background px-2" value={drawingKind} onChange={(event) => setDrawingKind(event.target.value as DrawingKind)}>
+                <select className="mt-1 h-11 w-full rounded-md border bg-background px-2 text-base md:h-9 md:text-[13px]" value={drawingKind} onChange={(event) => setDrawingKind(event.target.value as DrawingKind)}>
                   {DRAWING_KINDS.map((kind) => <option key={kind}>{kind}</option>)}
                 </select>
               </label>
               {drawingKind === "Gevel" ? (
                 <label className="block">
                   Gevel
-                  <select className="mt-1 h-9 w-full rounded-md border bg-background px-2" value={drawingSide} onChange={(event) => setDrawingSide(event.target.value as FacadeSide)}>
+                  <select className="mt-1 h-11 w-full rounded-md border bg-background px-2 text-base md:h-9 md:text-[13px]" value={drawingSide} onChange={(event) => setDrawingSide(event.target.value as FacadeSide)}>
                     {FACADE_ORDER.map((item) => <option key={item}>{item}</option>)}
                   </select>
                 </label>
@@ -355,7 +355,7 @@ export function Raamstudio2Workspace({
               </label>
               <label className="block">
                 Gevel voor de nummering
-                <select className="mt-1 h-9 w-full rounded-md border bg-background px-2" value={openingSide} onChange={(event) => setOpeningSide(event.target.value as FacadeSide)} data-testid="raamstudio-2-opening-side">
+                <select className="mt-1 h-11 w-full rounded-md border bg-background px-2 text-base md:h-9 md:text-[13px]" value={openingSide} onChange={(event) => setOpeningSide(event.target.value as FacadeSide)} data-testid="raamstudio-2-opening-side">
                   {FACADE_ORDER.map((item) => <option key={item}>{item}</option>)}
                 </select>
               </label>
@@ -375,7 +375,7 @@ export function Raamstudio2Workspace({
               <p>Volgorde: {FACADE_ORDER.join(", ")}. Per verdieping opnieuw bij 1.</p>
               <label className="block">
                 Nummer
-                <select className="mt-1 h-9 w-full rounded-md border bg-background px-2" value={openingId} onChange={(event) => {
+                <select className="mt-1 h-11 w-full rounded-md border bg-background px-2 text-base md:h-9 md:text-[13px]" value={openingId} onChange={(event) => {
                   const id = event.target.value;
                   setOpeningId(id);
                   const opening = project.openings.find((item) => item.id === id);
@@ -388,7 +388,7 @@ export function Raamstudio2Workspace({
               </label>
               <label className="block">
                 Gevel
-                <select className="mt-1 h-9 w-full rounded-md border bg-background px-2" value={side} onChange={(event) => setSide(event.target.value as FacadeSide)}>
+                <select className="mt-1 h-11 w-full rounded-md border bg-background px-2 text-base md:h-9 md:text-[13px]" value={side} onChange={(event) => setSide(event.target.value as FacadeSide)}>
                   {FACADE_ORDER.map((item) => <option key={item}>{item}</option>)}
                 </select>
               </label>
@@ -425,14 +425,14 @@ export function Raamstudio2Workspace({
             <>
               <label className="block">
                 Nummer
-                <select className="mt-1 h-9 w-full rounded-md border bg-background px-2" value={openingId} onChange={(event) => setOpeningId(event.target.value)}>
+                <select className="mt-1 h-11 w-full rounded-md border bg-background px-2 text-base md:h-9 md:text-[13px]" value={openingId} onChange={(event) => setOpeningId(event.target.value)}>
                   <option value="">Kies een nummer</option>
                   {project.openings.map((opening) => <option key={opening.id} value={opening.id}>{opening.number}</option>)}
                 </select>
               </label>
               <label className="block">
                 Catalogus
-                <select className="mt-1 h-9 w-full rounded-md border bg-background px-2" value={category} onChange={(event) => {
+                <select className="mt-1 h-11 w-full rounded-md border bg-background px-2 text-base md:h-9 md:text-[13px]" value={category} onChange={(event) => {
                   const next = event.target.value;
                   setCategory(next);
                   setInfoText(RAAMINFO_CATALOG[next]?.[0] ?? "");
@@ -444,7 +444,7 @@ export function Raamstudio2Workspace({
               {category === "Eigen tekst" ? (
                 <Input value={customText} onChange={(event) => setCustomText(event.target.value)} placeholder="Eigen tekst" aria-label="Eigen tekst" />
               ) : (
-                <select className="h-9 w-full rounded-md border bg-background px-2" value={infoText} onChange={(event) => setInfoText(event.target.value)}>
+                <select className="h-11 w-full rounded-md border bg-background px-2 text-base md:h-9 md:text-[13px]" value={infoText} onChange={(event) => setInfoText(event.target.value)}>
                   {(RAAMINFO_CATALOG[category] ?? []).map((item) => <option key={item}>{item}</option>)}
                 </select>
               )}

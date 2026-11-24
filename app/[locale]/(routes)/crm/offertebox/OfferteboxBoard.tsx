@@ -415,9 +415,9 @@ function MailRow({
             {when.format(new Date(row.receivedAt))}
           </time>
         </div>
-        <div className={open ? "mt-3 flex items-center gap-3" : "mt-0.5 flex items-center gap-2"}>
+        <div className={open ? "mt-3 flex flex-wrap items-center gap-3" : "mt-2 flex flex-col items-stretch gap-2 sm:flex-row sm:items-center"}>
           <select
-            className="h-7 w-[8.75rem] shrink-0 rounded-full border border-input bg-transparent px-2 text-xs"
+            className="h-11 w-full rounded-full border border-input bg-transparent px-3 text-base sm:w-[8.75rem] md:h-7 md:text-xs"
             value={row.sellerName ?? ""}
             disabled={pending}
             aria-label={sellerLabel}

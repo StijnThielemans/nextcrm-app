@@ -31,8 +31,8 @@ function Cell({
 }) {
   return (
     <div className="min-w-0 px-3 py-2" data-field={field} data-empty={empty ? "true" : "false"}>
-      <div className="text-[11px] leading-tight text-muted-foreground">{label}</div>
-      <div className="mt-0.5 min-h-5 text-[13px] leading-snug">{empty ? <span className="text-muted-foreground">—</span> : children}</div>
+      <div className="text-sm leading-snug text-muted-foreground md:text-[11px] md:leading-tight">{label}</div>
+      <div className="mt-0.5 min-h-6 text-base leading-snug md:min-h-5 md:text-[13px]">{empty ? <span className="text-muted-foreground">—</span> : children}</div>
     </div>
   );
 }
@@ -41,8 +41,8 @@ function TextCell({ label, field, value, testId }: { label: string; field: strin
   const shown = text(value);
   return (
     <div className="min-w-0 px-3 py-2" data-field={field} data-empty={shown ? "false" : "true"} data-testid={testId}>
-      <div className="text-[11px] leading-tight text-muted-foreground">{label}</div>
-      <div className="mt-0.5 min-h-5 text-[13px] leading-snug">{shown || "—"}</div>
+      <div className="text-sm leading-snug text-muted-foreground md:text-[11px] md:leading-tight">{label}</div>
+      <div className="mt-0.5 min-h-6 text-base leading-snug md:min-h-5 md:text-[13px]">{shown || "—"}</div>
     </div>
   );
 }
@@ -78,9 +78,9 @@ function AddressLines({
           const shown = text(line.value);
           const empty = !line.node && !shown;
           return (
-            <div key={line.field} className="grid grid-cols-[6.75rem_minmax(0,1fr)] items-baseline gap-2" data-field={line.field} data-empty={empty ? "true" : "false"}>
-              <dt className="text-[11px] text-muted-foreground">{line.label}</dt>
-              <dd className="min-w-0 text-[13px] leading-snug">{empty ? <span className="text-muted-foreground">—</span> : line.node ?? shown}</dd>
+            <div key={line.field} className="grid grid-cols-1 gap-0.5 md:grid-cols-[6.75rem_minmax(0,1fr)] md:items-baseline md:gap-2" data-field={line.field} data-empty={empty ? "true" : "false"}>
+              <dt className="text-sm text-muted-foreground md:text-[11px]">{line.label}</dt>
+              <dd className="min-w-0 text-base leading-snug md:text-[13px]">{empty ? <span className="text-muted-foreground">—</span> : line.node ?? shown}</dd>
             </div>
           );
         })}
@@ -107,7 +107,7 @@ function Remark({ title, field, value }: { title: string; field: string; value?:
   return (
     <section className="tilo-frame flex min-h-32 flex-col p-3" data-field={field} data-empty={shown ? "false" : "true"}>
       <BlockTitle>{title}</BlockTitle>
-      <p className="whitespace-pre-wrap text-[13px] leading-snug">{shown}</p>
+      <p className="whitespace-pre-wrap text-base leading-snug md:text-[13px]">{shown}</p>
     </section>
   );
 }
@@ -130,14 +130,14 @@ function FollowUps({ events, nextStep, t }: { events: ProjectFollowUpLine[]; nex
   return (
     <section className="tilo-frame p-3" data-testid="project-follow-up" data-empty={empty ? "true" : "false"}>
       <BlockTitle>{t("followUp")}</BlockTitle>
-      <p className="text-[13px]" data-field="next-step" data-empty={text(nextStep) ? "false" : "true"}>
-        <span className="text-[11px] text-muted-foreground">{t("nextAction")}</span>
+      <p className="text-base md:text-[13px]" data-field="next-step" data-empty={text(nextStep) ? "false" : "true"}>
+        <span className="text-sm text-muted-foreground md:text-[11px]">{t("nextAction")}</span>
         <span className="mt-0.5 block">{text(nextStep) || "—"}</span>
       </p>
       {events.length === 0 ? (
-        <p className="mt-2 text-[13px] text-muted-foreground">{t("noFollowUp")}</p>
+        <p className="mt-2 text-base text-muted-foreground md:text-[13px]">{t("noFollowUp")}</p>
       ) : (
-        <ul className="tilo-rows mt-2 text-[13px]">
+        <ul className="tilo-rows mt-2 text-base md:text-[13px]">
           {events.map((event) => (
             <li key={event.id} className="py-1.5">
               {event.at} · {followUpLabel(event.channel, t)} · {event.seller ?? "—"}
@@ -153,7 +153,7 @@ function FollowUps({ events, nextStep, t }: { events: ProjectFollowUpLine[]; nex
 function SpecGrid({ project, group, customerName, t, p }: { project: ProjectScreenData; group: string; customerName: ReactNode; t: SalesText; p: SalesText }) {
   return (
     <section className="tilo-frame" aria-label={p("tabs.algemeen")}>
-      <dl className="tilo-cells grid-cols-2 md:grid-cols-4 xl:grid-cols-6">
+      <dl className="tilo-cells grid-cols-1 md:grid-cols-4 xl:grid-cols-6">
         <Cell label={t("customer")} field="customer" empty={!text(project.customerName)}>
           {customerName}
         </Cell>
@@ -180,21 +180,21 @@ function Flags({ p }: { p: SalesText }) {
   return (
     <section className="tilo-frame px-3 py-2">
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-        <label className="flex items-center gap-2 text-[13px]" data-field="on-hold" data-empty="true">
-          <input type="checkbox" disabled defaultChecked={false} className="size-3.5" />
+        <label className="flex items-center gap-2 text-base md:text-[13px]" data-field="on-hold" data-empty="true">
+          <input type="checkbox" disabled defaultChecked={false} className="size-5 md:size-3.5" />
           {p("onHold")}
         </label>
         <div className="flex flex-wrap items-center gap-1.5" data-field="file-location" data-empty="true">
-          <span className="text-[11px] text-muted-foreground">{p("fileLocation")}</span>
+          <span className="text-sm text-muted-foreground md:text-[11px]">{p("fileLocation")}</span>
           <span aria-pressed="false" className="rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground">{p("inCabinet")}</span>
           <span aria-pressed="false" className="rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground">{p("withMe")}</span>
         </div>
-        <label className="flex items-center gap-2 text-[13px]" data-field="check-in" data-empty="true">
-          <input type="checkbox" disabled defaultChecked={false} className="size-3.5" />
+        <label className="flex items-center gap-2 text-base md:text-[13px]" data-field="check-in" data-empty="true">
+          <input type="checkbox" disabled defaultChecked={false} className="size-5 md:size-3.5" />
           {p("checkIn")}
         </label>
       </div>
-      <dl className="tilo-cells -mx-3 mt-2 grid-cols-2 lg:grid-cols-4">
+      <dl className="tilo-cells -mx-3 mt-2 grid-cols-1 md:grid-cols-2 lg:grid-cols-4">
         <TextCell label={p("reference")} field="reference" value={null} />
         <TextCell label={p("delivery")} field="delivery" value={null} />
         <TextCell label={p("key")} field="key" value={null} />
@@ -220,7 +220,7 @@ function ProjectSections({
         >
           <h2
             id={`project-heading-${section.id}`}
-            className="flex items-center gap-2 border-b border-[hsl(215_16%_76%)] pb-1.5 text-[13px] font-semibold text-[hsl(190_32%_22%)]"
+            className="flex items-center gap-2 border-b border-[hsl(215_16%_76%)] pb-1.5 text-base font-semibold text-[hsl(190_32%_22%)] md:text-[13px]"
           >
             <span aria-hidden className="h-4 w-[3px] rounded-full bg-[hsl(var(--tilo))]" />
             {section.label}
@@ -262,7 +262,7 @@ export async function ProjectScreen({ project }: { project: ProjectScreenData })
     <div className="space-y-3" data-testid="project-screen" data-project-number={project.projectNumber}>
       <header className="tilo-frame" data-testid="project-header">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2">
-          <h1 className="flex min-w-0 flex-wrap items-baseline gap-x-2 text-sm font-medium">
+          <h1 className="flex min-w-0 flex-wrap items-baseline gap-x-2 text-base font-medium md:text-sm">
             <span aria-hidden className="h-3 w-[3px] self-center rounded-full bg-[hsl(var(--tilo))]" />
             <span>{p("title")}</span>
             <span className="tabular-nums font-semibold" data-testid="project-number">{project.projectNumber}</span>
@@ -277,7 +277,7 @@ export async function ProjectScreen({ project }: { project: ProjectScreenData })
             {status}
           </span>
         </div>
-        <dl className="tilo-cells grid-cols-2 border-t border-[hsl(215_14%_84%)] lg:grid-cols-4">
+        <dl className="tilo-cells grid-cols-1 border-t border-[hsl(215_14%_84%)] md:grid-cols-2 lg:grid-cols-4">
           <TextCell label={t("seller")} field="header-seller" value={project.seller} />
           <TextCell label={p("projectLeader")} field="header-project-leader" value={project.projectLeader} testId="header-project-leader" />
           <TextCell label={p("type")} field="header-type" value={group} />
@@ -340,7 +340,7 @@ export async function ProjectScreen({ project }: { project: ProjectScreenData })
                   glass={project.glassWorkDays}
                 />
                 <section className="tilo-frame" data-testid="planning-dates">
-                  <dl className="tilo-cells grid-cols-2 lg:grid-cols-4">
+                  <dl className="tilo-cells grid-cols-1 md:grid-cols-2 lg:grid-cols-4">
                     <TextCell label={p("planStartChassis")} field="plan-start-chassis" value={planDate(project.chassisPlanStart)} testId="plan-start-chassis" />
                     <TextCell label={p("planEndChassis")} field="plan-end-chassis" value={planDate(project.chassisPlanEnd)} testId="plan-end-chassis" />
                     <TextCell label={p("planStartGlass")} field="plan-start-glass" value={planDate(project.glassPlanStart)} testId="plan-start-glass" />
@@ -378,13 +378,13 @@ export async function ProjectScreen({ project }: { project: ProjectScreenData })
               <section className="tilo-frame p-3" data-testid="other-parties">
                 <BlockTitle>{p("otherParties")}</BlockTitle>
                 <dl className="space-y-1">
-                  <div className="grid grid-cols-[6.75rem_minmax(0,1fr)] gap-2" data-field="contractor" data-empty="true">
-                    <dt className="text-[11px] text-muted-foreground">{p("contractor")}</dt>
-                    <dd className="text-[13px] text-muted-foreground">—</dd>
+                  <div className="grid grid-cols-1 gap-0.5 md:grid-cols-[6.75rem_minmax(0,1fr)] md:gap-2" data-field="contractor" data-empty="true">
+                    <dt className="text-sm text-muted-foreground md:text-[11px]">{p("contractor")}</dt>
+                    <dd className="text-base text-muted-foreground md:text-[13px]">—</dd>
                   </div>
-                  <div className="grid grid-cols-[6.75rem_minmax(0,1fr)] gap-2" data-field="architect" data-empty={architect ? "false" : "true"}>
-                    <dt className="text-[11px] text-muted-foreground">{t("architect")}</dt>
-                    <dd className="text-[13px]">{architect || "—"}</dd>
+                  <div className="grid grid-cols-1 gap-0.5 md:grid-cols-[6.75rem_minmax(0,1fr)] md:gap-2" data-field="architect" data-empty={architect ? "false" : "true"}>
+                    <dt className="text-sm text-muted-foreground md:text-[11px]">{t("architect")}</dt>
+                    <dd className="text-base md:text-[13px]">{architect || "—"}</dd>
                   </div>
                 </dl>
               </section>
@@ -397,9 +397,9 @@ export async function ProjectScreen({ project }: { project: ProjectScreenData })
               <section className="tilo-frame p-3" data-testid="project-files">
                 <BlockTitle>{p("files")}</BlockTitle>
                 {project.documents.length === 0 ? (
-                  <p className="text-[13px] text-muted-foreground">{t("noDocuments")}</p>
+                  <p className="text-base text-muted-foreground md:text-[13px]">{t("noDocuments")}</p>
                 ) : (
-                  <ul className="tilo-rows text-[13px]">
+                  <ul className="tilo-rows text-base md:text-[13px]">
                     {project.documents.map((document) => (
                       <li key={document.id} className="flex items-baseline justify-between gap-3 py-1.5" data-file={document.name}>
                         {document.name.toLowerCase().endsWith(".tc-raam") ? (
@@ -412,7 +412,7 @@ export async function ProjectScreen({ project }: { project: ProjectScreenData })
                           </OpenStoredFile>
                         )}
                         {document.category && t.has(`folders.${document.category}`) && (
-                          <span className="shrink-0 text-[11px] text-muted-foreground">{t(`folders.${document.category}`)}</span>
+                          <span className="shrink-0 text-sm text-muted-foreground md:text-[11px]">{t(`folders.${document.category}`)}</span>
                         )}
                       </li>
                     ))}
@@ -441,7 +441,7 @@ export async function ProjectScreen({ project }: { project: ProjectScreenData })
             label: p("tabs.contact"),
             content: (
               <section className="tilo-frame" data-testid="project-contact">
-                <dl className="tilo-cells grid-cols-2 lg:grid-cols-4">
+                <dl className="tilo-cells grid-cols-1 md:grid-cols-2 lg:grid-cols-4">
                   <TextCell label={t("email")} field="customer-email" value={customer.email} />
                   <TextCell label={t("vatNumber")} field="customer-vat" value={customer.vat} />
                   <TextCell label={t("vat")} field="customer-vat-choice" value={vatChoice} />
@@ -467,12 +467,12 @@ export async function ProjectScreen({ project }: { project: ProjectScreenData })
               <section className="tilo-frame p-3" data-testid="project-quotes">
                 <BlockTitle>{t("quotes")}</BlockTitle>
                 {project.quotes.length === 0 ? (
-                  <p className="text-[13px] text-muted-foreground">{t("noQuotes")}</p>
+                  <p className="text-base text-muted-foreground md:text-[13px]">{t("noQuotes")}</p>
                 ) : (
                   <div className="overflow-x-auto">
-                    <table className="tilo-grid w-full text-[13px]">
+                    <table className="tilo-grid w-full min-w-[28rem] text-base md:min-w-0 md:text-[13px]">
                       <thead>
-                        <tr className="text-left text-[11px] font-medium text-muted-foreground">
+                        <tr className="text-left text-sm font-medium text-muted-foreground md:text-[11px]">
                           <th className="py-1.5 font-medium">{t("quote")}</th>
                           <th className="py-1.5 font-medium">{t("date")}</th>
                           <th className="py-1.5 font-medium">{t("grossTotal")}</th>
@@ -485,7 +485,7 @@ export async function ProjectScreen({ project }: { project: ProjectScreenData })
                               <OpenStoredFile kind="document" id={quote.pdfId} name={quote.name} mimeType="application/pdf" className="underline break-all">
                                 {quote.name}
                               </OpenStoredFile>
-                              {quote.won && <span className="ml-2 text-[11px] font-medium">{t("won")}</span>}
+                              {quote.won && <span className="ml-2 text-sm font-medium md:text-[11px]">{t("won")}</span>}
                             </td>
                             <td className="whitespace-nowrap py-1.5 pr-3">{text(quote.date) || "—"}</td>
                             <td className="whitespace-nowrap py-1.5 tabular-nums" data-quote-gross={quote.id} data-total-bruto={quote.gross ?? ""}>
