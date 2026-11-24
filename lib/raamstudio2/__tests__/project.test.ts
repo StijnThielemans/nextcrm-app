@@ -27,6 +27,7 @@ describe("Raamstudio 2 project file", () => {
       page: 1,
       x: 0.2,
       y: 0.3,
+      review: null,
     });
     const again = parseRs2(serializeRs2(project));
     expect(again.format).toBe("thielemans-raamstudio-2");

@@ -32,6 +32,8 @@ export type Rs2Opening = {
   page: number;
   x: number;
   y: number;
+  /** Set when a program proposed the opening and a person has not confirmed it. */
+  review: "te controleren" | null;
 };
 
 /** Yellow marker on a ground plan. Fractions of the page, from the top-left. */
@@ -178,7 +180,12 @@ function normalizeProject(project: Rs2Project): Rs2Project {
     format: RS2_FORMAT,
     version: project.version || RS2_VERSION,
     drawings: project.drawings,
-    openings: project.openings.map((opening) => ({ ...opening, number: normalizeOpeningNumber(opening.number), side: opening.side })),
+    openings: project.openings.map((opening) => ({
+      ...opening,
+      number: normalizeOpeningNumber(opening.number),
+      side: opening.side,
+      review: opening.review === "te controleren" ? "te controleren" : null,
+    })),
     highlights: project.highlights,
     facades: project.facades.map((mark) => ({ ...mark, openingNumber: normalizeOpeningNumber(mark.openingNumber) })),
     measures: project.measures.map((measure) => ({
@@ -244,6 +251,7 @@ function readOpening(value: unknown): Rs2Opening | null {
     page: pageOf(row.page),
     x: point.x,
     y: point.y,
+    review: row.review === "te controleren" ? "te controleren" : null,
   };
 }
 

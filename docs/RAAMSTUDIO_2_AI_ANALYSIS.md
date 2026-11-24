@@ -2,7 +2,7 @@
 
 ## Scope nu
 
-Geen mock-detecties. Geen verzonnen maten. De knop Tekstlaag lezen haalt cijfers en gevelwoorden uit de bestaande PDF-tekstlaag (pdf.js). Dat maakt geen ramen. Automatische raamdetectie blijft uit tot er getrainde gewichten voor Belgische plannen zijn. YOLO en PyMuPDF zijn niet geïnstalleerd wegens de AGPL-licentie.
+Geen mock-detecties. Geen verzonnen maten. Plan analyseren gebruikt pdfplumber voor vectorrechthoeken en tekst. Ontbreekt die tekst, dan leest Tesseract het gerenderde beeld. Ontbreken vectorrechthoeken, dan zoekt OpenCV rechthoekige kaders. Die kaders krijgen de status te controleren. Een cijfer naast een kader wordt getoond en niet als maat opgeslagen. pdf.js blijft de reserve als de Python-omgeving ontbreekt. Een getraind model voor Belgische raamsymbolen is er nog niet. YOLO en PyMuPDF blijven buiten de app wegens de AGPL-licentie.
 
 ## Later (na master spec)
 

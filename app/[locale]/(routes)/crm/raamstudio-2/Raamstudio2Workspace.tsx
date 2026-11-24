@@ -15,6 +15,7 @@ import {
   type DrawingKind,
   type Rs2Project,
 } from "@/lib/raamstudio2/project";
+import { buildProposals } from "@/lib/raamstudio2/proposals";
 import { generateProjectnotitiesAction, readPlanLayerAction, saveRaamstudio2Action } from "@/actions/crm/raamstudio2/actions";
 
 const STEPS = [
@@ -135,7 +136,7 @@ export function Raamstudio2Workspace({
       const id = crypto.randomUUID();
       setProject((current) => ({
         ...current,
-        openings: [...current.openings, { id, number, floor: floor.trim() || "0", side: openingSide, planId: activePlan.id, planName: activePlan.name, page, x, y }],
+        openings: [...current.openings, { id, number, floor: floor.trim() || "0", side: openingSide, planId: activePlan.id, planName: activePlan.name, page, x, y, review: null }],
       }));
       setTypedNumber("");
       setOpeningId(id);
@@ -215,15 +216,44 @@ export function Raamstudio2Workspace({
   }
 
   async function scan() {
-    if (!activePlan) return;
+    if (!activePlan || locked) return;
     const result = await readPlanLayerAction(activePlan.id, page);
-    if ("error" in result) {
-      setScanText(result.error ?? "De tekstlaag kon niet worden gelezen.");
+    if (!("openings" in result)) {
+      setScanText(result.error ?? "Dit plan kon niet worden geanalyseerd.");
       return;
     }
+    const made = buildProposals({
+      boxes: result.openings,
+      labels: result.labels,
+      floorFallback: floor,
+      existing: project.openings.filter((opening) => opening.planId === activePlan.id && opening.page === page),
+      planId: activePlan.id,
+      planName: activePlan.name,
+      page,
+      createId: () => crypto.randomUUID(),
+    });
+    setProject((current) => ({
+      ...current,
+      openings: [...current.openings, ...made.openings],
+      highlights: [...current.highlights, ...made.highlights],
+    }));
     const figures = result.figures.length ? result.figures.join(", ") : "geen geschreven cijfers";
-    const labels = result.labels.length ? result.labels.join(", ") : "geen gevel- of verdiepingswoorden";
-    setScanText(`Tekstlaag: ${figures}. Benamingen: ${labels}. Dit zijn geen nieuwe ramen.`);
+    const labels = result.labels.length ? result.labels.join(", ") : "geen gevel- of verdiepingswoord";
+    const nearby = result.openings.flatMap((opening) => opening.nearby);
+    const written = nearby.length ? ` Geschreven cijfers in de buurt, nog niet als maat gezet: ${[...new Set(nearby)].slice(0, 12).join(", ")}.` : "";
+    const engines = result.engines.length ? result.engines.join(", ") : "pdfjs";
+    const warning = result.error ? ` ${result.error}` : "";
+    setScanText(`${engines}: ${made.openings.length} kaders, te controleren. Benamingen: ${labels}. Cijfers op het plan: ${figures}.${written}${warning}`);
+  }
+
+  function clearProposals() {
+    if (!activePlan) return;
+    const ids = new Set(project.openings.filter((opening) => opening.review === "te controleren" && opening.planId === activePlan.id && opening.page === page).map((opening) => opening.id));
+    setProject((current) => ({
+      ...current,
+      openings: current.openings.filter((opening) => !ids.has(opening.id)),
+      highlights: current.highlights.filter((mark) => !ids.has(mark.id.replace(/^mark-/, ""))),
+    }));
   }
 
   async function notes() {
@@ -264,8 +294,11 @@ export function Raamstudio2Workspace({
         <Button type="button" size="sm" variant="outline" disabled={locked || Boolean(loadError)} data-testid="raamstudio-2-number" onClick={numberAll}>
           Automatisch nummeren
         </Button>
-        <Button type="button" size="sm" variant="outline" disabled={!activePlan} data-testid="raamstudio-2-scan" onClick={() => void scan()}>
-          Tekstlaag lezen
+        <Button type="button" size="sm" variant="outline" disabled={!activePlan || locked} data-testid="raamstudio-2-scan" onClick={() => void scan()}>
+          Plan analyseren
+        </Button>
+        <Button type="button" size="sm" variant="outline" disabled={!activePlan || locked} data-testid="raamstudio-2-clear" onClick={clearProposals}>
+          Voorstellen wissen
         </Button>
         <Button type="button" size="sm" variant="outline" disabled={saving || locked || Boolean(loadError)} data-testid="raamstudio-2-notes" onClick={() => void notes()}>
           Projectnotities genereren
@@ -368,7 +401,7 @@ export function Raamstudio2Workspace({
               <ul className="mt-2 space-y-1">
                 {project.openings.map((opening) => {
                   const measure = project.measures.find((item) => item.number === opening.number);
-                  return <li key={opening.id}>{opening.number} · {opening.side ?? "geen gevel"} · {measure?.widthMm || "—"} × {measure?.heightMm || "—"} mm</li>;
+                  return <li key={opening.id}>{opening.number} · {opening.side ?? "geen gevel"} · {measure?.widthMm || "—"} × {measure?.heightMm || "—"} mm{opening.review === "te controleren" ? " · te controleren" : ""}</li>;
                 })}
               </ul>
             </div>
@@ -446,7 +479,7 @@ export function Raamstudio2Workspace({
         </div>
       </div>
       <ul className="text-[12px] text-muted-foreground" data-testid="raamstudio-2-inactive">
-        <li>Automatische raamdetectie — nog niet actief. Er zijn geen getrainde gewichten voor Belgische plannen. Er worden geen ramen verzonnen.</li>
+        <li>Kaders komen uit pdfplumber of OpenCV en blijven te controleren. Een getraind model voor Belgische plannen is er nog niet. Geschreven cijfers worden geen maten.</li>
         <li>Zelflerende modeltraining — nog niet actief. Correcties blijven in het .raamstudio-bestand.</li>
         {scanText ? <li data-testid="raamstudio-2-scan-result">{scanText}</li> : null}
         {notesHref ? <li><a className="underline" href={notesHref}>Projectnotities.pdf openen</a></li> : null}

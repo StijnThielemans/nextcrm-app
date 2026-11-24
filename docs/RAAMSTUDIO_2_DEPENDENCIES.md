@@ -24,6 +24,12 @@ PySide6, PyMuPDF, Pillow, **pytesseract**, opencv-python-headless — alleen in 
 | `pdf-lib` 1.17.1 | MIT | Projectnotities.pdf: originele PDF-pagina's kopiëren en vectortekst toevoegen |
 | `pdfjs-dist` via `pdf-parse` | Apache-2.0 | Tekstlaag van een plan lezen. Geen raamdetectie |
 | Poppler `pdfinfo` / `pdftocairo` | GPL-2.0 als los systeemprogramma, niet in de JS-bundle | Bestaande scherpe planweergave |
+| pdfplumber 0.11.7 | MIT | Vectortekst, lijnen en rechthoeken. Vervangt PyMuPDF |
+| pdfminer.six 20250506 | MIT | Tekstlaag onder pdfplumber |
+| pypdfium2 4.30.0 | Apache-2.0 en BSD-3-Clause | Pagina renderen voor analyse. Vervangt PyMuPDF. Het gerenderde beeld wordt niet opgeslagen |
+| opencv-python-headless 4.10.0.84 | Apache-2.0 | Rechthoekige kaders op gescande plannen. Vervangt YOLO. Kaders blijven te controleren |
+| pytesseract 0.3.13 en Tesseract | Apache-2.0 | OCR alleen als de PDF geen tekstlaag heeft. Talen nld, fra en eng |
+| shapely 2.1.1 | BSD-3-Clause | Aanwezig voor geometrie. De kaderfilter gebruikt eigen overlapberekening |
 
 ## Afgewezen
 
@@ -31,7 +37,7 @@ PySide6, PyMuPDF, Pillow, **pytesseract**, opencv-python-headless — alleen in 
 | --- | --- |
 | Ultralytics YOLO | AGPL-3.0, besmet de applicatie |
 | PyMuPDF | AGPL/commerciële licentie, niet in de Next-app |
-| RF-DETR, Detectron2, PaddleOCR, SAM, Grounding DINO | Geen getrainde gewichten voor Belgische plannen. Installeren zonder gewichten zou geen echte detectie geven |
+| RF-DETR, Detectron2, PaddleOCR, SAM, Grounding DINO | Geen getrainde gewichten voor Belgische plannen. Een algemeen model zou geen ramen van een Belgisch plan herkennen |
 
 ## Integratie met TILO-dossier
 

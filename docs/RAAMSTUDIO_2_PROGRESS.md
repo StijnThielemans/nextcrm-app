@@ -11,4 +11,5 @@
 | 2026-11-24 | Fase-1 analysedocs | klaar |
 | 2026-11-24 | Bestandstype `.raamstudio`, nummering, fluoriseren, tekstlaag, Projectnotities.pdf via pdf-lib | klaar op `cursor/raamstudio-2-rs2-d023` |
 | 2026-11-24 | `RAAMSTUDIO_2_MASTER_SPEC.md` woordelijke prompt | klaar |
-| — | Raamdetectie, modeltraining, visueel geheugen | wacht op gewichten en Belgische trainingsdata |
+| 2026-11-24 | pdfplumber, pypdfium2, OpenCV en Tesseract voor kaders en tekst. Kaders blijven te controleren | klaar op `cursor/raamstudio-2-rs2-d023` |
+| — | Getraind raammodel, visueel geheugen | wacht op Belgische trainingsdata |
