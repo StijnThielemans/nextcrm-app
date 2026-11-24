@@ -5,6 +5,7 @@ import { AuthenticationError, AuthorizationError, assertCanReadDocument, require
 import { SalesError } from "@/lib/sales/errors";
 import { SALES_ERROR_TEXT } from "@/lib/sales/labels";
 import { readDocumentBytesById, saveProjectNotes, saveRaamstudio2 } from "@/lib/raamstudio2/store";
+import { automaticFailure, runAutomaticAnalysis } from "@/lib/raamstudio2/run-automatic";
 import { analyzePlanPage } from "@/lib/raamstudio2/vision";
 import type { Rs2Project } from "@/lib/raamstudio2/project";
 
@@ -43,6 +44,24 @@ export async function generateProjectnotitiesAction(dossierId: string, project: 
     }
     console.error("[raamstudio2]", error);
     return { error: error instanceof Error ? error.message : "Projectnotities konden niet worden gemaakt." };
+  }
+}
+
+export async function startAutomaticAnalysisAction(dossierId: string, existing: Rs2Project) {
+  try {
+    const user = await requireAuthenticated();
+    const result = await runAutomaticAnalysis(user, dossierId, existing);
+    if ("project" in result) {
+      revalidatePath("/[locale]/(routes)/crm/raamstudio-2", "page");
+      revalidatePath("/[locale]/(routes)/crm/dossiers/[dossierId]", "page");
+    }
+    return result;
+  } catch (error) {
+    if (error instanceof AuthenticationError || error instanceof AuthorizationError) {
+      return { error: SALES_ERROR_TEXT.forbidden };
+    }
+    console.error("[raamstudio2]", error);
+    return { error: automaticFailure(error) };
   }
 }
 

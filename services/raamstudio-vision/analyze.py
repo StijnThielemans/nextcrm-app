@@ -14,18 +14,21 @@ from typing import Any
 
 FIGURE = re.compile(r"^\d{2,5}$")
 LABEL = re.compile(
-    r"voorgevel|achtergevel|rechtergevel|linkergevel|façade|facade|snede|coupe|doorsnede|gelijkvloers|rez-de-chaussée|verdieping|étage|kelder|sous-sol",
+    r"voorgevel|achtergevel|rechtergevel|linkergevel|façade|facade|grondplan|gevel|aanzicht|snede|coupe|doorsnede|gelijkvloers|rez-de-chaussée|verdieping|verdiep|étage|etage|kelder|sous-sol|\brdc\b",
     re.IGNORECASE,
 )
 
 
 def main() -> None:
-    page_no = int(sys.argv[1]) if len(sys.argv) > 1 else 1
+    selector = sys.argv[1] if len(sys.argv) > 1 else "1"
     data = sys.stdin.buffer.read()
     if not data.startswith(b"%PDF"):
-        json.dump({"error": "Dit bestand is geen PDF.", "engines": [], "openings": [], "figures": [], "labels": []}, sys.stdout)
+        json.dump({"error": "Dit bestand is geen PDF.", "engines": [], "openings": [], "figures": [], "labels": [], "pages": []}, sys.stdout)
         return
-    json.dump(analyze(data, page_no), sys.stdout)
+    if selector == "all":
+        json.dump(analyze_all(data), sys.stdout)
+        return
+    json.dump(analyze(data, int(selector)), sys.stdout)
 
 
 def analyze(data: bytes, page_no: int) -> dict[str, Any]:
@@ -59,17 +62,63 @@ def analyze(data: bytes, page_no: int) -> dict[str, Any]:
             engines.append("opencv")
             boxes = seen["boxes"]
 
-    figures = unique_text(words, FIGURE)[:40]
-    labels = unique_text(words, LABEL)[:20]
+    return finish_page(words, boxes, engines, text_source)
+
+
+def analyze_all(data: bytes) -> dict[str, Any]:
+    try:
+        import io
+        import pdfplumber
+    except Exception as exc:
+        return {"error": str(exc), "pages": []}
+    pages: list[dict[str, Any]] = []
+    opencv_left = 8
+    try:
+        with pdfplumber.open(io.BytesIO(data)) as pdf:
+            total = min(len(pdf.pages), 24)
+            for index in range(total):
+                read = read_open_page(pdf.pages[index])
+                engines = ["pdfplumber"]
+                words = read["words"]
+                boxes = read["boxes"]
+                text_source = "pdfplumber" if words else None
+                if not words:
+                    ocr = read_tesseract(data, index + 1)
+                    if ocr.get("ok") and ocr["words"]:
+                        engines.extend(["pypdfium2", "tesseract"])
+                        words = ocr["words"]
+                        text_source = "tesseract"
+                if not boxes and opencv_left > 0:
+                    opencv_left -= 1
+                    seen = read_opencv(data, index + 1, words)
+                    if seen.get("ok"):
+                        if "pypdfium2" not in engines:
+                            engines.append("pypdfium2")
+                        engines.append("opencv")
+                        boxes = seen["boxes"]
+                pages.append(finish_page(words, boxes, engines, text_source))
+    except Exception as exc:
+        return {"error": str(exc), "pages": pages}
+    return {"pages": pages}
+
+
+def finish_page(words: list[dict[str, Any]], boxes: list[dict[str, Any]], engines: list[str], text_source: str | None) -> dict[str, Any]:
     openings = []
     for box in nms(boxes)[:40]:
-        openings.append({**box, "nearby": nearby_figures(box, words)[:4], "status": "te controleren"})
-
+        width, height = written_size(box, words)
+        openings.append({
+            **box,
+            "nearby": nearby_figures(box, words)[:4],
+            "widthMm": width,
+            "heightMm": height,
+            "side": side_near(box, words),
+            "status": "te controleren",
+        })
     return {
         "engines": engines,
         "textSource": text_source,
-        "figures": figures,
-        "labels": labels,
+        "figures": unique_text(words, FIGURE)[:40],
+        "labels": unique_text(words, LABEL)[:20],
         "openings": openings,
     }
 
@@ -84,35 +133,37 @@ def read_pdfplumber(data: bytes, page_no: int) -> dict[str, Any]:
         with pdfplumber.open(io.BytesIO(data)) as pdf:
             if page_no < 1 or page_no > len(pdf.pages):
                 return {"ok": False, "error": "Pagina bestaat niet."}
-            page = pdf.pages[page_no - 1]
-            width = float(page.width or 0)
-            height = float(page.height or 0)
-            if width <= 0 or height <= 0:
-                return {"ok": False, "error": "Pagina heeft geen afmeting."}
-            raw_words = page.extract_words() or []
-            words = []
-            for word in raw_words:
-                text = str(word.get("text") or "").strip()
-                if not text:
-                    continue
-                words.append({
-                    "text": text,
-                    "x": float(word["x0"]) / width,
-                    "y": float(word["top"]) / height,
-                    "w": max(0.0, float(word["x1"]) - float(word["x0"])) / width,
-                    "h": max(0.0, float(word["bottom"]) - float(word["top"])) / height,
-                })
-            boxes = []
-            for rect in page.rects or []:
-                box = box_from_pdf(rect, width, height, "pdfplumber")
-                if box and keep_box(box):
-                    boxes.append(box)
-            for box in rects_from_lines(page.lines or [], width, height):
-                if keep_box(box):
-                    boxes.append(box)
-            return {"ok": True, "words": words, "boxes": boxes}
+            return {"ok": True, **read_open_page(pdf.pages[page_no - 1])}
     except Exception as exc:
         return {"ok": False, "error": str(exc)}
+
+
+def read_open_page(page: Any) -> dict[str, Any]:
+    width = float(page.width or 0)
+    height = float(page.height or 0)
+    if width <= 0 or height <= 0:
+        return {"words": [], "boxes": []}
+    words = []
+    for word in page.extract_words() or []:
+        text = str(word.get("text") or "").strip()
+        if not text:
+            continue
+        words.append({
+            "text": text,
+            "x": float(word["x0"]) / width,
+            "y": float(word["top"]) / height,
+            "w": max(0.0, float(word["x1"]) - float(word["x0"])) / width,
+            "h": max(0.0, float(word["bottom"]) - float(word["top"])) / height,
+        })
+    boxes = []
+    for rect in page.rects or []:
+        box = box_from_pdf(rect, width, height, "pdfplumber")
+        if box and keep_box(box):
+            boxes.append(box)
+    for box in rects_from_lines(page.lines or [], width, height):
+        if keep_box(box):
+            boxes.append(box)
+    return {"words": words, "boxes": boxes}
 
 
 def box_from_pdf(rect: dict[str, Any], width: float, height: float, source: str) -> dict[str, Any] | None:
@@ -299,6 +350,59 @@ def overlap(left: dict[str, Any], right: dict[str, Any]) -> float:
     inter = max(0.0, ix1 - ix0) * max(0.0, iy1 - iy0)
     union = float(left["w"]) * float(left["h"]) + float(right["w"]) * float(right["h"]) - inter
     return inter / union if union else 0
+
+
+def written_size(box: dict[str, Any], words: list[dict[str, Any]]) -> tuple[str | None, str | None]:
+    widths: list[tuple[float, str]] = []
+    heights: list[tuple[float, str]] = []
+    left, top = float(box["x"]), float(box["y"])
+    right, bottom = left + float(box["w"]), top + float(box["h"])
+    for word in words:
+        text = str(word.get("text") or "")
+        if not FIGURE.match(text):
+            continue
+        value = int(text)
+        if value < 300 or value > 6000:
+            continue
+        cx = float(word["x"]) + float(word["w"]) / 2
+        cy = float(word["y"]) + float(word["h"]) / 2
+        beside = top - 0.03 <= cy <= bottom + 0.03 and min(abs(cx - left), abs(cx - right)) <= 0.08 and not (left <= cx <= right)
+        stacked = left - 0.03 <= cx <= right + 0.03 and min(abs(cy - top), abs(cy - bottom)) <= 0.08 and not (top <= cy <= bottom)
+        if beside:
+            widths.append((min(abs(cx - left), abs(cx - right)), text))
+        elif stacked:
+            heights.append((min(abs(cy - top), abs(cy - bottom)), text))
+    return closest_text(widths), closest_text(heights)
+
+
+def closest_text(found: list[tuple[float, str]]) -> str | None:
+    if not found:
+        return None
+    found.sort()
+    if len(found) > 1 and abs(found[0][0] - found[1][0]) < 0.01 and found[0][1] != found[1][1]:
+        return None
+    return found[0][1]
+
+
+def side_near(box: dict[str, Any], words: list[dict[str, Any]]) -> str | None:
+    hits: set[str] = set()
+    for word in words:
+        if abs(float(word["x"]) - float(box["x"])) > float(box["w"]) + 0.08:
+            continue
+        if abs(float(word["y"]) - float(box["y"])) > float(box["h"]) + 0.08:
+            continue
+        text = str(word.get("text") or "").lower()
+        if "voorgevel" in text:
+            hits.add("voorgevel")
+        elif "rechtergevel" in text or "droite" in text:
+            hits.add("rechtergevel")
+        elif "achtergevel" in text or "arrière" in text or "arriere" in text:
+            hits.add("achtergevel")
+        elif "linkergevel" in text or "gauche" in text:
+            hits.add("linkergevel")
+    if len(hits) != 1:
+        return None
+    return next(iter(hits))
 
 
 def nearby_figures(box: dict[str, Any], words: list[dict[str, Any]]) -> list[str]:
