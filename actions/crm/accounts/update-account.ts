@@ -12,10 +12,47 @@ import {
   AuthenticationError,
   AuthorizationError,
 } from "@/lib/authz";
+import { parseVatChoice, type AccountRole, type VatChoice } from "@/lib/sales/aanvraag-fields";
+import { SALES_ERROR_TEXT } from "@/lib/sales/labels";
+
+function customerContactPatch(data: {
+  office_phone?: string | null;
+  mobile_phone?: string | null;
+  vat?: string | null;
+}): { error: string } | { office_phone?: string | null; mobile_phone?: string | null; vat?: string | null } {
+  const patch: { office_phone?: string | null; mobile_phone?: string | null; vat?: string | null } = {};
+  if (data.office_phone !== undefined && data.mobile_phone !== undefined) {
+    const office = (data.office_phone ?? "").trim();
+    const mobile = (data.mobile_phone ?? "").trim();
+    if (!office && !mobile) return { error: SALES_ERROR_TEXT.phoneOrMobileRequired };
+    patch.office_phone = office || null;
+    patch.mobile_phone = mobile || null;
+  }
+  if (data.vat !== undefined) patch.vat = (data.vat ?? "").trim() || null;
+  return patch;
+}
+
+function vatChoicePatch(value: string | null | undefined): { error: string } | { vat_choice?: VatChoice } {
+  const parsed = parseVatChoice(value);
+  if (parsed === null) return { error: SALES_ERROR_TEXT.vatChoiceRequired };
+  if (parsed === undefined) return {};
+  return { vat_choice: parsed };
+}
+
+function accountType(role: AccountRole | undefined) {
+  if (role === "SUPPLIER") return "Supplier";
+  if (role === "BOTH") return "Customer and supplier";
+  if (role === "CUSTOMER") return "Customer";
+  return undefined;
+}
 
 export const updateAccount = async (data: {
   id: string;
   name?: string;
+  account_role?: AccountRole;
+  mobile_phone?: string | null;
+  tax_rate_id?: string | null;
+  vat_choice?: string | null;
   office_phone?: string | null;
   website?: string | null;
   fax?: string | null;
@@ -40,7 +77,7 @@ export const updateAccount = async (data: {
   industry?: string;
   pricelist_id?: string | null;
 }) => {
-  const { id, ...rest } = data;
+  const { id, vat_choice: rawChoice, ...rest } = data;
   if (!id) return { error: "id is required" };
 
   let user;
@@ -73,6 +110,14 @@ export const updateAccount = async (data: {
     const pricelist = await prismadb.crm_PriceLists.findUnique({ where: { id: rest.pricelist_id }, select: { id: true } });
     if (!pricelist) return { error: "Price list not found" };
   }
+  if (rest.tax_rate_id) {
+    const taxRate = await prismadb.invoice_TaxRates.findFirst({ where: { id: rest.tax_rate_id, active: true }, select: { id: true } });
+    if (!taxRate) return { error: "Belastingstarief niet gevonden" };
+  }
+  const contact = customerContactPatch(rest);
+  if ("error" in contact) return contact;
+  const choice = vatChoicePatch(rawChoice);
+  if ("error" in choice) return choice;
 
   try {
     const account = await prismadb.crm_Accounts.update({
@@ -81,11 +126,14 @@ export const updateAccount = async (data: {
         v: 0,
         updatedBy: user.id,
         ...rest,
+        ...contact,
+        ...choice,
         ...(rest.pricelist_id === "" ? { pricelist_id: null } : {}),
         // The partner is set only through setAccountPartner (admin/manager).
         partnerUserId: undefined,
         // A partner edits ordinary fields only, never the internal owner.
         ...(user.role === "partner" ? { assigned_to: undefined } : {}),
+        ...(accountType(rest.account_role) ? { type: accountType(rest.account_role) } : {}),
       },
     });
     const changes = before ? diffObjects(

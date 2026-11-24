@@ -65,6 +65,17 @@ function chunkText(text: string): string[] {
   return chunks;
 }
 
+const LOCKED_DOCUMENT_TYPES = new Set([
+  "INTERNAL_SUPPLIER_QUOTE",
+  "CUSTOMER_QUOTE",
+  "PLAN",
+  "PHOTO",
+]);
+
+function typeIsExplicit(value: string | null | undefined) {
+  return !!value && LOCKED_DOCUMENT_TYPES.has(value);
+}
+
 function classifyByFilename(name: string): "RECEIPT" | "CONTRACT" | "OFFER" | "OTHER" {
   const lower = name.toLowerCase();
   if (/invoice|receipt|bill|payment/.test(lower)) return "RECEIPT";
@@ -119,7 +130,9 @@ export const enrichDocument = inngest.createFunction(
     if (!contentText) {
       // Images and unsupported types — apply filename-based classification only
       await step.run("classify-by-filename", async () => {
-        const systemType = classifyByFilename(document.document_name);
+        const systemType = typeIsExplicit(document.document_system_type)
+          ? document.document_system_type
+          : classifyByFilename(document.document_name);
         await prismadb.documents.update({
           where: { id: documentId },
           data: {
@@ -211,9 +224,11 @@ export const enrichDocument = inngest.createFunction(
       });
 
       const raw = response.choices[0]?.message?.content?.trim().toUpperCase() ?? "OTHER";
-      const systemType = ["RECEIPT", "CONTRACT", "OFFER", "OTHER"].includes(raw)
-        ? (raw as "RECEIPT" | "CONTRACT" | "OFFER" | "OTHER")
-        : "OTHER";
+      const systemType = typeIsExplicit(document.document_system_type)
+        ? document.document_system_type
+        : ["RECEIPT", "CONTRACT", "OFFER", "OTHER"].includes(raw)
+          ? (raw as "RECEIPT" | "CONTRACT" | "OFFER" | "OTHER")
+          : "OTHER";
 
       await prismadb.documents.update({
         where: { id: documentId },

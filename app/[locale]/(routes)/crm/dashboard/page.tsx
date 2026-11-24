@@ -1,35 +1,19 @@
-import React from "react";
+import { getTranslations } from "next-intl/server";
 import Container from "../../components/ui/Container";
-import { getSaleStages } from "@/actions/crm/get-sales-stage";
-import CRMKanban from "./_components/CRMKanban";
-import { getOpportunities } from "@/actions/crm/get-opportunities";
-import { getAllCrmData } from "@/actions/crm/get-crm-data";
-import { serializeDecimalsList } from "@/lib/serialize-decimals";
+import { SalesDashboard, SalesHeaderActions } from "../sales/SalesDashboard";
 
-const CrmDashboardPage = async () => {
-  const salesStages = await getSaleStages();
-  const opportunities = serializeDecimalsList(await getOpportunities());
-  const crmData = await getAllCrmData();
+type Props = { searchParams: Promise<Record<string, string | string[] | undefined>> };
 
+export default async function CrmDashboardPage({ searchParams }: Props) {
+  const t = await getTranslations("Sales");
+  const query = await searchParams;
   return (
     <Container
-      title="CRM Dashboard"
-      description="In development. After this compoment is finished, there will be a optimistic update of the data."
+      title={t("sales")}
+      description={t("dashboardDescription")}
+      actions={<SalesHeaderActions />}
     >
-      <div className="w-full h-full  overflow-hidden">
-        <CRMKanban
-          salesStages={salesStages}
-          opportunities={opportunities}
-          crmData={crmData}
-        />
-      </div>
-
-      {/*     <CRMKanbanServer
-        salesStages={salesStages}
-        opportunities={opportunities}
-      /> */}
+      <SalesDashboard query={query} />
     </Container>
   );
-};
-
-export default CrmDashboardPage;
+}

@@ -10,14 +10,52 @@ import {
   AuthenticationError,
   AuthorizationError,
 } from "@/lib/authz";
+import { parseVatChoice, type AccountRole, type VatChoice } from "@/lib/sales/aanvraag-fields";
+import { SALES_ERROR_TEXT } from "@/lib/sales/labels";
+import { serializeDecimals } from "@/lib/serialize-decimals";
+
+function customerContactPatch(data: {
+  office_phone?: string | null;
+  mobile_phone?: string | null;
+  vat?: string | null;
+}): { error: string } | { office_phone?: string | null; mobile_phone?: string | null; vat?: string | null } {
+  const patch: { office_phone?: string | null; mobile_phone?: string | null; vat?: string | null } = {};
+  if (data.office_phone !== undefined && data.mobile_phone !== undefined) {
+    const office = (data.office_phone ?? "").trim();
+    const mobile = (data.mobile_phone ?? "").trim();
+    if (!office && !mobile) return { error: SALES_ERROR_TEXT.phoneOrMobileRequired };
+    patch.office_phone = office || null;
+    patch.mobile_phone = mobile || null;
+  }
+  if (data.vat !== undefined) patch.vat = (data.vat ?? "").trim() || null;
+  return patch;
+}
+
+function vatChoicePatch(value: string | null | undefined): { error: string } | { vat_choice?: VatChoice } {
+  const parsed = parseVatChoice(value);
+  if (parsed === null) return { error: SALES_ERROR_TEXT.vatChoiceRequired };
+  if (parsed === undefined) return {};
+  return { vat_choice: parsed };
+}
+
+function accountType(role: AccountRole | undefined) {
+  if (role === "SUPPLIER") return "Supplier";
+  if (role === "BOTH") return "Customer and supplier";
+  if (role === "CUSTOMER") return "Customer";
+  return undefined;
+}
 
 export const createAccount = async (data: {
   name: string;
-  office_phone?: string;
+  account_role?: AccountRole;
+  mobile_phone?: string | null;
+  tax_rate_id?: string;
+  vat_choice?: string | null;
+  office_phone?: string | null;
   website?: string;
   fax?: string;
   company_id?: string;
-  vat?: string;
+  vat?: string | null;
   email?: string;
   billing_street?: string;
   billing_postal_code?: string;
@@ -62,6 +100,15 @@ export const createAccount = async (data: {
     const pricelist = await prismadb.crm_PriceLists.findUnique({ where: { id: data.pricelist_id }, select: { id: true } });
     if (!pricelist) return { error: "Price list not found" };
   }
+  if (data.tax_rate_id) {
+    const taxRate = await prismadb.invoice_TaxRates.findFirst({ where: { id: data.tax_rate_id, active: true }, select: { id: true } });
+    if (!taxRate) return { error: "Belastingstarief niet gevonden" };
+  }
+  const contact = customerContactPatch(data);
+  if ("error" in contact) return contact;
+  const { vat_choice: rawChoice, ...fields } = data;
+  const choice = vatChoicePatch(rawChoice);
+  if ("error" in choice) return choice;
 
   try {
     const account = await prismadb.crm_Accounts.create({
@@ -69,7 +116,9 @@ export const createAccount = async (data: {
         v: 0,
         createdBy: user.id,
         updatedBy: user.id,
-        ...data,
+        ...fields,
+        ...contact,
+        ...choice,
         // A partner's new account has him as partner and no internal owner
         // yet (spec § Writes): admins/managers find it among unowned accounts.
         assigned_to: user.role === "partner" ? null : data.assigned_to || user.id,
@@ -79,6 +128,7 @@ export const createAccount = async (data: {
         // except that a partner's own new account names him.
         partnerUserId: user.role === "partner" ? user.id : undefined,
         status: "Active",
+        ...(accountType(data.account_role) ? { type: accountType(data.account_role) } : {}),
       },
     });
     await writeAuditLog({
@@ -90,7 +140,7 @@ export const createAccount = async (data: {
     });
     void inngest.send({ name: "crm/account.saved", data: { record_id: account.id } });
     revalidatePath("/[locale]/(routes)/crm/accounts", "page");
-    return { data: account };
+    return { data: serializeDecimals(account) };
   } catch (error) {
     const ruleMessage = await pluginRuleErrorMessage(error);
     if (ruleMessage) return { error: ruleMessage };

@@ -31,6 +31,11 @@ describe("accountReadScopeWhere", () => {
     expect(accountReadScopeWhere({ id: "x", role: "admin" })).toEqual({ deletedAt: null });
     expect(accountReadScopeWhere({ id: "x", role: "manager" })).toEqual({ deletedAt: null });
   });
+  it("seller → the shared customer list", () => {
+    expect(accountReadScopeWhere({ id: "u1", role: "user", name: "Haegeman Robbe" })).toEqual({
+      deletedAt: null,
+    });
+  });
   it("user → deletedAt + OR ownership clauses", () => {
     expect(accountReadScopeWhere({ id: "u1", role: "user" })).toMatchObject({
       deletedAt: null,

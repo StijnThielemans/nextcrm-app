@@ -9,19 +9,17 @@ import {
   SidebarRail,
   useSidebar,
 } from "@/components/ui/sidebar";
+import Image from "next/image";
 import { Puzzle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { NavMain } from "./nav-main";
 import { NavUser } from "./nav-user";
-import getDashboardMenuItem from "./menu-items/Dashboard";
 import getCrmMenuItem from "./menu-items/Crm";
-import getProjectsMenuItem from "./menu-items/Projects";
+import getProjectleidingMenuItem from "./menu-items/Projectleiding";
+import getPlanningMenuItem from "./menu-items/Planning";
 import getEmailsMenuItem from "./menu-items/Emails";
-import getReportsMenuItem from "./menu-items/Reports";
 import getDocumentsMenuItem from "./menu-items/Documents";
-import getInvoicesMenuItem from "./menu-items/Invoices";
 import getAdministrationMenuItem from "./menu-items/Administration";
-import getCampaignsMenuItem from "./menu-items/Campaigns";
 import { partnerNavItems } from "@/lib/partner-routes";
 
 /**
@@ -29,13 +27,13 @@ import { partnerNavItems } from "@/lib/partner-routes";
  *
  * Core sidebar component for NextCRM application layout.
  * Implements shadcn/ui sidebar pattern with:
- * - Logo and "N" branding symbol with rotation animation
+ * - TILO wordmark in the sidebar header
  * - Build version display in footer (when expanded)
- * - Navigation with Dashboard and module items
+ * - Navigation with the Verkoop group and the other module items
  * - Nav-user section in footer for user profile and actions
  *
  * Phase 2 Updates:
- * - Task 2.2: Added Dashboard menu item integration
+ * - The sales dashboard lives under Verkoop, not as its own top-level item
  * - Task 2.3: Added CRM module navigation (collapsible group with module filtering)
  * - Task 2.4: Added Projects module navigation (simple item with module filtering)
  * - Task 2.5: Added Emails module navigation (simple item with module filtering)
@@ -53,8 +51,6 @@ import { partnerNavItems } from "@/lib/partner-routes";
  * - Build version moved above NavUser in footer
  *
  * Phase 5 Updates (Design Consistency):
- * - Task 5.3: Removed duration-200 from app name animation (uses Tailwind default)
- * - Task 5.3: Kept duration-500 on "N" symbol for intentional brand emphasis
  * - Task 5.4: Changed build version text-gray-500 to text-muted-foreground for theme support
  *
  * @param modules - Array of enabled modules from system_Modules_Enabled table
@@ -82,36 +78,25 @@ interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
   dict: any;
   session: Session;
   pluginNav?: { title: string; url: string }[];
-  appName: string;
+  appName?: string;
 }
 
 export function AppSidebar({
   dict,
   session,
   pluginNav,
-  appName,
+  appName = "TILO",
   ...props
 }: AppSidebarProps) {
   const { state } = useSidebar();
   const isExpanded = state === "expanded";
 
   const navItems = [
-    getDashboardMenuItem({ title: dict?.dashboard || "Dashboard" }),
     getCrmMenuItem({ localizations: dict.crm, role: session?.user?.role ?? undefined }),
-    getCampaignsMenuItem({
-      localizations: {
-        title: "Campaigns",
-        campaigns: "All Campaigns",
-        templates: "Templates",
-        targets: "Targets",
-        targetLists: "Target Lists",
-      },
-    }),
-    getProjectsMenuItem({ title: dict?.projects || "Projects" }),
-    getEmailsMenuItem({ title: dict?.emails || "Emails" }),
-    getReportsMenuItem({ title: dict?.reports || "Reports" }),
-    getDocumentsMenuItem({ title: dict?.documents || "Documents" }),
-    getInvoicesMenuItem({ title: dict?.invoices || "Invoices" }),
+    getProjectleidingMenuItem(),
+    getPlanningMenuItem(),
+    getEmailsMenuItem({ title: dict?.emails || "E-mails" }),
+    getDocumentsMenuItem({ title: dict?.documents || "Documenten" }),
   ];
 
   if (pluginNav?.length) {
@@ -136,32 +121,31 @@ export function AppSidebar({
   return (
     <Sidebar collapsible="icon" {...props}>
       {/* Header with Logo and Branding */}
-      <SidebarHeader>
+      <SidebarHeader className="border-b border-sidebar-border">
         <div
           className={cn(
-            "flex items-center py-1",
-            isExpanded ? "gap-x-4" : "justify-center",
+            "flex items-center py-2",
+            isExpanded ? "px-1" : "justify-center",
           )}
         >
-          {/* "N" Branding Symbol with rotation animation */}
           <div
             className={cn(
-              "flex-shrink-0 border rounded-full px-4 py-2 transition-transform duration-500",
-              isExpanded && "rotate-[360deg]",
+              "flex items-center justify-center overflow-hidden rounded-lg bg-white ring-1 ring-black/[0.06]",
+              isExpanded ? "h-12 w-full px-2" : "size-9",
             )}
           >
-            N
+            <Image
+              src="/images/tilo-logo.png"
+              alt={appName}
+              width={1024}
+              height={341}
+              priority
+              className={cn(
+                "max-w-none object-left",
+                isExpanded ? "h-7 w-auto" : "h-8 w-8 object-cover",
+              )}
+            />
           </div>
-
-          {/* App Name - visible when expanded, hidden when collapsed */}
-          <h1
-            className={cn(
-              "origin-left font-medium text-xl transition-all overflow-hidden whitespace-nowrap",
-              !isExpanded ? "w-0 opacity-0" : "w-auto opacity-100",
-            )}
-          >
-            {appName}
-          </h1>
         </div>
       </SidebarHeader>
 

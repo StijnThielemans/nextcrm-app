@@ -17,6 +17,9 @@ module.exports = {
   		}
   	},
   	extend: {
+  		fontFamily: {
+  			sans: ["Manrope", "Segoe UI", "sans-serif"],
+  		},
   		colors: {
   			tremor: {
   				brand: {

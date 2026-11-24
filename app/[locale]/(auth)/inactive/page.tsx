@@ -29,11 +29,10 @@ const PendingPage = async () => {
   return (
     <Card className="p-10 space-y- m-10">
       <CardTitle className="flex justify-center py-10">
-        Your account has been deactivated by Admin
+        Je account is uitgeschakeld
       </CardTitle>
       <CardDescription className="py-3">
-        Hi, your {process.env.NEXT_PUBLIC_APP_NAME} account has been disabled.
-        Ask someone in your organization to activate your account again.
+        Je TILO-account is uitgeschakeld. Vraag iemand in je organisatie om het opnieuw te activeren.
       </CardDescription>
       <CardContent>
         <h2 className="flex justify-center text-xl">Admin List</h2>

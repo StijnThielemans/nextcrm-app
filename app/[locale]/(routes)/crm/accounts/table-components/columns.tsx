@@ -1,112 +1,109 @@
 "use client";
 
-import { ColumnDef } from "@tanstack/react-table";
-
-import { statuses } from "../table-data/data";
+import { Column, ColumnDef } from "@tanstack/react-table";
+import "@/components/crm/table-column-meta";
+import { useTranslations } from "next-intl";
+import { Link } from "@/i18n/navigation";
 import { Account } from "../table-data/schema";
 import { DataTableColumnHeader } from "./data-table-column-header";
 import { DataTableRowActions } from "./data-table-row-actions";
-import moment from "moment";
-import Link from "next/link";
 
-export const columns: ColumnDef<Account>[] = [
-  {
-    accessorKey: "createdAt",
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Created" />
-    ),
-    cell: ({ row }) => (
-      <div className="">
-        {moment(row.getValue("createdAt")).format("YY/MM/DD-HH:mm")}
-      </div>
-    ),
-    enableSorting: false,
-    enableHiding: false,
-  },
-  {
-    accessorKey: "assigned_to_user",
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Assigned to" />
-    ),
+type CustomerRow = Account & {
+  account_role?: string | null;
+  office_phone?: string | null;
+  mobile_phone?: string | null;
+  email?: string | null;
+  vat?: string | null;
+  vat_choice?: string | null;
+  billing_street?: string | null;
+  billing_postal_code?: string | null;
+  billing_city?: string | null;
+};
 
-    cell: ({ row }) => (
-      <div className="w-[150px]">
-        {(row.getValue("assigned_to_user") as { name?: string } | null)?.name ??
-          "Unassigned"}
-      </div>
-    ),
-    enableSorting: true,
-    enableHiding: true,
-  },
+function text(value: string | null | undefined) {
+  return value?.trim() ? value : "—";
+}
+
+function SalesHeader({ column, label }: { column: Column<CustomerRow, unknown>; label: string }) {
+  const t = useTranslations("Sales");
+  return <DataTableColumnHeader column={column} title={t(label)} />;
+}
+
+function RoleCell({ value }: { value: string | null | undefined }) {
+  const t = useTranslations("Sales");
+  if (value && t.has(`roles.${value}`)) return <>{t(`roles.${value}`)}</>;
+  return <>—</>;
+}
+
+function VatCell({ value }: { value: string | null | undefined }) {
+  const t = useTranslations("Sales");
+  if (value && t.has(`vatChoice.${value}`)) return <>{t(`vatChoice.${value}`)}</>;
+  return <>—</>;
+}
+
+function addressText(row: CustomerRow) {
+  return [row.billing_street, row.billing_postal_code, row.billing_city].filter(Boolean).join(", ");
+}
+
+export const columns: ColumnDef<CustomerRow>[] = [
   {
     accessorKey: "name",
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Name" />
-    ),
-
+    header: ({ column }) => <SalesHeader column={column} label="name" />,
     cell: ({ row }) => (
-      <Link href={`/crm/accounts/${row.original?.id}`} data-testid="account-row-name">
-        <div className="w-[250px]">{row.original.name}</div>
+      <Link href={`/crm/accounts/${row.original.id}`} data-testid="account-row-name" className="font-medium">
+        {row.original.name}
       </Link>
     ),
     enableSorting: false,
-    enableHiding: true,
+    enableHiding: false,
+    meta: { labelKey: "name" },
+  },
+  {
+    accessorKey: "account_role",
+    header: ({ column }) => <SalesHeader column={column} label="contactType" />,
+    cell: ({ row }) => <RoleCell value={row.original.account_role} />,
+    meta: { labelKey: "contactType" },
+  },
+  {
+    accessorKey: "office_phone",
+    header: ({ column }) => <SalesHeader column={column} label="phone" />,
+    cell: ({ row }) => text(row.original.office_phone),
+    meta: { labelKey: "phone" },
+  },
+  {
+    accessorKey: "mobile_phone",
+    header: ({ column }) => <SalesHeader column={column} label="gsm" />,
+    cell: ({ row }) => text(row.original.mobile_phone),
+    meta: { labelKey: "gsm" },
   },
   {
     accessorKey: "email",
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="E-mail" />
-    ),
-
-    cell: ({ row }) => <div className="w-[150px]">{row.getValue("email")}</div>,
-    enableSorting: true,
-    enableHiding: true,
+    header: ({ column }) => <SalesHeader column={column} label="email" />,
+    cell: ({ row }) => text(row.original.email),
+    meta: { labelKey: "email" },
   },
   {
-    accessorKey: "contacts",
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Account contact" />
-    ),
-
-    cell: ({ row }) => (
-      <div className="w-[150px]">
-        {row.original.contacts?.map(
-          (contact: any) => [contact.first_name, contact.last_name].filter(Boolean).join(" ")
-        )}
-      </div>
-    ),
-    enableSorting: false,
-    enableHiding: true,
+    accessorKey: "vat_choice",
+    header: ({ column }) => <SalesHeader column={column} label="vat" />,
+    cell: ({ row }) => <VatCell value={row.original.vat_choice} />,
+    meta: { labelKey: "vat" },
   },
   {
-    accessorKey: "status",
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Status" />
-    ),
-    cell: ({ row }) => {
-      const status = statuses.find(
-        (status) => status.value === row.getValue("status")
-      );
-
-      if (!status) {
-        return null;
-      }
-
-      return (
-        <div className="flex w-[100px] items-center">
-          {status.icon && (
-            <status.icon className="mr-2 h-4 w-4 text-muted-foreground" />
-          )}
-          <span>{status.label}</span>
-        </div>
-      );
-    },
-    filterFn: (row, id, value) => {
-      return value.includes(row.getValue(id));
-    },
+    accessorKey: "vat",
+    header: ({ column }) => <SalesHeader column={column} label="vatNumber" />,
+    cell: ({ row }) => text(row.original.vat),
+    meta: { labelKey: "vatNumber" },
+  },
+  {
+    id: "address",
+    accessorFn: (row) => addressText(row),
+    header: ({ column }) => <SalesHeader column={column} label="address" />,
+    cell: ({ row }) => text(addressText(row.original)),
+    meta: { labelKey: "address" },
   },
   {
     id: "actions",
     cell: ({ row }) => <DataTableRowActions row={row} />,
+    enableHiding: false,
   },
 ];

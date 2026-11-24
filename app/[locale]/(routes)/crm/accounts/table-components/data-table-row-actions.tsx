@@ -19,7 +19,7 @@ import AlertModal from "@/components/modals/alert-modal";
 import { useState } from "react";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
-import { UpdateAccountForm } from "../components/UpdateAccountForm";
+import { UpdateAccountForm, type AccountFormValues } from "../components/UpdateAccountForm";
 import {
   Sheet,
   SheetContent,
@@ -41,6 +41,7 @@ export function DataTableRowActions<TData>({
 }: DataTableRowActionsProps<TData>) {
   const router = useRouter();
   const t = useTranslations("CrmPage");
+  const sales = useTranslations("Sales");
   const account = accountSchema.parse(row.original);
 
   const [open, setOpen] = useState(false);
@@ -112,11 +113,11 @@ export function DataTableRowActions<TData>({
       <Sheet open={updateOpen} onOpenChange={setUpdateOpen}>
         <SheetContent className="w-full md:max-w-[771px] overflow-y-auto">
           <SheetHeader>
-            <SheetTitle>Update Account - {account?.name}</SheetTitle>
-            <SheetDescription>Update account details</SheetDescription>
+            <SheetTitle>{sales("editCustomer", { name: account?.name ?? "" })}</SheetTitle>
+            <SheetDescription>{sales("customerFieldsDescription")}</SheetDescription>
           </SheetHeader>
           <div className="mt-6 space-y-4">
-            <UpdateAccountForm initialData={row.original} open={setUpdateOpen} />
+            <UpdateAccountForm initialData={row.original as AccountFormValues} open={setUpdateOpen} />
           </div>
         </SheetContent>
       </Sheet>

@@ -55,20 +55,20 @@ export async function getDashboardKPIs(
   ] = await Promise.all([
     // totalRevenue
     prismadb.crm_Opportunities.findMany({
-      where: { created_on: { gte: filters.dateFrom, lte: filters.dateTo }, deletedAt: null, status: "CLOSED", ...scope.opportunity },
+      where: { created_on: { gte: filters.dateFrom, lte: filters.dateTo }, deletedAt: null, is_dossier: false, status: "CLOSED", ...scope.opportunity },
       select: { budget: true, currency: true },
     }),
     prismadb.crm_Opportunities.findMany({
-      where: { created_on: { gte: prev.dateFrom, lte: prev.dateTo }, deletedAt: null, status: "CLOSED", ...scope.opportunity },
+      where: { created_on: { gte: prev.dateFrom, lte: prev.dateTo }, deletedAt: null, is_dossier: false, status: "CLOSED", ...scope.opportunity },
       select: { budget: true, currency: true },
     }),
     // pipelineValue
     prismadb.crm_Opportunities.findMany({
-      where: { created_on: { gte: filters.dateFrom, lte: filters.dateTo }, deletedAt: null, status: "ACTIVE", ...scope.opportunity },
+      where: { created_on: { gte: filters.dateFrom, lte: filters.dateTo }, deletedAt: null, is_dossier: false, status: "ACTIVE", ...scope.opportunity },
       select: { budget: true, currency: true },
     }),
     prismadb.crm_Opportunities.findMany({
-      where: { created_on: { gte: prev.dateFrom, lte: prev.dateTo }, deletedAt: null, status: "ACTIVE", ...scope.opportunity },
+      where: { created_on: { gte: prev.dateFrom, lte: prev.dateTo }, deletedAt: null, is_dossier: false, status: "ACTIVE", ...scope.opportunity },
       select: { budget: true, currency: true },
     }),
     // newLeads
@@ -80,10 +80,10 @@ export async function getDashboardKPIs(
     }),
     // conversionRate: closed opps count
     prismadb.crm_Opportunities.count({
-      where: { created_on: { gte: filters.dateFrom, lte: filters.dateTo }, deletedAt: null, status: "CLOSED", ...scope.opportunity },
+      where: { created_on: { gte: filters.dateFrom, lte: filters.dateTo }, deletedAt: null, is_dossier: false, status: "CLOSED", ...scope.opportunity },
     }),
     prismadb.crm_Opportunities.count({
-      where: { created_on: { gte: prev.dateFrom, lte: prev.dateTo }, deletedAt: null, status: "CLOSED", ...scope.opportunity },
+      where: { created_on: { gte: prev.dateFrom, lte: prev.dateTo }, deletedAt: null, is_dossier: false, status: "CLOSED", ...scope.opportunity },
     }),
     // newContacts (crm_Contacts has created_on)
     prismadb.crm_Contacts.count({

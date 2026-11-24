@@ -62,6 +62,19 @@ describe("assertCanWriteLead / Opportunity / Contract (assigned_to+createdBy, de
   }
 });
 
+describe("assertCanWriteOpportunity for a seller", () => {
+  const find = prismadb.crm_Opportunities.findFirst as jest.Mock;
+
+  it("writes only a dossier stored under that verkoper", async () => {
+    find.mockResolvedValue({ id: "r1" });
+    await assertCanWriteOpportunity({ id: "u3", role: "user", name: "Saerens Evi" }, "r1");
+    expect(find).toHaveBeenCalledWith({
+      where: { id: "r1", deletedAt: null, seller_name: "Saerens Evi" },
+      select: { id: true },
+    });
+  });
+});
+
 describe("assertCanWriteTargetList (created_by only, no assigned_to)", () => {
   const find = prismadb.crm_TargetLists.findFirst as jest.Mock;
 

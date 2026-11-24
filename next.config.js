@@ -5,7 +5,24 @@ const withNextIntl = require("next-intl/plugin")(
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: "standalone",
+  // Dev-only. The phone tunnel is a different host than localhost, and Next
+  // refuses its dev websocket until the host is listed. Without that, the
+  // sign-in page stays on the server HTML and the send button stays disabled.
+  allowedDevOrigins: ["*.trycloudflare.com"],
   serverExternalPackages: ["pdf-parse", "pdfjs-dist"],
+  experimental: {
+    // Next 16.4 keeps a dev cache that, after the server restarts, answers the
+    // first HMR subscribe with "restart". The open tab then reloads forever.
+    turbopackFileSystemCacheForDev: false,
+    serverActions: {
+      bodySizeLimit: "32mb",
+    },
+    // A dropped mail is posted to /api through proxy.ts. The default 10MB
+    // buffer kept only the start of the file, and that cut-off mail was shown
+    // as "not a readable email". 32mb matches the server-action limit and sits
+    // above the 20MB mail cap, so a larger file can be refused as too big.
+    proxyClientMaxBodySize: "32mb",
+  },
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "localhost" },

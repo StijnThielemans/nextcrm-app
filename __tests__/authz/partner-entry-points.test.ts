@@ -82,8 +82,8 @@ const PARTNER_ENTRY_POINTS = [
   "app/[locale]/(routes)/crm/leads/[leadId]/components/HistoryTab.tsx",
   "app/[locale]/(routes)/crm/opportunities/[opportunityId]/components/HistoryTab.tsx",
   "app/[locale]/(routes)/crm/orders/[orderId]/page.tsx",
-  "app/[locale]/(routes)/page.tsx",
   "app/api/documents/[documentId]/file/route.ts",
+  "app/api/documents/[documentId]/open/route.ts",
   "app/api/invoices/[invoiceId]/pdf/route.ts",
 ];
 

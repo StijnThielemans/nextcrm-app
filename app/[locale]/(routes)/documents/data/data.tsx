@@ -16,6 +16,10 @@ export const documentSystemTypes = [
   { value: "CONTRACT", label: "Contract" },
   { value: "OFFER", label: "Offer" },
   { value: "OTHER", label: "Other" },
+  { value: "INTERNAL_SUPPLIER_QUOTE", label: "Leveranciersofferte" },
+  { value: "CUSTOMER_QUOTE", label: "Klantofferte" },
+  { value: "PLAN", label: "Plan" },
+  { value: "PHOTO", label: "Foto" },
 ];
 
 export const processingStatuses = [

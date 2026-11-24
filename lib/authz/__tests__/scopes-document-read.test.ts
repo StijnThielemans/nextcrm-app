@@ -42,6 +42,12 @@ describe("documentReadScopeWhere", () => {
       deletedAt: null,
     });
   });
+  it("partner cannot read an internal supplier quote", () => {
+    const w = documentReadScopeWhere({ id: "p1", role: "partner" }) as any;
+    expect(w.deletedAt).toBeNull();
+    expect(w.document_system_type).toEqual({ not: "INTERNAL_SUPPLIER_QUOTE" });
+    expect(w.OR).toHaveLength(4);
+  });
   it("user → deletedAt + OR with all 8 branches", () => {
     const w = documentReadScopeWhere({ id: "u1", role: "user" }) as any;
     expect(w.deletedAt).toBeNull();

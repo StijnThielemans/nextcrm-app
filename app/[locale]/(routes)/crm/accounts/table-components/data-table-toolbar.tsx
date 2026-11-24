@@ -1,36 +1,54 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { Cross2Icon } from "@radix-ui/react-icons";
 import { Table } from "@tanstack/react-table";
-import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useTranslations } from "next-intl";
 import { DataTableViewOptions } from "./data-table-view-options";
-
-import { statuses } from "../table-data/data";
-import { DataTableFacetedFilter } from "./data-table-faceted-filter";
 
 interface DataTableToolbarProps<TData> {
   table: Table<TData>;
+  title?: string;
+  searchTestId?: string;
+  onResetColumns?: () => void;
+  actions?: ReactNode;
+  trailing?: ReactNode;
+}
+
+export function ListPageTitle({ title }: { title: string }) {
+  return (
+    <h2 className="flex shrink-0 items-center gap-2 text-base font-medium leading-none tracking-[-0.02em]">
+      <span aria-hidden className="h-4 w-[3px] shrink-0 rounded-full bg-[hsl(var(--tilo))]" />
+      {title}
+    </h2>
+  );
 }
 
 export function DataTableToolbar<TData>({
   table,
+  title,
+  searchTestId = "accounts-search",
+  onResetColumns,
+  actions,
+  trailing,
 }: DataTableToolbarProps<TData>) {
-  const isFiltered = table.getState().columnFilters.length > 0;
-  const t = useTranslations("CrmPage");
+  const t = useTranslations("Sales");
+  const globalFilter = (table.getState().globalFilter as string) ?? "";
+  const isFiltered = table.getState().columnFilters.length > 0 || globalFilter.length > 0;
 
   return (
-    <div className="flex items-center justify-between">
-      <div className="flex flex-1 items-center space-x-2">
+    <div className="flex items-center gap-2 overflow-x-auto">
+      {title ? <ListPageTitle title={title} /> : null}
+      <div className="flex shrink-0 items-center gap-2">
         <Input
-          placeholder={t("accounts.filterPlaceholder")}
-          value={(table.getColumn("name")?.getFilterValue() as string) ?? ""}
-          onChange={(event) =>
-            table.getColumn("name")?.setFilterValue(event.target.value)
-          }
-          className="h-8 w-[150px] lg:w-[250px]"
+          placeholder={t("search")}
+          value={globalFilter}
+          onChange={(event) => table.setGlobalFilter(event.target.value)}
+          className="h-8 w-52 rounded-full bg-[hsl(var(--canvas))] px-3 text-xs sm:w-64"
+          data-testid={searchTestId}
         />
         {/*         <Input
           placeholder="Filter by assigned user ..."
@@ -45,13 +63,6 @@ export function DataTableToolbar<TData>({
           }
           className="h-8 w-[150px] lg:w-[250px]"
         /> */}
-        {table.getColumn("status") && (
-          <DataTableFacetedFilter
-            column={table.getColumn("status")}
-            title="Status"
-            options={statuses}
-          />
-        )}
         {/*        {table.getColumn("priority") && (
           <DataTableFacetedFilter
             column={table.getColumn("priority")}
@@ -62,15 +73,27 @@ export function DataTableToolbar<TData>({
         {isFiltered && (
           <Button
             variant="ghost"
-            onClick={() => table.resetColumnFilters()}
-            className="h-8 px-2 lg:px-3"
+            onClick={() => {
+              table.resetColumnFilters();
+              table.setGlobalFilter("");
+            }}
+            className="h-8 px-2 text-xs lg:px-3"
           >
             Reset
-            <Cross2Icon className="ml-2 h-4 w-4" />
+            <Cross2Icon className="ml-1.5 h-3.5 w-3.5" />
           </Button>
         )}
       </div>
-      <DataTableViewOptions table={table} />
+      <div className="ml-auto flex shrink-0 items-center gap-1.5">
+        {actions}
+        {onResetColumns && (
+          <Button variant="outline" size="sm" className="h-8 rounded-full px-3 text-xs font-normal" data-testid="reset-columns" onClick={onResetColumns}>
+            {t("resetColumns")}
+          </Button>
+        )}
+        <DataTableViewOptions table={table} />
+        {trailing}
+      </div>
     </div>
   );
 }

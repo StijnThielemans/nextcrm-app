@@ -13,9 +13,30 @@ export function isDocumentKey(key: string): boolean {
   );
 }
 
-/** Where clients read a document's file: an access check, then a presigned GET. */
+/** Where clients read a document's file: an access check, then the bytes. */
 export function documentFileRoute(documentId: string): string {
   return `/api/documents/${documentId}/file`;
+}
+
+const INLINE_DOCUMENT_TYPES = new Set([
+  "application/pdf",
+  "image/jpeg",
+  "image/png",
+  "image/gif",
+  "image/webp",
+]);
+
+/** PDF and images open in the browser. Anything else is a download. */
+export function inlineDocumentType(mime: string | null | undefined): string | null {
+  const value = (mime ?? "").split(";")[0]?.trim().toLowerCase() ?? "";
+  return INLINE_DOCUMENT_TYPES.has(value) ? value : null;
+}
+
+/** Content-Disposition that keeps the stored name, including non-ASCII. */
+export function documentContentDisposition(fileName: string, inline: boolean): string {
+  const cleaned = fileName.replace(/[\u0000-\u001f\u007f"]/g, " ").replace(/\s+/g, " ").trim() || "bestand";
+  const ascii = cleaned.replace(/[^\x20-\x7E]/g, "_");
+  return `${inline ? "inline" : "attachment"}; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(cleaned)}`;
 }
 
 /**

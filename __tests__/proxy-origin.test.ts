@@ -87,4 +87,48 @@ describe("proxy: Origin check on cookie-authenticated /api writes", () => {
     const res = await proxy(req(path, "POST", { ...cookie, origin: FILES }));
     expect(res.status).toBe(200);
   });
+
+  it("lets a document upload through from localhost or the current tunnel when BETTER_AUTH_URL is stale", async () => {
+    const previousUrl = process.env.BETTER_AUTH_URL;
+    const previousEnv = process.env.NODE_ENV;
+    process.env.BETTER_AUTH_URL = "https://old-tunnel.trycloudflare.com";
+    process.env.NODE_ENV = "development";
+    try {
+      for (const origin of [
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "https://wishlist-silicon-delivering-broad.trycloudflare.com",
+      ]) {
+        const res = await proxy(req("/api/upload/document", "POST", { ...cookie, origin }));
+        expect(res.status).toBe(200);
+      }
+      const foreign = await proxy(
+        req("/api/upload/document", "POST", { ...cookie, origin: "https://evil.example" }),
+      );
+      expect(foreign.status).toBe(403);
+    } finally {
+      process.env.BETTER_AUTH_URL = previousUrl;
+      process.env.NODE_ENV = previousEnv;
+    }
+  });
+
+  it("keeps production on the configured origin only", async () => {
+    const previousUrl = process.env.BETTER_AUTH_URL;
+    const previousEnv = process.env.NODE_ENV;
+    process.env.BETTER_AUTH_URL = "https://app.example";
+    process.env.NODE_ENV = "production";
+    try {
+      const local = await proxy(
+        req("/api/upload/document", "POST", { ...cookie, origin: "http://localhost:3000" }),
+      );
+      expect(local.status).toBe(403);
+      const app = await proxy(
+        req("/api/upload/document", "POST", { ...cookie, origin: "https://app.example" }),
+      );
+      expect(app.status).toBe(200);
+    } finally {
+      process.env.BETTER_AUTH_URL = previousUrl;
+      process.env.NODE_ENV = previousEnv;
+    }
+  });
 });

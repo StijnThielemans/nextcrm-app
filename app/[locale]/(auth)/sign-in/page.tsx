@@ -1,18 +1,15 @@
 import { LoginComponent } from "./components/LoginComponent";
+import { isDevPasswordSignIn } from "@/lib/dev-password-sign-in";
+import { ensureDevProjectLeaders, ensureDevSalesUsers, ensureDevTestPassword } from "@/lib/dev-test-password";
 
 const SignInPage = async () => {
-  return (
-    <div className="h-full">
-      <div className="py-10">
-        <h1 className="scroll-m-20 text-4xl font-extrabold tracking-tight lg:text-5xl">
-          Welcome to {process.env.NEXT_PUBLIC_APP_NAME}
-        </h1>
-      </div>
-      <div>
-        <LoginComponent />
-      </div>
-    </div>
-  );
+  const passwordSignIn = isDevPasswordSignIn();
+  if (passwordSignIn) {
+    await ensureDevTestPassword();
+    await ensureDevSalesUsers();
+    await ensureDevProjectLeaders();
+  }
+  return <LoginComponent passwordSignIn={passwordSignIn} />;
 };
 
 export default SignInPage;

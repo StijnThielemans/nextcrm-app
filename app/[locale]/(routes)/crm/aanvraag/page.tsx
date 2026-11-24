@@ -1,0 +1,41 @@
+import { getLocale, getTranslations } from "next-intl/server";
+import { redirect } from "@/i18n/navigation";
+import Container from "@/app/[locale]/(routes)/components/ui/Container";
+import { requireAuthenticated } from "@/lib/authz";
+import { sellerNameForUser } from "@/lib/sales/aanvraag-fields";
+import { projectLeaderNameForUser } from "@/lib/sales/projectbox";
+import { offerteboxPrefill } from "@/lib/sales/offertebox";
+import { previewDossierNumber } from "@/lib/sales/service";
+import { AanvraagForm } from "./AanvraagForm";
+import { AanvraagMail } from "./AanvraagMail";
+
+export default async function AanvraagPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ offertebox?: string }>;
+}) {
+  const t = await getTranslations("Sales");
+  const { offertebox } = await searchParams;
+  const user = await requireAuthenticated();
+  if (projectLeaderNameForUser(user)) {
+    redirect({ href: "/projectleiding/dashboard", locale: await getLocale() });
+  }
+  const projectNumber = await previewDossierNumber();
+  const fromBox = offertebox ? await offerteboxPrefill(user, offertebox) : null;
+  const lockedSeller = sellerNameForUser(user);
+  return (
+    <Container
+      title={t("newRequest")}
+      description={t("newRequestDescription")}
+    >
+      {fromBox ? (
+        <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,26rem)]">
+          <AanvraagForm projectNumber={projectNumber ?? t("automatic")} fromBox={fromBox} lockedSeller={lockedSeller} />
+          <AanvraagMail mail={fromBox.mail} />
+        </div>
+      ) : (
+        <AanvraagForm projectNumber={projectNumber ?? t("automatic")} fromBox={fromBox} lockedSeller={lockedSeller} />
+      )}
+    </Container>
+  );
+}

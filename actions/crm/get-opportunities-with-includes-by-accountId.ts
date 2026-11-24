@@ -30,6 +30,7 @@ export const getOpportunitiesFullByAccountId = async (accountId: string) => {
   const data = await prismadb.crm_Opportunities.findMany({
     where: {
       account: accountId,
+      is_dossier: false,
       ...opportunityReadScopeWhere(user),
     },
     include: {

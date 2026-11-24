@@ -17,7 +17,7 @@ export const metadata: Metadata = {
   metadataBase: new URL(
     process.env.NEXT_PUBLIC_APP_URL! || "http://localhost:3000"
   ),
-  title: "",
+  title: "TILO",
   description: "",
   openGraph: {
     images: [
@@ -25,7 +25,7 @@ export const metadata: Metadata = {
         url: "/images/opengraph-image.png",
         width: 1200,
         height: 630,
-        alt: "",
+        alt: "TILO",
       },
     ],
   },
@@ -36,7 +36,7 @@ export const metadata: Metadata = {
         url: "/images/opengraph-image.png",
         width: 1200,
         height: 630,
-        alt: "",
+        alt: "TILO",
       },
     ],
   },
@@ -70,9 +70,15 @@ export default async function AppLayout({
 
   // Extract translations as plain object for client component
   const translations = {
+    navigation: dict("navigation"),
     dashboard: dict("dashboard"),
     crm: {
       title: dict("crm.title"),
+      dashboard: dict("dashboard"),
+      customers: dict("crm.customers"),
+      dossiers: dict("crm.dossiers"),
+      quotes: dict("crm.quotes"),
+      offertebox: dict("crm.offertebox"),
       accounts: dict("crm.accounts"),
       opportunities: dict("crm.opportunities"),
       contacts: dict("crm.contacts"),
@@ -107,7 +113,12 @@ export default async function AppLayout({
   const { getPluginNavItems } = await import("@/lib/plugins/nav");
   const { mapLegacyRole } = await import("@/lib/authz/roles");
   const { getLocale } = await import("next-intl/server");
-  const pluginNav = await getPluginNavItems(mapLegacyRole(user?.role), (await getLocale()) as "en" | "cz" | "de" | "uk");
+  const requestedLocale = await getLocale();
+  const pluginLocale =
+    requestedLocale === "cz" || requestedLocale === "de" || requestedLocale === "uk"
+      ? requestedLocale
+      : "en";
+  const pluginNav = await getPluginNavItems(mapLegacyRole(user?.role), pluginLocale);
 
   //console.log(typeof build, "build");
   return (
@@ -118,24 +129,16 @@ export default async function AppLayout({
         dict={translations}
         session={session}
         pluginNav={pluginNav}
-        appName={process.env.NEXT_PUBLIC_APP_NAME || "NextCRM"}
+        appName="TILO"
       />
-      <SidebarInset>
+      <SidebarInset className="bg-[hsl(210_16%_97%)] dark:bg-[hsl(210_12%_7%)]">
         <Header
           id={session.user.id as string}
           lang={session.user.userLanguage as string}
         />
-        {/*
-          Task Group 3.3: Footer Relocation
-          - Footer has been moved inside the scrollable content area
-          - This allows the footer to scroll with the page content
-          - Footer will appear at the bottom of the content, not fixed at viewport bottom
-        */}
-        <div className="flex flex-col flex-grow overflow-y-auto h-full w-full min-w-0">
-          <div className="flex-grow py-5 w-full min-w-0">
-            <div className="w-full px-4 min-w-0">
-              {children}
-            </div>
+        <div className="flex h-full min-h-0 w-full min-w-0 flex-1 flex-col overflow-y-auto">
+          <div className="w-full min-w-0 flex-1 px-6 py-8 lg:px-10 lg:py-10">
+            {children}
           </div>
           <Footer />
         </div>

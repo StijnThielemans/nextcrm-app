@@ -58,7 +58,7 @@ RUN node scripts/plugins/generate-registry.mjs && pnpm prisma generate && pnpm n
 FROM node:22-alpine AS runner
 
 # Install system dependencies in a single layer
-RUN apk add --no-cache curl postgresql-client
+RUN apk add --no-cache curl postgresql-client poppler-utils
 
 # Set environment early to consolidate layers
 ENV NODE_ENV=production \
