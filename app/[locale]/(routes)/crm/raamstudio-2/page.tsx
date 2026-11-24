@@ -3,6 +3,7 @@ import { requireAuthenticated } from "@/lib/authz";
 import { raamstudioPlansForDossier } from "@/lib/raamstudio/dossier-plans";
 import { statusLabel } from "@/lib/sales/labels";
 import { listDossiers } from "@/lib/sales/service";
+import { readRaamstudio2 } from "@/lib/raamstudio2/store";
 import { Raamstudio2Panel } from "./Raamstudio2Panel";
 
 function siteOf(row: {
@@ -23,7 +24,8 @@ export default async function Raamstudio2Page({
   const { dossier: dossierId } = await searchParams;
   const rows = await listDossiers(user);
   const selected = dossierId ? await raamstudioPlansForDossier(user, dossierId) : null;
-  const intro = "Raamstudio 2.0 — dossier, plannen en calculatie controleren.";
+  const loaded = selected ? await readRaamstudio2(user, selected.id) : null;
+  const intro = "Raamstudio 2.0 — eigen projectbestand .rs2 op de plannen van het dossier.";
   return (
     <Container bare title="Raamstudio 2.0" description={intro}>
       <Raamstudio2Panel
@@ -39,6 +41,9 @@ export default async function Raamstudio2Page({
         }))}
         selected={selected}
         missing={Boolean(dossierId) && !selected}
+        initial={loaded && "project" in loaded ? loaded.project : null}
+        loadError={loaded && "error" in loaded ? loaded.error : null}
+        fileName={loaded && loaded.fileName ? loaded.fileName : null}
       />
     </Container>
   );

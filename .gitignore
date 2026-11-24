@@ -77,6 +77,10 @@ v8-compile-cache-*/
 #superpowers plugin
 .superpowers/
 
+services/raamstudio-vision/.venv/
+__pycache__/
+*.pyc
+
 # Internal / client material (kept locally, not published)
 /public/tmp/
 /docs/internal/

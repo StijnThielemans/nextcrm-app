@@ -33,6 +33,7 @@ export function plansOnDossier(documents: DossierPlanSource[]): DossierPlanFile[
   const seen = new Set<string>();
   for (const document of documents) {
     if (seen.has(document.id)) continue;
+    if (document.name === "Projectnotities.pdf") continue;
     const folder = documentCategoryLabel(document.category);
     const tcRaam = isTcRaam(document.name);
     const inPlannen = folder === "Plannen";
@@ -63,6 +64,8 @@ export type RaamstudioDossierOpen = {
   executionProjectNumber: string | null;
   locked: boolean;
   plans: DossierPlanFile[];
+  /** The Raamstudio 2.0 project file (.raamstudio). A .tc-raam is not this file. */
+  studio2: { id: string; name: string } | null;
 };
 
 export async function raamstudioPlansForDossier(user: AuthzUser, dossierId: string): Promise<RaamstudioDossierOpen | null> {
@@ -81,5 +84,13 @@ export async function raamstudioPlansForDossier(user: AuthzUser, dossierId: stri
     executionProjectNumber: dossier.executionProjectNumber,
     locked: dossier.terminal,
     plans: plansOnDossier(dossier.documents),
+    studio2: studio2FileOnDossier(dossier.documents),
   };
+}
+
+/** A Raamstudio 2.0 project already stored on the dossier. Plan PDFs are not a project file. */
+export function studio2FileOnDossier(documents: DossierPlanSource[]): { id: string; name: string } | null {
+  const named = (suffix: string) => documents.find((document) => document.name.toLowerCase().endsWith(suffix));
+  const file = named(".raamstudio") ?? named(".rs2");
+  return file ? { id: file.id, name: file.name } : null;
 }

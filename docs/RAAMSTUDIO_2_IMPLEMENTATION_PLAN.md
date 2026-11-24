@@ -8,10 +8,11 @@ Raamstudio 2.0 in de verkoopapp (Next.js), naast het bestaande `/crm/raamstudio`
 
 | Fase | Inhoud | Status |
 | --- | --- | --- |
-| 1 | Analysedocumenten (dit bestand + siblings), master spec placeholder | bezig |
-| 2 start | Navigatie Verkoop → Raamstudio 2.0, dossierselector (nummer, klant, project, werf, verkoper, status), plannen uit map Plannen, calculatiepoort: verderwerken of nieuw project in bestaand RaamStudio | klaar |
-| 2 vervolg | Stappen: tekeningen, grondplan, gevels, maten, raaminfo — hergebruik `lib/raamstudio/` | gepland |
-| 3 | PDF-kwaliteit, self-learning, installatie zonder verkoopapp te breken | gepland |
+| 1 | Analysedocumenten (dit bestand + siblings), master spec | klaar |
+| 2 start | Navigatie Verkoop → Raamstudio 2.0, dossierselector, plannen uit map Plannen, calculatiepoort | klaar |
+| 2 vervolg | Eigen werkruimte: tekeningen, grondplan, gevels, maten, raaminfo, ramenstaat, nummering, fluoriseren, opslag als `.raamstudio` | klaar |
+| 3 | Projectnotities.pdf via pdf-lib, tekstlaag via pdf.js, PDF-kwaliteit | klaar |
+| 4 | pdfplumber, pypdfium2, OpenCV en Tesseract. Kaders te controleren. Getraind model wacht | bezig |
 
 ## Randvoorwaarden
 
