@@ -63,6 +63,8 @@ export type RaamstudioDossierOpen = {
   executionProjectNumber: string | null;
   locked: boolean;
   plans: DossierPlanFile[];
+  /** The Raamstudio 2.0 project file (.rs2). A .tc-raam is not this file. */
+  studio2: { id: string; name: string } | null;
 };
 
 export async function raamstudioPlansForDossier(user: AuthzUser, dossierId: string): Promise<RaamstudioDossierOpen | null> {
@@ -81,5 +83,12 @@ export async function raamstudioPlansForDossier(user: AuthzUser, dossierId: stri
     executionProjectNumber: dossier.executionProjectNumber,
     locked: dossier.terminal,
     plans: plansOnDossier(dossier.documents),
+    studio2: studio2FileOnDossier(dossier.documents),
   };
+}
+
+/** A Raamstudio 2.0 project already stored on the dossier. Plan PDFs are not a project file. */
+export function studio2FileOnDossier(documents: DossierPlanSource[]): { id: string; name: string } | null {
+  const file = documents.find((document) => document.name.toLowerCase().endsWith(".rs2"));
+  return file ? { id: file.id, name: file.name } : null;
 }

@@ -9,7 +9,9 @@ import { cn } from "@/lib/utils";
 import { raamstudioDossierMatches } from "@/lib/raamstudio/dossier-list-search";
 import type { RaamstudioDossierOpen } from "@/lib/raamstudio/dossier-plans";
 import { raamstudio2Gate } from "@/lib/raamstudio/raamstudio2-gate";
+import type { Rs2Project } from "@/lib/raamstudio2/project";
 import { statusLabel } from "@/lib/sales/labels";
+import { Raamstudio2Workspace } from "./Raamstudio2Workspace";
 
 export type Raamstudio2DossierChoice = {
   id: string;
@@ -22,26 +24,25 @@ export type Raamstudio2DossierChoice = {
   status: string;
 };
 
-const INACTIVE = [
-  "Automatische detectie",
-  "Maten uit de tekening",
-  "Nummering van gevels",
-  "Projectnotities.pdf",
-] as const;
-
 export function Raamstudio2Panel({
   dossiers,
   selected,
   missing,
+  initial,
+  loadError,
+  fileName,
 }: {
   dossiers: Raamstudio2DossierChoice[];
   selected: RaamstudioDossierOpen | null;
   missing: boolean;
+  initial: Rs2Project | null;
+  loadError: string | null;
+  fileName: string | null;
 }) {
   const router = useRouter();
   const [query, setQuery] = useState("");
   const visible = useMemo(() => dossiers.filter((row) => raamstudioDossierMatches(row, query)), [dossiers, query]);
-  const gate = selected ? raamstudio2Gate({ locked: selected.locked, plans: selected.plans }) : null;
+  const gate = selected ? raamstudio2Gate({ locked: selected.locked, plans: selected.plans, studio2: selected.studio2 }) : null;
 
   return (
     <div className={cn("mx-auto flex w-full max-w-4xl flex-col gap-4")}>
@@ -52,7 +53,7 @@ export function Raamstudio2Panel({
             Raamstudio 2.0
           </h2>
           <p className="mt-1 text-[13px] text-muted-foreground">
-            Kies een offertedossier. Plannen komen uit de map Plannen van dat dossier. Het bestaande RaamStudio blijft beschikbaar.
+            Kies een offertedossier. Plannen komen uit de map Plannen. Het project wordt een nieuw .rs2-bestand.
           </p>
         </div>
         {!selected && (
@@ -137,32 +138,22 @@ export function Raamstudio2Panel({
             )}
             {gate.next === "resume" && gate.workFile ? (
               <p className="mt-2 text-[13px]" data-testid="raamstudio-2-workfile">
-                Werkbestand {gate.workFile.name}. Verderwerken opent het bestaande RaamStudio.
+                Werkbestand {gate.workFile.name}. Verderwerken gebeurt hier, in het .rs2-bestand.
               </p>
             ) : null}
             {gate.next === "prepare" ? (
               <p className="mt-2 text-[13px]" data-testid="raamstudio-2-prepare">
-                Nog geen werkbestand. Nieuw project voorbereiden opent RaamStudio op de plannen van dit dossier.
+                Nog geen .rs2-bestand. Hieronder bereid je een nieuw project voor. Opslaan maakt dat bestand in Calculatie.
               </p>
             ) : null}
             {gate.next === "closed" ? (
               <p className="mt-2 text-[13px]" data-testid="raamstudio-2-closed">
-                Dit dossier is afgesloten. Er is geen werkbestand en er wordt geen nieuw project aangemaakt.
+                Dit dossier is afgesloten. Er is geen .rs2-bestand en er wordt geen nieuw project aangemaakt.
               </p>
             ) : null}
           </section>
 
           <section className="flex flex-wrap gap-2">
-            {gate.next === "resume" ? (
-              <Button asChild size="sm" data-testid="raamstudio-2-resume">
-                <Link href={`/crm/raamstudio?dossier=${selected.id}`}>Verderwerken</Link>
-              </Button>
-            ) : null}
-            {gate.next === "prepare" ? (
-              <Button asChild size="sm" data-testid="raamstudio-2-prepare-action">
-                <Link href={`/crm/raamstudio?dossier=${selected.id}`}>Nieuw project voorbereiden</Link>
-              </Button>
-            ) : null}
             <Button asChild size="sm" variant="outline">
               <Link href={`/crm/dossiers/${selected.id}`}>Dossier openen</Link>
             </Button>
@@ -171,14 +162,16 @@ export function Raamstudio2Panel({
             </Button>
           </section>
 
-          <section data-testid="raamstudio-2-inactive">
-            <h3 className="text-sm font-semibold">Nog niet actief</h3>
-            <ul className="mt-1 space-y-1 text-[13px] text-muted-foreground">
-              {INACTIVE.map((item) => (
-                <li key={item}>{item} — wacht op training</li>
-              ))}
-            </ul>
-          </section>
+          {gate.next !== "closed" ? (
+            <Raamstudio2Workspace
+              dossierId={selected.id}
+              plans={gate.planFiles}
+              initial={initial}
+              loadError={loadError}
+              locked={selected.locked}
+              fileName={fileName}
+            />
+          ) : null}
         </Card>
       )}
     </div>
