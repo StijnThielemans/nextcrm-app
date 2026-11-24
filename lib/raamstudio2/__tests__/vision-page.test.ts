@@ -33,11 +33,12 @@ function rectanglePdf(): Buffer {
   it("returns the drawn rectangle and no measurement", () => {
     const result = spawnSync(python, [script, "1"], { input: rectanglePdf() });
     expect(result.status).toBe(0);
-    const page = JSON.parse(result.stdout.toString("utf8")) as { engines: string[]; openings: { source: string; w: number }[] };
+    const page = JSON.parse(result.stdout.toString("utf8")) as { engines: string[]; openings: { source: string; w: number; widthMm: string | null; heightMm: string | null }[] };
     expect(page.engines).toContain("pdfplumber");
     expect(page.openings).toHaveLength(1);
     expect(page.openings[0]?.source).toBe("pdfplumber");
     expect(page.openings[0]?.w).toBeCloseTo(0.06, 2);
-    expect(JSON.stringify(page)).not.toContain("widthMm");
+    expect(page.openings[0]?.widthMm).toBeNull();
+    expect(page.openings[0]?.heightMm).toBeNull();
   });
 });

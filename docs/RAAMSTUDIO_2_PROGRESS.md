@@ -12,4 +12,5 @@
 | 2026-11-24 | Bestandstype `.raamstudio`, nummering, fluoriseren, tekstlaag, Projectnotities.pdf via pdf-lib | klaar op `cursor/raamstudio-2-rs2-d023` |
 | 2026-11-24 | `RAAMSTUDIO_2_MASTER_SPEC.md` woordelijke prompt | klaar |
 | 2026-11-24 | pdfplumber, pypdfium2, OpenCV en Tesseract voor kaders en tekst. Kaders blijven te controleren | klaar op `cursor/raamstudio-2-rs2-d023` |
+| 2026-11-24 | Dossier openen werkt alle plannen uit: kaders, nummering, geschreven maten, Projectnotities | klaar op `cursor/raamstudio-2-rs2-d023` |
 | — | Getraind raammodel, visueel geheugen | wacht op Belgische trainingsdata |

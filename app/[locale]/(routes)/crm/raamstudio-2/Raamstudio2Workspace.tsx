@@ -16,7 +16,7 @@ import {
   type Rs2Project,
 } from "@/lib/raamstudio2/project";
 import { buildProposals } from "@/lib/raamstudio2/proposals";
-import { generateProjectnotitiesAction, readPlanLayerAction, saveRaamstudio2Action } from "@/actions/crm/raamstudio2/actions";
+import { generateProjectnotitiesAction, readPlanLayerAction, saveRaamstudio2Action, startAutomaticAnalysisAction } from "@/actions/crm/raamstudio2/actions";
 
 const STEPS = [
   { id: "tekeningen", label: "Tekeningen" },
@@ -44,9 +44,9 @@ export function Raamstudio2Workspace({
   locked: boolean;
   fileName: string | null;
 }) {
-  const [step, setStep] = useState<StepId>("tekeningen");
+  const [step, setStep] = useState<StepId>(initial && initial.openings.length > 0 ? "ramenstaat" : "tekeningen");
   const [project, setProject] = useState<Rs2Project>(initial ? { ...emptyProject(), ...initial, highlights: initial.highlights ?? [] } : emptyProject());
-  const [status, setStatus] = useState(loadError ?? (fileName ? fileName : "Nog niet opgeslagen"));
+  const [status, setStatus] = useState(loadError ?? (fileName ? `${fileName} · ${initial?.openings.length ?? 0} ramen` : "Nog niet opgeslagen"));
   const [saving, setSaving] = useState(false);
   const [planId, setPlanId] = useState(plans[0]?.id ?? "");
   const [page, setPage] = useState(1);
@@ -268,6 +268,22 @@ export function Raamstudio2Workspace({
     setStatus(`Projectnotities.pdf staat in Calculatie: ${result.fileName}`);
   }
 
+  async function runAll() {
+    if (locked || loadError || plans.length === 0) return;
+    setSaving(true);
+    setStatus("De plannen worden automatisch uitgewerkt…");
+    const result = await startAutomaticAnalysisAction(dossierId, project);
+    setSaving(false);
+    if (!("project" in result)) {
+      setStatus(result.error ?? "De automatische analyse is mislukt.");
+      return;
+    }
+    setProject({ ...emptyProject(), ...result.project, highlights: result.project.highlights ?? [] });
+    if (result.notesId) setNotesHref(`/api/documents/${result.notesId}/file`);
+    setStep("ramenstaat");
+    setStatus(`${result.summary} Opgeslagen als ${result.fileName}.${result.notesError ? ` ${result.notesError}` : ""}`);
+  }
+
   function downloadSchedule() {
     const header = "nummer;verdieping;gevel;breedte_mm;hoogte_mm";
     const lines = project.openings.map((opening) => {
@@ -286,6 +302,9 @@ export function Raamstudio2Workspace({
   return (
     <section className="space-y-3" data-testid="raamstudio-2-workspace">
       <div className="flex flex-wrap items-center gap-2">
+        <Button type="button" size="sm" disabled={saving || locked || Boolean(loadError) || plans.length === 0} data-testid="raamstudio-2-auto" onClick={() => void runAll()}>
+          AI-analyse starten
+        </Button>
         {STEPS.map((item) => (
           <Button key={item.id} type="button" size="sm" variant={step === item.id ? "default" : "outline"} data-testid={`raamstudio-2-step-${item.id}`} onClick={() => setStep(item.id)}>
             {item.label}
@@ -309,7 +328,7 @@ export function Raamstudio2Workspace({
         <p className="text-[12px] text-muted-foreground" data-testid="raamstudio-2-save-status">{status}</p>
       </div>
       <p className="text-[12px] text-muted-foreground">
-        Bestandstype .raamstudio. Originele plannen blijven onaangeroerd. Projectnotities.pdf wordt opgebouwd uit die originelen plus vectortekst. Maten komen alleen uit wat je zelf invult of uit cijfers die al op het plan staan.
+        AI-analyse starten leest alle plannen in de map Plannen, duidt de gevonden kaders aan, nummert ze en maakt Projectnotities.pdf. Een geschreven maat naast een kader wordt overgenomen. Een maat die er niet staat, wordt niet ingevuld.
       </p>
 
       {plans.length === 0 ? <p className="text-[13px] text-muted-foreground">Geen plannen in de map Plannen. Zonder plan kan je nog geen tekening aanduiden.</p> : null}
@@ -479,7 +498,7 @@ export function Raamstudio2Workspace({
         </div>
       </div>
       <ul className="text-[12px] text-muted-foreground" data-testid="raamstudio-2-inactive">
-        <li>Kaders komen uit pdfplumber of OpenCV en blijven te controleren. Een getraind model voor Belgische plannen is er nog niet. Geschreven cijfers worden geen maten.</li>
+        <li>De automatische kaders blijven te controleren. Een getraind model voor Belgische raamsymbolen is er nog niet. Een maat wordt alleen gezet als het cijfer naast het kader op het plan staat.</li>
         <li>Zelflerende modeltraining — nog niet actief. Correcties blijven in het .raamstudio-bestand.</li>
         {scanText ? <li data-testid="raamstudio-2-scan-result">{scanText}</li> : null}
         {notesHref ? <li><a className="underline" href={notesHref}>Projectnotities.pdf openen</a></li> : null}

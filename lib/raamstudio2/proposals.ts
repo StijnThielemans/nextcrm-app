@@ -9,6 +9,12 @@ export type VisionBox = {
   source: string;
   nearby: string[];
   status: "te controleren";
+  /** Facade word written next to this opening. Absent when the page does not say it. */
+  side?: FacadeSide | null;
+  /** Digits written beside the opening. Absent when no such number was read. */
+  widthMm?: string | null;
+  /** Digits written above or below the opening. Absent when no such number was read. */
+  heightMm?: string | null;
 };
 
 /** One facade name on the page can be used. Several names stay undecided. */
@@ -17,9 +23,9 @@ export function sideFromLabels(labels: readonly string[]): FacadeSide | null {
   for (const label of labels) {
     const text = label.toLowerCase();
     if (/voorgevel|façade avant|facade avant/.test(text)) found.add("voorgevel");
-    else if (/rechtergevel|façade droite|facade droite/.test(text)) found.add("rechtergevel");
-    else if (/achtergevel|façade arrière|facade arriere|façade arriere/.test(text)) found.add("achtergevel");
-    else if (/linkergevel|façade gauche|facade gauche/.test(text)) found.add("linkergevel");
+    if (/rechtergevel|façade droite|facade droite/.test(text)) found.add("rechtergevel");
+    if (/achtergevel|façade arrière|facade arriere|façade arriere/.test(text)) found.add("achtergevel");
+    if (/linkergevel|façade gauche|facade gauche/.test(text)) found.add("linkergevel");
   }
   return found.size === 1 ? [...found][0] : null;
 }
@@ -30,9 +36,9 @@ export function floorFromLabels(labels: readonly string[]): string | null {
   for (const label of labels) {
     const text = label.toLowerCase();
     if (/kelder|sous-sol/.test(text)) found.add("-1");
-    else if (/gelijkvloers|rez-de-chaussée|rez-de-chaussee|\brdc\b/.test(text)) found.add("0");
-    else if (/tweede|2e verdieping|étage 2|etage 2/.test(text)) found.add("2");
-    else if (/eerste|1e verdieping|étage 1|etage 1|verdieping 1/.test(text)) found.add("1");
+    if (/gelijkvloers|rez-de-chaussée|rez-de-chaussee|\brdc\b/.test(text)) found.add("0");
+    if (/tweede|2e verdieping|étage 2|etage 2|verdieping 2/.test(text)) found.add("2");
+    if (/eerste|1e verdieping|étage 1|etage 1|verdieping 1/.test(text)) found.add("1");
   }
   return found.size === 1 ? [...found][0] : null;
 }
