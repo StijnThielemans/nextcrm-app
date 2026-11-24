@@ -23,7 +23,6 @@ import {
   PLANNING_CREW,
   PLANNING_GRID_END,
   PLANNING_GRID_START,
-  PLANNING_HOUR_PX,
   addDays,
   formatDayLong,
   formatOutlookDayTitle,
@@ -34,7 +33,6 @@ import {
   planningBlockTitle,
   planningCrewById,
   planningDisplaySpan,
-  planningGridPx,
   planningPlace,
   weekdayIndex,
   type PlanningBoardView,
@@ -56,7 +54,11 @@ const SuppressClick = createContext<MutableRefObject<boolean>>({ current: false 
 const HEADER_PX = 52;
 const ALLDAY_PX = 32;
 const CHROME_PX = HEADER_PX + ALLDAY_PX;
-const GRID_PX = planningGridPx();
+const GRID_MINUTES = PLANNING_GRID_END - PLANNING_GRID_START;
+
+function minutesTopPercent(minutes: number): string {
+  return `${((minutes - PLANNING_GRID_START) / GRID_MINUTES) * 100}%`;
+}
 
 const preferTarget: CollisionDetection = (args) => {
   const hits = pointerWithin(args);
@@ -75,20 +77,6 @@ const preferTarget: CollisionDetection = (args) => {
 
 function holdClick(event: ReactPointerEvent) {
   event.stopPropagation();
-}
-
-const LANE_PX = 176;
-
-function columnTrack(day: string, jobs: PlanningJobView[]) {
-  const timed = jobs.filter((job) => job.days.includes(day) && !planningDisplaySpan(job).allDay);
-  const lanes = layoutOverlapLanes(
-    timed.map((job) => {
-      const span = planningDisplaySpan(job);
-      return { id: job.id, start: span.start, end: span.end };
-    }),
-  );
-  const columns = lanes.reduce((max, lane) => Math.max(max, lane.columns), 1);
-  return `minmax(${columns * LANE_PX}px, 1fr)`;
 }
 
 export function PlanningCalendar({ data }: { data: PlanningBoardView }) {
@@ -184,7 +172,7 @@ export function PlanningCalendar({ data }: { data: PlanningBoardView }) {
     >
       <SuppressClick.Provider value={suppressClick}>
         <div
-          className="flex h-[calc(100dvh-12rem)] min-h-[36rem] flex-col gap-2"
+          className="flex h-[calc(100dvh-10rem)] max-h-[calc(100dvh-10rem)] min-h-0 flex-col gap-2"
           data-testid="planning-board"
           data-board={data.board}
           data-view={view}
@@ -255,13 +243,11 @@ export function PlanningCalendar({ data }: { data: PlanningBoardView }) {
               className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-sm border border-[hsl(214_16%_78%)] bg-white text-foreground dark:border-[hsl(210_8%_28%)] dark:bg-[hsl(210_8%_11%)]"
               aria-label={title}
             >
-              <div className="min-h-0 flex-1 overflow-auto" data-testid="planning-scroll">
+              <div className="min-h-0 flex-1 overflow-hidden" data-testid="planning-scroll">
                 <div
-                  className="grid min-h-full"
+                  className="grid h-full w-full"
                   style={{
-                    gridTemplateColumns: `3.25rem ${shownDays.map((day) => columnTrack(day, data.jobs)).join(" ")}`,
-                    width: "max-content",
-                    minWidth: "100%",
+                    gridTemplateColumns: `3.25rem ${shownDays.map(() => "minmax(0, 1fr)").join(" ")}`,
                   }}
                 >
                   <TimeGutter />
@@ -296,20 +282,22 @@ function TimeGutter() {
   const hours: number[] = [];
   for (let hour = PLANNING_GRID_START / 60; hour <= PLANNING_GRID_END / 60; hour += 1) hours.push(hour);
   return (
-    <div className="relative" data-testid="planning-time">
+    <div className="flex h-full min-h-0 flex-col" data-testid="planning-time">
       <div
-        className="sticky top-0 z-20 border-b border-[hsl(214_18%_84%)] bg-white dark:border-[hsl(210_8%_28%)] dark:bg-[hsl(210_8%_11%)]"
+        className="shrink-0 border-b border-[hsl(214_18%_84%)] bg-white dark:border-[hsl(210_8%_28%)] dark:bg-[hsl(210_8%_11%)]"
         style={{ height: CHROME_PX }}
       />
-      <div className="relative border-b border-[hsl(214_18%_84%)] dark:border-[hsl(210_8%_28%)]" style={{ height: GRID_PX }}>
+      <div className="relative min-h-0 flex-1 border-b border-[hsl(214_18%_84%)] dark:border-[hsl(210_8%_28%)]">
         {hours.map((hour) => {
-          const top = (hour - PLANNING_GRID_START / 60) * PLANNING_HOUR_PX;
           const atEnd = hour === PLANNING_GRID_END / 60;
           return (
             <div
               key={hour}
               className="absolute right-1 text-[11px] leading-none text-muted-foreground"
-              style={{ top: atEnd ? top - 14 : top + 2 }}
+              style={{
+                top: minutesTopPercent(hour * 60),
+                transform: atEnd ? "translateY(-100%)" : "translateY(-50%)",
+              }}
             >
               {formatPlanningClock(hour * 60)}
             </div>
@@ -359,13 +347,13 @@ function DayColumn({
       data-testid={`planning-day-${day}`}
       data-today={isToday ? "true" : "false"}
       className={cn(
-        "relative border-l border-[hsl(214_18%_84%)] dark:border-[hsl(210_8%_28%)]",
+        "relative flex h-full min-h-0 flex-col border-l border-[hsl(214_18%_84%)] dark:border-[hsl(210_8%_28%)]",
         paper,
         isOver && "bg-[hsl(183_42%_96%)] dark:bg-[hsl(183_20%_16%)]",
       )}
     >
       {isToday && <span aria-hidden className="pointer-events-none absolute inset-y-0 left-0 z-30 w-[3px] bg-[#107c10]" />}
-      <div className={cn("sticky top-0 z-20 border-b border-[hsl(214_18%_84%)] dark:border-[hsl(210_8%_28%)]", paper)}>
+      <div className={cn("shrink-0 border-b border-[hsl(214_18%_84%)] dark:border-[hsl(210_8%_28%)]", paper)}>
         <div className="flex flex-col justify-center px-2" style={{ height: HEADER_PX }}>
           <div className={cn("text-[12px] leading-none", isToday ? "font-semibold text-[#107c10]" : "text-muted-foreground")}>
             {parts.weekday}
@@ -395,7 +383,7 @@ function DayColumn({
           ))}
         </div>
       </div>
-      <div className="relative border-b border-[hsl(214_18%_84%)] dark:border-[hsl(210_8%_28%)]" style={{ height: GRID_PX }}>
+      <div className="relative min-h-0 flex-1 overflow-hidden border-b border-[hsl(214_18%_84%)] dark:border-[hsl(210_8%_28%)]">
         <HourLines />
         {timed.map((job) => (
           <TimeBlock
@@ -418,13 +406,13 @@ function HourLines() {
   const first = PLANNING_GRID_START / 60;
   const last = PLANNING_GRID_END / 60;
   for (let hour = first; hour < last; hour += 1) {
-    const top = (hour - first) * PLANNING_HOUR_PX;
+    const hourTop = minutesTopPercent(hour * 60);
     if (hour > first) {
       lines.push(
         <div
           key={`h-${hour}`}
           className="pointer-events-none absolute inset-x-0 border-t border-[hsl(214_18%_84%)] dark:border-[hsl(210_8%_28%)]"
-          style={{ top }}
+          style={{ top: hourTop }}
         />,
       );
     }
@@ -432,7 +420,7 @@ function HourLines() {
       <div
         key={`m-${hour}`}
         className="pointer-events-none absolute inset-x-0 border-t border-[hsl(214_20%_92%)] dark:border-[hsl(210_8%_18%)]"
-        style={{ top: top + PLANNING_HOUR_PX / 2 }}
+        style={{ top: minutesTopPercent(hour * 60 + 30) }}
       />,
     );
   }
@@ -481,7 +469,7 @@ function TimeBlock({
       data-lane={lane.column}
       data-lanes={lane.columns}
       className={cn(
-        "absolute z-10 cursor-grab overflow-visible rounded-[2px] border border-l-[3px] px-1 py-0.5 text-[11px] leading-[1.2]",
+        "absolute z-10 flex cursor-grab flex-col overflow-visible rounded-[2px] border border-l-[3px] px-1 py-0.5 text-[11px] leading-[1.2]",
         drag.isDragging && "opacity-40",
         drop.isOver && "ring-2 ring-[#008080]",
       )}
@@ -495,8 +483,8 @@ function TimeBlock({
         color: job.color.color,
       }}
     >
-      <CrewInBlock assignments={assignments} onRemoveCrew={onRemoveCrew} />
       <BlockText job={job} wrap onDelete={onDelete} />
+      <CrewInBlock assignments={assignments} onRemoveCrew={onRemoveCrew} />
     </article>
   );
 }
@@ -773,7 +761,7 @@ function CrewInBlock({
   });
   if (people.length === 0) return null;
   return (
-    <div className="mb-0.5 flex flex-wrap gap-1" data-testid="planning-heads">
+    <div className="mt-0.5 flex shrink-0 flex-wrap gap-1" data-testid="planning-heads">
       {people.map(({ item, person }) => (
         <button
           key={item.id}
