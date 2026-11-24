@@ -2,7 +2,7 @@
 
 ## Scope nu
 
-Geen mock-detecties. Geen verzonnen maten. Plan analyseren gebruikt pdfplumber voor vectorrechthoeken en tekst. Ontbreekt die tekst, dan leest Tesseract het gerenderde beeld. Ontbreken vectorrechthoeken, dan zoekt OpenCV rechthoekige kaders. Die kaders krijgen de status te controleren. Een cijfer naast een kader wordt getoond en niet als maat opgeslagen. pdf.js blijft de reserve als de Python-omgeving ontbreekt. Een getraind model voor Belgische raamsymbolen is er nog niet. YOLO en PyMuPDF blijven buiten de app wegens de AGPL-licentie.
+Geen mock-detecties. Geen verzonnen maten. Ramen en deuren komen uit een UNet-ResNet34 dat op CubiCasa5K is getraind (klassen achtergrond, muur, raam, deur). Op een architectuurblad komen daar de lichte rechthoekige raamkaders bij. De officiële CubiCasa5K-gewichten zijn CC BY-NC en zitten niet in de app. RF-DETR, Detectron2, MMDetection en YOLO op COCO hebben geen raamklasse en tekenen dus geen ramen. Ultralytics YOLO en PyMuPDF blijven buiten de app wegens de AGPL-licentie. pdfplumber leest de tekst; ontbreekt die, dan leest Tesseract. Zonder modelgewichten blijven vectorrechthoeken de reserve. Elke opening blijft te controleren. Een cijfer naast een opening wordt alleen als maat opgeslagen als het een geschreven maat is. pdf.js blijft de reserve als de Python-omgeving ontbreekt. Belgische lijnsymbolen wijken af van de trainingsplannen, dus een controle blijft nodig.
 
 ## Later (na master spec)
 

@@ -16,15 +16,15 @@ export type VisionResult = {
 const PYTHON = path.join(process.cwd(), "services/raamstudio-vision/.venv/bin/python");
 const SCRIPT = path.join(process.cwd(), "services/raamstudio-vision/analyze.py");
 
-/** Every page of one plan. pdfplumber runs on each page. OpenCV only fills pages without vector rectangles. */
+/** Every page of one plan. The floor-plan model marks windows and doors. pdfplumber reads the text. */
 export async function analyzePlanDocument(bytes: Buffer): Promise<{ pages: VisionResult[] } | { error: string }> {
   const vision = await runPython(bytes, "all");
-  if (!vision) return { error: "pdfplumber, OpenCV en Tesseract zijn op deze server nog niet geïnstalleerd." };
+  if (!vision) return { error: "De vloerplananalyse is op deze server nog niet geïnstalleerd." };
   if (vision.error && vision.pages.length === 0) return { error: vision.error };
   return { pages: vision.pages };
 }
 
-/** pdfplumber, pypdfium2, OpenCV and Tesseract. pdf.js is the fallback. */
+/** Floor-plan window model, with pdf.js as the fallback for the text layer. */
 export async function analyzePlanPage(bytes: Buffer, page: number): Promise<VisionResult> {
   const vision = await runPython(bytes, page);
   if (vision && !vision.error) return vision;
@@ -35,7 +35,7 @@ export async function analyzePlanPage(bytes: Buffer, page: number): Promise<Visi
     figures: layer.figures,
     labels: layer.labels,
     openings: [],
-    error: vision?.error ?? "pdfplumber, OpenCV en Tesseract zijn op deze server nog niet geïnstalleerd.",
+    error: vision?.error ?? "De vloerplananalyse is op deze server nog niet geïnstalleerd.",
   };
 }
 

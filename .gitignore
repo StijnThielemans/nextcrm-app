@@ -78,6 +78,8 @@ v8-compile-cache-*/
 .superpowers/
 
 services/raamstudio-vision/.venv/
+services/raamstudio-vision/models/*.pt
+services/raamstudio-vision/models/*.pkl
 __pycache__/
 *.pyc
 

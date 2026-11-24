@@ -243,7 +243,7 @@ export function Raamstudio2Workspace({
     const written = nearby.length ? ` Geschreven cijfers in de buurt, nog niet als maat gezet: ${[...new Set(nearby)].slice(0, 12).join(", ")}.` : "";
     const engines = result.engines.length ? result.engines.join(", ") : "pdfjs";
     const warning = result.error ? ` ${result.error}` : "";
-    setScanText(`${engines}: ${made.openings.length} kaders, te controleren. Benamingen: ${labels}. Cijfers op het plan: ${figures}.${written}${warning}`);
+    setScanText(`${engines}: ${made.openings.length} openingen, te controleren. Benamingen: ${labels}. Cijfers op het plan: ${figures}.${written}${warning}`);
   }
 
   function clearProposals() {
@@ -328,7 +328,7 @@ export function Raamstudio2Workspace({
         <p className="text-[12px] text-muted-foreground" data-testid="raamstudio-2-save-status">{status}</p>
       </div>
       <p className="text-[12px] text-muted-foreground">
-        AI-analyse starten leest alle plannen in de map Plannen, duidt de gevonden kaders aan, nummert ze en maakt Projectnotities.pdf. Een geschreven maat naast een kader wordt overgenomen. Een maat die er niet staat, wordt niet ingevuld.
+        AI-analyse starten leest alle plannen in de map Plannen, duidt ramen en deuren aan met het vloerplanmodel, nummert ze en maakt Projectnotities.pdf. Een geschreven maat naast een opening wordt overgenomen. Een maat die er niet staat, wordt niet ingevuld.
       </p>
 
       {plans.length === 0 ? <p className="text-[13px] text-muted-foreground">Geen plannen in de map Plannen. Zonder plan kan je nog geen tekening aanduiden.</p> : null}
@@ -498,7 +498,7 @@ export function Raamstudio2Workspace({
         </div>
       </div>
       <ul className="text-[12px] text-muted-foreground" data-testid="raamstudio-2-inactive">
-        <li>De automatische kaders blijven te controleren. Een getraind model voor Belgische raamsymbolen is er nog niet. Een maat wordt alleen gezet als het cijfer naast het kader op het plan staat.</li>
+        <li>De automatische ramen en deuren blijven te controleren. Een maat wordt alleen gezet als het cijfer naast de opening op het plan staat.</li>
         <li>Zelflerende modeltraining — nog niet actief. Correcties blijven in het .raamstudio-bestand.</li>
         {scanText ? <li data-testid="raamstudio-2-scan-result">{scanText}</li> : null}
         {notesHref ? <li><a className="underline" href={notesHref}>Projectnotities.pdf openen</a></li> : null}

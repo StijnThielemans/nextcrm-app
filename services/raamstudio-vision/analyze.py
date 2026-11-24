@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
-"""Read one PDF page with pdfplumber, pypdfium2, OpenCV and Tesseract.
+"""Read one PDF page and mark windows and doors.
 
-Prints JSON on stdout. Does not invent window sizes. A rectangle is a
-candidate to check, not a confirmed window and not a measurement.
+Text comes from pdfplumber, or Tesseract when the page has no text layer.
+Openings come from the CubiCasa5K floor-plan segmenter (window and door).
+pdfplumber and OpenCV rectangles are only used when that model is not installed.
+Nothing here invents a millimetre size.
 """
 
 from __future__ import annotations
@@ -54,14 +56,7 @@ def analyze(data: bytes, page_no: int) -> dict[str, Any]:
             words = ocr["words"]
             text_source = "tesseract"
 
-    if not boxes:
-        seen = read_opencv(data, page_no, words)
-        if seen.get("ok"):
-            if "pypdfium2" not in engines:
-                engines.append("pypdfium2")
-            engines.append("opencv")
-            boxes = seen["boxes"]
-
+    boxes, engines = openings_for_page(data, page_no, words, boxes, engines)
     return finish_page(words, boxes, engines, text_source)
 
 
@@ -88,23 +83,54 @@ def analyze_all(data: bytes) -> dict[str, Any]:
                         engines.extend(["pypdfium2", "tesseract"])
                         words = ocr["words"]
                         text_source = "tesseract"
-                if not boxes and opencv_left > 0:
+                boxes, engines = openings_for_page(data, index + 1, words, boxes, engines, opencv_left)
+                if "opencv" in engines:
                     opencv_left -= 1
-                    seen = read_opencv(data, index + 1, words)
-                    if seen.get("ok"):
-                        if "pypdfium2" not in engines:
-                            engines.append("pypdfium2")
-                        engines.append("opencv")
-                        boxes = seen["boxes"]
                 pages.append(finish_page(words, boxes, engines, text_source))
     except Exception as exc:
         return {"error": str(exc), "pages": pages}
     return {"pages": pages}
 
 
+def openings_for_page(
+    data: bytes,
+    page_no: int,
+    words: list[dict[str, Any]],
+    boxes: list[dict[str, Any]],
+    engines: list[str],
+    opencv_left: int = 1,
+) -> tuple[list[dict[str, Any]], list[str]]:
+    """Prefer CubiCasa5K window and door masks. Geometric boxes are the fallback."""
+    try:
+        from floorplan_windows import read_floorplan
+    except Exception:
+        read_floorplan = None
+    if read_floorplan is not None:
+        seen = read_floorplan(data, page_no)
+        if seen.get("ok"):
+            if "pypdfium2" not in engines:
+                engines.append("pypdfium2")
+            engines.append("cubicasa5k")
+            return seen["boxes"], engines
+    if boxes:
+        return boxes, engines
+    if opencv_left <= 0:
+        return [], engines
+    seen = read_opencv(data, page_no, words)
+    if seen.get("ok"):
+        if "pypdfium2" not in engines:
+            engines.append("pypdfium2")
+        engines.append("opencv")
+        return seen["boxes"], engines
+    return [], engines
+
+
 def finish_page(words: list[dict[str, Any]], boxes: list[dict[str, Any]], engines: list[str], text_source: str | None) -> dict[str, Any]:
     openings = []
-    for box in nms(boxes)[:40]:
+    ranked = nms(boxes)
+    if any(str(box.get("source", "")).startswith(("cubicasa5k", "raamkader")) for box in ranked):
+        ranked = sorted(ranked, key=lambda box: float(box["w"]) * float(box["h"]), reverse=True)
+    for box in ranked[:120]:
         width, height = written_size(box, words)
         openings.append({
             **box,

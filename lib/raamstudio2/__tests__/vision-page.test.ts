@@ -4,6 +4,7 @@ import path from "node:path";
 
 const python = path.join(process.cwd(), "services/raamstudio-vision/.venv/bin/python");
 const script = path.join(process.cwd(), "services/raamstudio-vision/analyze.py");
+const weights = path.join(process.cwd(), "services/raamstudio-vision/models/M2_DA_FT_v2_best.pt");
 const hasVision = fs.existsSync(python) && fs.existsSync(script);
 
 function rectanglePdf(): Buffer {
@@ -35,10 +36,17 @@ function rectanglePdf(): Buffer {
     expect(result.status).toBe(0);
     const page = JSON.parse(result.stdout.toString("utf8")) as { engines: string[]; openings: { source: string; w: number; widthMm: string | null; heightMm: string | null }[] };
     expect(page.engines).toContain("pdfplumber");
-    expect(page.openings).toHaveLength(1);
-    expect(page.openings[0]?.source).toBe("pdfplumber");
-    expect(page.openings[0]?.w).toBeCloseTo(0.06, 2);
-    expect(page.openings[0]?.widthMm).toBeNull();
-    expect(page.openings[0]?.heightMm).toBeNull();
+    if (fs.existsSync(weights)) {
+      expect(page.engines).toContain("cubicasa5k");
+      expect(page.openings).toHaveLength(0);
+    } else {
+      expect(page.openings).toHaveLength(1);
+      expect(page.openings[0]?.source).toBe("pdfplumber");
+      expect(page.openings[0]?.w).toBeCloseTo(0.06, 2);
+    }
+    for (const opening of page.openings) {
+      expect(opening.widthMm).toBeNull();
+      expect(opening.heightMm).toBeNull();
+    }
   });
 });

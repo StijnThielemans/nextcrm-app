@@ -1,8 +1,8 @@
 # RAAMSTUDIO 2.0 — Installatie
 
-`pdf-lib` staat in `package.json`. De planweergave gebruikt de al aanwezige Poppler-programma's `pdfinfo` en `pdftocairo`, met pdf.js als reserve. Er worden geen modelgewichten gedownload.
+`pdf-lib` staat in `package.json`. De planweergave gebruikt de al aanwezige Poppler-programma's `pdfinfo` en `pdftocairo`, met pdf.js als reserve.
 
-De plananalyse draait in `services/raamstudio-vision`. Eenmalig: `sh services/raamstudio-vision/install.sh`. Daarvoor is het pakket `python3-venv` nodig, en Tesseract met `nld`, `fra` en `eng`. De map `.venv` wordt niet gecommit.
+De plananalyse draait in `services/raamstudio-vision`. Eenmalig: `sh services/raamstudio-vision/install.sh`. Dat installeert CPU-PyTorch en downloadt `models/M2_DA_FT_v2_best.pt` (het vloerplanmodel voor raam en deur). Daarvoor is het pakket `python3-venv` nodig, en Tesseract met `nld`, `fra` en `eng`. De map `.venv` en de gewichten worden niet gecommit.
 
 # RAAMSTUDIO 2.0 — Installatie (fase 1)
 
