@@ -1,6 +1,8 @@
 # Planning: fase 1 — analyse en voorstel
 
-Datum: 24 november 2026. Basis: `origin/main` (`df4be188`). Dit document beschrijft de bestaande planningscode en een concreet voorstel. Er is in deze stap geen kalender, geen planninggegeven en geen migratie gewijzigd.
+Datum: 24 november 2026. Basis: `origin/main` (`df4be188`). Dit document beschrijft de bestaande planningscode en een concreet voorstel. De analyse zelf wijzigde geen kalender.
+
+Het voorstel hieronder is daarna goedgekeurd. Werkweek, maand en het linkerpaneel zijn uitgevoerd met dezelfde sleep, dezelfde datums en zonder personen-sleep op binnendienst of dienst na verkoop. Google Agenda blijft uit.
 
 De masterprompt staat hier niet in. De kickoff bevatte die tekst niet volledig, dus `docs/PLANNING_OUTLOOK_MASTER.md` is bewust niet aangemaakt.
 

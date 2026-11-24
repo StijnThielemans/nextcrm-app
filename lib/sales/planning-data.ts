@@ -14,9 +14,11 @@ import {
   dateKey,
   jobId,
   jobsFromProject,
+  monthGridDays,
   parseJobId,
   planSpan,
   planningCrewById,
+  planningViewFromParam,
   positiveWorkDays,
   spanDays,
   todayIso,
@@ -148,12 +150,15 @@ export async function loadPlanningBoard(
   board: PlanningBoardId,
   weekParam: string | undefined,
   now = new Date(),
+  viewParam?: string,
 ): Promise<PlanningBoardView> {
   denyPartner(user);
   if (!(PLANNING_BOARDS as readonly string[]).includes(board)) throw new SalesError("planningJob");
   const today = todayIso(now);
   const weekStart = weekFromParam(weekParam, today);
+  const view = planningViewFromParam(viewParam);
   const days = weekDays(weekStart);
+  const assignmentDays = view === "month" ? monthGridDays(weekStart) : days;
   const scope = visibleWhere(user);
   const rows = await prismadb.crm_Opportunities.findMany({
     where: { is_dossier: true, execution_project_number: { not: null }, ...scope },
@@ -162,7 +167,7 @@ export async function loadPlanningBoard(
   const jobs = rows.flatMap(jobsOf).filter((job) => job.board === board);
   if (board === "binnendienst") jobs.push(...(await manualJobs(user)));
   const painted = paint(jobs);
-  const assignments = board === "buitendienst" ? await crewFor(painted, days) : [];
+  const assignments = board === "buitendienst" ? await crewFor(painted, assignmentDays) : [];
   let mergedJobs = painted;
   const googleInactive = !planningGoogleInfrastructureReady(board);
   let google = {
@@ -190,7 +195,7 @@ export async function loadPlanningBoard(
       google = pulled.status;
     }
   }
-  return { board, weekStart, today, days, jobs: mergedJobs, assignments, google };
+  return { board, view, weekStart, today, days, jobs: mergedJobs, assignments, google };
 }
 
 async function queuePlanningGooglePush(board: PlanningBoardId, jobKey: string) {

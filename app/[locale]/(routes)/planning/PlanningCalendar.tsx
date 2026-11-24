@@ -24,20 +24,29 @@ import {
   PLANNING_GRID_END,
   PLANNING_GRID_START,
   addDays,
+  addMonths,
+  firstMondayOfMonth,
+  firstOfMonth,
   formatDayLong,
+  formatDayParts,
+  formatMonthTitle,
   formatOutlookDayTitle,
   formatPlanningClock,
   formatWeekTitle,
+  formatWorkWeekTitle,
   layoutOverlapLanes,
   mondayOf,
+  monthGridDays,
   planningBlockTitle,
   planningCrewById,
   planningDisplaySpan,
   planningPlace,
   weekdayIndex,
+  workWeekDays,
   type PlanningBoardView,
   type PlanningJobView,
   type PlanningLinkHit,
+  type PlanningView,
 } from "@/lib/sales/planning";
 import {
   assignPlanningCrewAction,
@@ -86,14 +95,32 @@ export function PlanningCalendar({ data }: { data: PlanningBoardView }) {
   const [error, setError] = useState<string | null>(null);
   const [dragCrewId, setDragCrewId] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
-  const [view, setView] = useState<"week" | "day">("week");
+  const view = data.view;
   const [focusDay, setFocusDay] = useState(() => (data.days.includes(data.today) ? data.today : data.weekStart));
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
   const title = BOARD_TITLE[data.board];
   const unscheduled = data.jobs.filter((job) => job.days.length === 0);
   const shownDay = data.days.includes(focusDay) ? focusDay : data.days.includes(data.today) ? data.today : data.weekStart;
-  const shownDays = view === "day" ? [shownDay] : data.days;
-  const range = view === "day" ? formatOutlookDayTitle(shownDay) : formatWeekTitle(data.weekStart);
+  const shownDays = view === "day" ? [shownDay] : view === "workweek" ? workWeekDays(data.weekStart) : data.days;
+  const range = view === "day"
+    ? formatOutlookDayTitle(shownDay)
+    : view === "workweek"
+      ? formatWorkWeekTitle(data.weekStart)
+      : view === "month"
+        ? formatMonthTitle(data.weekStart)
+        : formatWeekTitle(data.weekStart);
+
+  function href(week: string, nextView: PlanningView = view) {
+    const params = new URLSearchParams();
+    params.set("week", week);
+    if (nextView !== "week") params.set("view", nextView);
+    return `/planning/${data.board}?${params.toString()}`;
+  }
+
+  function showView(next: PlanningView) {
+    if (next === view) return;
+    router.push(href(data.weekStart, next));
+  }
 
   function run(work: () => Promise<{ error?: string; start?: string | null } | { error: string } | { ok: true } | void>) {
     startTransition(async () => {
@@ -107,7 +134,7 @@ export function PlanningCalendar({ data }: { data: PlanningBoardView }) {
       if (start) {
         const week = mondayOf(start);
         if (week !== data.weekStart) {
-          router.push(`/planning/${data.board}?week=${week}`);
+          router.push(href(week, view));
           return;
         }
       }
@@ -145,18 +172,23 @@ export function PlanningCalendar({ data }: { data: PlanningBoardView }) {
   function goToday() {
     setFocusDay(data.today);
     const week = mondayOf(data.today);
-    if (week !== data.weekStart) router.push(`/planning/${data.board}?week=${week}`);
+    if (week !== data.weekStart) router.push(href(week, view));
   }
 
   function shift(direction: -1 | 1) {
+    if (view === "month") {
+      const next = addMonths(firstOfMonth(data.weekStart), direction);
+      router.push(href(firstMondayOfMonth(next), "month"));
+      return;
+    }
     if (view === "day") {
       const next = addDays(shownDay, direction);
       setFocusDay(next);
       const week = mondayOf(next);
-      if (week !== data.weekStart) router.push(`/planning/${data.board}?week=${week}`);
+      if (week !== data.weekStart) router.push(href(week, "day"));
       return;
     }
-    router.push(`/planning/${data.board}?week=${addDays(data.weekStart, direction * 7)}`);
+    router.push(href(addDays(data.weekStart, direction * 7), view));
   }
 
   return (
@@ -213,23 +245,10 @@ export function PlanningCalendar({ data }: { data: PlanningBoardView }) {
               </span>
               <div className="ml-auto flex items-center overflow-hidden rounded border border-[hsl(214_16%_76%)] bg-white text-[13px] dark:border-[hsl(210_8%_30%)] dark:bg-[hsl(210_8%_14%)]">
                 <CalendarDays className="ml-2 size-4 text-muted-foreground" aria-hidden />
-                <button
-                  type="button"
-                  aria-pressed={view === "day"}
-                  onClick={() => setView("day")}
-                  className={cn("px-2.5 py-1.5", view === "day" && "bg-[hsl(210_16%_93%)] font-semibold dark:bg-white/10")}
-                >
-                  Dag
-                </button>
-                <button
-                  type="button"
-                  aria-pressed={view === "week"}
-                  data-testid="planning-view-week"
-                  onClick={() => setView("week")}
-                  className={cn("border-l border-[hsl(214_16%_76%)] px-2.5 py-1.5 dark:border-[hsl(210_8%_30%)]", view === "week" && "bg-[hsl(210_16%_93%)] font-semibold dark:bg-white/10")}
-                >
-                  Week
-                </button>
+                <ViewButton current={view} id="day" label="Dag" onShow={showView} />
+                <ViewButton current={view} id="workweek" label="Werkweek" onShow={showView} testId="planning-view-workweek" />
+                <ViewButton current={view} id="week" label="Week" onShow={showView} testId="planning-view-week" />
+                <ViewButton current={view} id="month" label="Maand" onShow={showView} testId="planning-view-month" />
               </div>
             </div>
           </header>
@@ -238,37 +257,49 @@ export function PlanningCalendar({ data }: { data: PlanningBoardView }) {
               {error}
             </p>
           )}
-          <div className="flex min-h-0 flex-1 flex-col gap-2">
-            {data.google.ready ? <PlanningGoogleStatus google={data.google} /> : null}
-            <UnscheduledList board={data.board} jobs={unscheduled} onDelete={(jobId) => run(() => deletePlanningItemAction(jobId))} />
+          {data.google.ready ? <PlanningGoogleStatus google={data.google} /> : null}
+          <div className="flex min-h-0 flex-1 flex-col gap-2 md:flex-row">
+            <div className="flex max-h-[38%] min-h-0 w-full shrink-0 flex-col gap-2 md:max-h-none md:w-64">
+              <UnscheduledList board={data.board} jobs={unscheduled} onDelete={(jobId) => run(() => deletePlanningItemAction(jobId))} />
+              {data.board === "buitendienst" && <CrewStrip />}
+            </div>
             <section
               className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-sm border border-[hsl(214_16%_78%)] bg-white text-foreground dark:border-[hsl(210_8%_28%)] dark:bg-[hsl(210_8%_11%)]"
               aria-label={title}
             >
-              <div className="min-h-0 flex-1 overflow-hidden" data-testid="planning-scroll">
-                <div
-                  className="grid h-full w-full"
-                  style={{
-                    gridTemplateColumns: `3.25rem ${shownDays.map(() => "minmax(0, 1fr)").join(" ")}`,
-                  }}
-                >
-                  <TimeGutter />
-                  {shownDays.map((day) => (
-                    <DayColumn
-                      key={day}
-                      day={day}
-                      today={data.today}
-                      jobs={data.jobs.filter((job) => job.days.includes(day))}
-                      assignments={data.assignments}
-                      onRemoveCrew={(id) => run(() => removePlanningCrewAction(id))}
-                      onDelete={(jobId) => run(() => deletePlanningItemAction(jobId))}
-                    />
-                  ))}
+              {view === "month" ? (
+                <MonthGrid
+                  anchor={data.weekStart}
+                  today={data.today}
+                  jobs={data.jobs}
+                  assignments={data.assignments}
+                  onDelete={(jobId) => run(() => deletePlanningItemAction(jobId))}
+                />
+              ) : (
+                <div className="min-h-0 flex-1 overflow-hidden" data-testid="planning-scroll">
+                  <div
+                    className="grid h-full w-full"
+                    style={{
+                      gridTemplateColumns: `3.25rem ${shownDays.map(() => "minmax(0, 1fr)").join(" ")}`,
+                    }}
+                  >
+                    <TimeGutter />
+                    {shownDays.map((day) => (
+                      <DayColumn
+                        key={day}
+                        day={day}
+                        today={data.today}
+                        jobs={data.jobs.filter((job) => job.days.includes(day))}
+                        assignments={data.assignments}
+                        onRemoveCrew={(id) => run(() => removePlanningCrewAction(id))}
+                        onDelete={(jobId) => run(() => deletePlanningItemAction(jobId))}
+                      />
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
             </section>
           </div>
-          {data.board === "buitendienst" && <CrewStrip />}
         </div>
         <DragOverlay dropAnimation={null}>
           {dragCrewId && planningCrewById(dragCrewId) ? (
@@ -277,6 +308,208 @@ export function PlanningCalendar({ data }: { data: PlanningBoardView }) {
         </DragOverlay>
       </SuppressClick.Provider>
     </DndContext>
+  );
+}
+
+function ViewButton({
+  current,
+  id,
+  label,
+  onShow,
+  testId,
+}: {
+  current: PlanningView;
+  id: PlanningView;
+  label: string;
+  onShow: (view: PlanningView) => void;
+  testId?: string;
+}) {
+  return (
+    <button
+      type="button"
+      aria-pressed={current === id}
+      data-testid={testId}
+      onClick={() => onShow(id)}
+      className={cn(
+        "border-l border-[hsl(214_16%_76%)] px-2.5 py-1.5 first:border-l-0 dark:border-[hsl(210_8%_30%)]",
+        current === id && "bg-[hsl(210_16%_93%)] font-semibold dark:bg-white/10",
+      )}
+    >
+      {label}
+    </button>
+  );
+}
+
+function MonthGrid({
+  anchor,
+  today,
+  jobs,
+  assignments,
+  onDelete,
+}: {
+  anchor: string;
+  today: string;
+  jobs: PlanningJobView[];
+  assignments: PlanningBoardView["assignments"];
+  onDelete: (jobId: string) => void;
+}) {
+  const days = monthGridDays(anchor);
+  const month = anchor.slice(0, 7);
+  const weeks = days.length / 7;
+  const headers = weekHeader(days);
+  return (
+    <div className="flex h-full min-h-0 flex-1 flex-col" data-testid="planning-month">
+      <div className="grid shrink-0 grid-cols-7 border-b border-[hsl(214_18%_84%)] dark:border-[hsl(210_8%_28%)]">
+        {headers.map((label) => (
+          <div key={label} className="px-1 py-1 text-[12px] text-muted-foreground">
+            {label}
+          </div>
+        ))}
+      </div>
+      <div
+        className="grid min-h-0 flex-1 grid-cols-7"
+        style={{ gridTemplateRows: `repeat(${weeks}, minmax(0, 1fr))` }}
+      >
+        {days.map((day) => (
+          <MonthCell
+            key={day}
+            day={day}
+            today={today}
+            outside={day.slice(0, 7) !== month}
+            jobs={jobs.filter((job) => job.days.includes(day))}
+            assignments={assignments}
+            onDelete={onDelete}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function weekHeader(days: string[]): string[] {
+  return days.slice(0, 7).map((day) => formatDayParts(day).weekday);
+}
+
+function MonthCell({
+  day,
+  today,
+  outside,
+  jobs,
+  assignments,
+  onDelete,
+}: {
+  day: string;
+  today: string;
+  outside: boolean;
+  jobs: PlanningJobView[];
+  assignments: PlanningBoardView["assignments"];
+  onDelete: (jobId: string) => void;
+}) {
+  const { setNodeRef, isOver } = useDroppable({ id: `day:${day}`, data: { type: "day", day } });
+  const weekend = weekdayIndex(day) === 0 || weekdayIndex(day) === 6;
+  const isToday = day === today;
+  return (
+    <div
+      ref={setNodeRef}
+      data-testid={`planning-day-${day}`}
+      data-today={isToday ? "true" : "false"}
+      data-outside={outside ? "true" : "false"}
+      className={cn(
+        "flex min-h-0 flex-col gap-0.5 overflow-hidden border-b border-l border-[hsl(214_18%_84%)] p-0.5 dark:border-[hsl(210_8%_28%)]",
+        weekend || outside ? "bg-[hsl(210_16%_94%)] dark:bg-[hsl(210_8%_15%)]" : "bg-white dark:bg-[hsl(210_8%_11%)]",
+        isOver && "bg-[hsl(183_42%_96%)] dark:bg-[hsl(183_20%_16%)]",
+      )}
+    >
+      <div
+        className={cn(
+          "flex size-5 shrink-0 items-center justify-center text-[11px] leading-none",
+          isToday && "rounded-full bg-[#107c10] font-semibold text-white",
+          !isToday && outside && "text-muted-foreground",
+        )}
+      >
+        {formatDayLong(day).day}
+      </div>
+      <div className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto">
+        {jobs.map((job) => (
+          <MonthChip
+            key={job.id}
+            job={job}
+            day={day}
+            assignments={assignments.filter((item) => item.jobId === job.id && item.day === day)}
+            onDelete={onDelete}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function MonthChip({
+  job,
+  day,
+  assignments,
+  onDelete,
+}: {
+  job: PlanningJobView;
+  day: string;
+  assignments: PlanningBoardView["assignments"];
+  onDelete: (jobId: string) => void;
+}) {
+  const drag = useDraggable({
+    id: `drag:${job.id}:${day}`,
+    data: { type: "job", jobId: job.id },
+  });
+  const drop = useDroppable({
+    id: `slot:${job.id}:${day}`,
+    data: { type: "slot", jobId: job.id, day },
+  });
+  const suppressClick = useContext(SuppressClick);
+  const label = job.projectNumber ?? planningBlockTitle(job.kind, job.workDays, job.text);
+  const names = assignments.flatMap((item) => {
+    const person = planningCrewById(item.resource);
+    return person ? [person.name] : [];
+  });
+  const caption = [planningBlockTitle(job.kind, job.workDays, job.text), ...names].filter(Boolean).join(" · ");
+  return (
+    <article
+      ref={(node) => {
+        drag.setNodeRef(node);
+        drop.setNodeRef(node);
+      }}
+      {...drag.listeners}
+      {...drag.attributes}
+      title={caption}
+      data-testid={`planning-job-${job.id}`}
+      data-kind={job.kind}
+      data-color={job.color.id}
+      className={cn(
+        "truncate rounded-[2px] border border-l-[3px] px-1 text-[10px] leading-4",
+        drag.isDragging && "opacity-40",
+        drop.isOver && "ring-2 ring-[#008080]",
+      )}
+      style={{ background: job.color.background, borderColor: job.color.border, color: job.color.color }}
+    >
+      {job.projectId && job.projectNumber ? (
+        <Link
+          href={`/projectleiding/projecten/${job.projectId}`}
+          draggable={false}
+          className="font-semibold underline decoration-current underline-offset-2"
+          onPointerDown={holdClick}
+          onClick={(event) => {
+            if (suppressClick.current) event.preventDefault();
+          }}
+        >
+          {label}
+        </Link>
+      ) : (
+        <span>{label}</span>
+      )}
+      {job.kind === "manual" && (
+        <button type="button" className="ml-1 underline" onPointerDown={holdClick} onClick={() => onDelete(job.id)}>
+          Verwijder
+        </button>
+      )}
+    </article>
   );
 }
 
@@ -588,14 +821,14 @@ function UnscheduledList({
     <aside
       ref={setNodeRef}
       className={cn(
-        "tilo-frame flex w-full shrink-0 flex-col overflow-hidden",
+        "tilo-frame flex min-h-0 w-full flex-1 basis-0 flex-col overflow-hidden",
         isOver && "outline outline-2 outline-[#008080]",
       )}
       data-testid="planning-unscheduled"
     >
       <h2 className="border-b border-[hsl(215_14%_84%)] px-3 py-2 text-[13px] font-semibold dark:border-[hsl(210_8%_26%)]">Nog te plannen</h2>
       {board === "binnendienst" && <HandItemForm />}
-      <div className="flex min-h-12 items-stretch gap-2 overflow-x-auto p-2">
+      <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto p-2">
         {jobs.length === 0 && <p className="px-1 py-2 text-[13px] text-muted-foreground">Niets te plannen.</p>}
         {jobs.map((job) => (
           <ListJob key={job.id} job={job} onDelete={onDelete} />
@@ -619,7 +852,7 @@ function ListJob({ job, onDelete }: { job: PlanningJobView; onDelete: (jobId: st
       data-testid={`planning-job-${job.id}`}
       data-kind={job.kind}
       data-color={job.color.id}
-      className={cn("w-56 shrink-0 cursor-grab rounded-[2px] border border-l-[3px] px-2 py-1.5 text-[12px] leading-snug", isDragging && "opacity-40")}
+      className={cn("w-full cursor-grab rounded-[2px] border border-l-[3px] px-2 py-1.5 text-[12px] leading-snug", isDragging && "opacity-40")}
       style={{ background: job.color.background, borderColor: job.color.border, color: job.color.color }}
     >
       <BlockText job={job} />
@@ -785,11 +1018,11 @@ function CrewInBlock({
 
 function CrewStrip() {
   return (
-    <section className="tilo-frame flex shrink-0 flex-col gap-1.5 px-3 py-2" data-testid="planning-crew">
-      <p className="text-[11px] leading-snug text-muted-foreground">
+    <section className="tilo-frame flex min-h-0 flex-1 basis-0 flex-col gap-1.5 overflow-hidden px-2 py-2" data-testid="planning-crew">
+      <p className="shrink-0 text-[11px] leading-snug text-muted-foreground">
         Ploeg. Sleep iemand of een vrachtwagen op een job voor die dag.
       </p>
-      <div className="flex items-end justify-between gap-1">
+      <div className="grid min-h-0 flex-1 grid-cols-3 content-start gap-1 overflow-y-auto">
         {PLANNING_CREW.map((person) => (
           <CrewToken key={person.id} person={person} />
         ))}
@@ -810,9 +1043,9 @@ function CrewToken({ person }: { person: (typeof PLANNING_CREW)[number] }) {
       {...attributes}
       role="group"
       data-testid={`planning-crew-${person.id}`}
-      className={cn("flex w-16 shrink-0 cursor-grab flex-col items-center gap-1 text-center", isDragging && "opacity-40")}
+      className={cn("flex min-w-0 cursor-grab flex-col items-center gap-1 text-center", isDragging && "opacity-40")}
     >
-      <CrewPortrait person={person} size={52} />
+      <CrewPortrait person={person} size={40} />
       <div className="line-clamp-2 w-full text-[10px] leading-tight">{person.name}</div>
     </div>
   );
